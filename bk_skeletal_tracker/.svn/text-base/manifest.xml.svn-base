@@ -1,0 +1,25 @@
+<package>
+  <description brief="A ROS driver wrapper for user tracking">
+   
+
+  </description>
+
+  <author>Garratt Gallagher</author>
+
+  <license>BSD</license>
+
+  <url>http://ros.org/wiki/skeletal_tracker</url>
+
+  <review status="experimental" notes="beta"/>
+
+ <depend package="mapping_msgs" /> 
+ <!--  <depend package="ps_engine" />-->
+  <depend package="openni" />
+  <depend package="body_msgs" />
+
+
+
+
+  <platform os="ubuntu" version="10.04"/>
+  <platform os="ubuntu" version="10.10"/>
+</package>

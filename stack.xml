@@ -1,0 +1,9 @@
+<stack>
+  <description brief="bk-ros">bk-ros</description>
+  <author>Maintained by Bill</author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/bk-ros</url>
+  <depend stack="ros" />
+
+</stack>

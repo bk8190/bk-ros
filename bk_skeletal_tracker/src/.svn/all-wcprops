@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/mit-ros-pkg/!svn/ver/710/trunk/kinect_utils/skeletal_tracker/src
+END
+SceneDrawer.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/mit-ros-pkg/!svn/ver/599/trunk/kinect_utils/skeletal_tracker/src/SceneDrawer.cpp
+END
+main.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/mit-ros-pkg/!svn/ver/710/trunk/kinect_utils/skeletal_tracker/src/main.cpp
+END
+SceneDrawer.h
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/mit-ros-pkg/!svn/ver/599/trunk/kinect_utils/skeletal_tracker/src/SceneDrawer.h
+END

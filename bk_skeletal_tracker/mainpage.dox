@@ -1,0 +1,42 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b skeletal_tracker is a ROS driver wrapper for user tracking. 
+This package was mostly copied from the niUserTracker demo, and ROS hooks were added.
+This package is similar in functionality to the openni_tracker/, 
+only the skeletal positions are given in body_msgs/Skeleton message.
+
+<!-- 
+Provide an overview of your package.
+-->
+@section usage Common Usage
+.  
+
+There are two programs in skeletal_tracker:  faceme.py and tracker 
+
+@subsection follower faceme.py
+faceme.py is a simple program that publishes a geometry_msgs::Twist every time a body_msgs::Skeleton msg is received.
+ The program proportional feedback to keep the skeleton torso 1.5 m directly in front of it.
+
+@subsection tracker tracker
+The tracker program interfaces to the NITE primesense interface to retrieve users skeletons.
+ These skeletons are published in a body_msgs::Skeletons message.
+
+
+
+\section codeapi Code API
+
+<!--
+Provide links to specific auto-generated API documentation within your
+package that is of particular interest to a reader. Doxygen will
+document pretty much every part of your code, so do your best here to
+point the reader to the actual API.
+
+If your codebase is fairly large or has different sets of APIs, you
+should use the doxygen 'group' tag to keep these APIs together. For
+example, the roscpp documentation has 'libros' group.
+-->
+
+
+*/

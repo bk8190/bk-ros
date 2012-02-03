@@ -1,0 +1,7 @@
+<launch>
+  <node pkg="openni_tracker" type="openni_tracker" name="openni_tracker" output=
+"screen">
+    <param name="camera_frame_id" value="/camera_link" />
+    <param name="tf_prefix" value="tracker" />
+  </node>
+</launch>

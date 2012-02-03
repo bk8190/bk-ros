@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/mit-ros-pkg/!svn/ver/710/trunk/kinect_utils/skeletal_tracker
+END
+follower.launch
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/mit-ros-pkg/!svn/ver/605/trunk/kinect_utils/skeletal_tracker/follower.launch
+END
+manifest.xml
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/mit-ros-pkg/!svn/ver/599/trunk/kinect_utils/skeletal_tracker/manifest.xml
+END
+faceme.py
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/mit-ros-pkg/!svn/ver/599/trunk/kinect_utils/skeletal_tracker/faceme.py
+END
+mainpage.dox
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/mit-ros-pkg/!svn/ver/606/trunk/kinect_utils/skeletal_tracker/mainpage.dox
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/mit-ros-pkg/!svn/ver/599/trunk/kinect_utils/skeletal_tracker/CMakeLists.txt
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/mit-ros-pkg/!svn/ver/588/trunk/kinect_utils/skeletal_tracker/Makefile
+END
