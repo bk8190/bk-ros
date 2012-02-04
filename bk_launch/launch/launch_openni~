@@ -2,8 +2,8 @@
 
 	<!-- Kinect driver -->
 	<include file="$(find openni_launch)/launch/openni.launch" >
-		<arg name="depth_frame_id" value="camera_depth_frame" />
-		<arg name="rgb_frame_id" value="camera_rgb_frame" />
+		<!--arg name="depth_frame_id" value="/camera/camera_depth_frame" /-->
+		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
 	</include>
 
 </launch>
