@@ -1,0 +1,14 @@
+<package>
+  <description brief="person_tracker">
+
+     person_tracker
+
+  </description>
+  <author>Bill</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/person_tracker</url>
+
+</package>
+
+

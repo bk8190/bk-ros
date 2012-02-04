@@ -59,7 +59,6 @@ Skeletons.Line\ Width=0.02
 Skeletons.Point\ Size=0.02
 Skeletons.Render\ Operation=0
 Skeletons.Topic=/skeletonpmaps
-TF.All\ Enabled=1
 TF.Enabled=1
 TF.Frame\ Timeout=15
 TF.Marker\ Scale=1
@@ -70,8 +69,8 @@ TF.Update\ Interval=0
 Tool\ 2D\ Nav\ GoalTopic=goal
 Tool\ 2D\ Pose\ EstimateTopic=initialpose
 Camera\ Type=rviz::OrbitViewController
-Camera\ Config=1.741 4.26784 9.23926 -0.0139331 -0.13641 -0.106453
-Property\ Grid\ State=selection=TF./camera_depth_optical_frameTree/camera_depth_optical_frame;expanded=.Global Options,TF.Enabled,TF./camera_depth_frame/camera_depth_frame,TF./camera_depth_optical_frame/camera_depth_optical_frame,TF./camera_link/camera_link,TF./camera_rgb_frame/camera_rgb_frame,TF./camera_rgb_optical_frame/camera_rgb_optical_frame,TF./tracker/head_1/tracker/head_1,TF./tracker/neck_1/tracker/neck_1,TF./tracker/torso_1/tracker/torso_1,TF./tracker/left_elbow_1/tracker/left_elbow_1,TF./tracker/left_foot_1/tracker/left_foot_1,TF./tracker/left_hand_1/tracker/left_hand_1,TF./tracker/left_hip_1/tracker/left_hip_1,TF./tracker/left_knee_1/tracker/left_knee_1,TF./tracker/left_shoulder_1/tracker/left_shoulder_1,TF./tracker/right_elbow_1/tracker/right_elbow_1,TF./tracker/right_foot_1/tracker/right_foot_1,TF./tracker/right_hand_1/tracker/right_hand_1,TF./tracker/right_hip_1/tracker/right_hip_1,TF./tracker/right_knee_1/tracker/right_knee_1,TF./tracker/right_shoulder_1/tracker/right_shoulder_1,TF.Enabled.TF.Tree,TF./camera_linkTree/camera_link,TF./camera_depth_frameTree/camera_depth_frame,TF./camera_depth_optical_frameTree/camera_depth_optical_frame,TF./tracker/head_1Tree/tracker/head_1,TF./tracker/neck_1Tree/tracker/neck_1,TF./tracker/torso_1Tree/tracker/torso_1,TF./tracker/left_elbow_1Tree/tracker/left_elbow_1,TF./tracker/left_foot_1Tree/tracker/left_foot_1,TF./tracker/left_hand_1Tree/tracker/left_hand_1,TF./tracker/left_hip_1Tree/tracker/left_hip_1,TF./tracker/left_knee_1Tree/tracker/left_knee_1,TF./tracker/left_shoulder_1Tree/tracker/left_shoulder_1,TF./tracker/right_elbow_1Tree/tracker/right_elbow_1,TF./tracker/right_foot_1Tree/tracker/right_foot_1,TF./tracker/right_hand_1Tree/tracker/right_hand_1,TF./tracker/right_hip_1Tree/tracker/right_hip_1,TF./tracker/right_knee_1Tree/tracker/right_knee_1,TF./tracker/right_shoulder_1Tree/tracker/right_shoulder_1,TF./camera_rgb_frameTree/camera_rgb_frame,TF./camera_rgb_optical_frameTree/camera_rgb_optical_frame,Depth cloud.Enabled,Depth cloud.Enabled.Depth cloud.StatusTopStatus,Axes.Enabled,Axes.Enabled.Axes.StatusTopStatus,Skeletons.Enabled,Skeletons.Enabled.Skeletons.StatusTopStatus;scrollpos=0,3;splitterpos=266,533;ispageselected=1
+Camera\ Config=1.001 1.95283 1.99264 -0.0139331 -0.13641 -0.106453
+Property\ Grid\ State=selection=TF.Enabled;expanded=.Global Options,TF.Enabled,TF./camera_depth_frame/camera_depth_frame,TF./camera_depth_optical_frame/camera_depth_optical_frame,TF./camera_link/camera_link,TF./camera_rgb_frame/camera_rgb_frame,TF./camera_rgb_optical_frame/camera_rgb_optical_frame,TF.Enabled.TF.Tree,TF./camera_linkTree/camera_link,TF./camera_rgb_frameTree/camera_rgb_frame,TF./camera_rgb_optical_frameTree/camera_rgb_optical_frame,TF./camera_depth_frameTree/camera_depth_frame,TF./camera_depth_optical_frameTree/camera_depth_optical_frame,Depth cloud.Enabled,Depth cloud.Enabled.Depth cloud.StatusTopStatus,Axes.Enabled,Axes.Enabled.Axes.StatusTopStatus,Skeletons.Enabled,Skeletons.Enabled.Skeletons.StatusTopStatus;scrollpos=0,3;splitterpos=166,431;ispageselected=1
 [Display0]
 Name=Grid
 Package=rviz
@@ -98,19 +97,3 @@ camera_depth_optical_frameEnabled=1
 camera_linkEnabled=1
 camera_rgb_frameEnabled=1
 camera_rgb_optical_frameEnabled=1
-[TF./tracker]
-head_1Enabled=1
-left_elbow_1Enabled=1
-left_foot_1Enabled=1
-left_hand_1Enabled=1
-left_hip_1Enabled=1
-left_knee_1Enabled=1
-left_shoulder_1Enabled=1
-neck_1Enabled=1
-right_elbow_1Enabled=1
-right_foot_1Enabled=1
-right_hand_1Enabled=1
-right_hip_1Enabled=1
-right_knee_1Enabled=1
-right_shoulder_1Enabled=1
-torso_1Enabled=1
