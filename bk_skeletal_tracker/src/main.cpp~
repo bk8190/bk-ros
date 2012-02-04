@@ -77,10 +77,10 @@ void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
 	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
 
-	std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
-	cv::Mat tempmat(rows, cols, CV_8U);
-	tempmat.data = sceneMD.GetUnderlying()->pData;
-	label_image = tempmat.clone();
+	//std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
+	//cv::Mat tempmat(rows, cols, CV_8U);
+	//tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
+	//label_image = tempmat.clone();
 }
 
 void CleanupExit()
@@ -298,7 +298,7 @@ void glutDisplay (void)
 		getUserLabelImage(sceneMD, user_label_image);
 
 		ROS_DEBUG("skels size %d \n",pmaps.size());
-		if(pmaps.size()){
+		/*if(pmaps.size()){
 
 		   skels.header.stamp=tstamp;
 		   skels.header.seq = depthMD.FrameID();
@@ -308,7 +308,7 @@ void glutDisplay (void)
 	      pmaps.front().header.seq = depthMD.FrameID();
 	      pmaps.front().header.frame_id="/openni_depth_optical_frame";
 		   pmap_pub.publish(pmaps[0]);
-		}
+		}*/
 
 
 	glutSwapBuffers();
