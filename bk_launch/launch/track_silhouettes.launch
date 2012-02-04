@@ -1,0 +1,15 @@
+<launch>
+	<!-- Kinect driver -->
+	<!--include file="$(find openni_launch)/launch/openni.launch" /-->
+
+	<!--include file="$(find person_tracker)/playback_data.launch" /-->
+
+	<node pkg="person_tracker" type="silhouette_tracker" name="silhouette_tracker_node" output="screen">
+		<!--remap from="in_image" to="/camera/depth_registered/image_rect"/-->
+		<!--remap from="in_cloud" to="/camera/depth_registered/points"/-->
+
+	</node>
+
+		<param name="silhouette_tracker/canny/low_threshold" value="60"/>
+		<param name="silhouette_tracker/canny/ratio" value="3"/>
+</launch>

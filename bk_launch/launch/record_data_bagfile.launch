@@ -1,0 +1,30 @@
+<launch>
+
+	<!-- Kinect driver -->
+	<include file="$(find openni_launch)/launch/openni.launch" >
+		<arg name="depth_registered" value="depth_registered_hr" />
+	</include>
+
+	<!-- Limit data rate -->
+	<node name="rate_limiter_node" pkg="person_tracker" type="rate_limiter" args="1000" output="screen">
+		<remap from="in_image"  to="/camera/depth_registered_hr/image_rect" />
+		<remap from="out_image" to="/camera/depth_registered/image_rect" />
+
+		<remap from="in_cloud"  to="/camera/depth_registered_hr/points" />
+		<remap from="out_cloud" to="/camera/depth_registered/points" />
+
+		<remap from="in_cam_info"  to="/camera/depth_registered_hr/camera_info" />
+		<remap from="out_cam_info" to="/camera/depth_registered/camera_info" />
+	</node>
+
+
+	<!-- Image viewer -->
+	<node pkg="image_view" type="image_view" name="depth_image_viewer">
+		<remap from="image" to="/camera/depth_registered/image_rect"/>
+	</node>
+
+
+
+	<node pkg="rosbag" type="rosbag" name="rosbag" args="record /camera/depth_registered/points /camera/depth_registered/image_rect /tf /camera/depth_registered/camera_info -o $(find person_tracker)/bags/ -j">
+	</node>
+</launch>

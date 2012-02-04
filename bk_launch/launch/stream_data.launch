@@ -1,0 +1,16 @@
+<launch>
+
+	<!-- Kinect driver -->
+	<include file="$(find openni_launch)/launch/openni.launch" >
+	</include>
+
+	<!-- Image viewer -->
+	<node pkg="image_view" type="image_view" name="depth_image_viewer">
+		<remap from="image" to="/camera/depth_registered/image_rect"/>
+	</node>
+
+	<!-- Save image in CSV format --> 
+	<!-- NOTE: running this node from the launch file does NOT work.  Run it manually by typing roslaunch person_tracker csv_saver "PREFIX" -->
+	<!--node pkg="person_tracker" type="csv_saver" name="csv_saver" args="capture" output="screen">
+	</node-->
+</launch>
