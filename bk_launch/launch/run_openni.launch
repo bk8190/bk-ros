@@ -1,0 +1,14 @@
+<launch>
+
+	<!-- Kinect driver -->
+	<include file="$(find openni_launch)/launch/openni.launch" >
+		<!--arg name="depth_frame_id" value="/camera/camera_depth_frame" /-->
+		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
+	</include>
+
+	<!-- Image viewer -->
+	<node pkg="image_view" type="image_view" name="depth_image_viewer">
+		<remap from="image" to="/camera/depth_registered/image_rect"/>
+	</node>
+
+</launch>

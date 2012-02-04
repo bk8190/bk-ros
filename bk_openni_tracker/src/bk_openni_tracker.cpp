@@ -118,13 +118,7 @@ void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeleto
 			pmaps.push_back(pmap);
 		}
 	}
-
 }
-
-
-
-
-
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
 	ROS_INFO("New User %d", nId);
