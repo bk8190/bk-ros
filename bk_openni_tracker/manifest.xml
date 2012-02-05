@@ -11,10 +11,17 @@ openni_tracker broadcasts the OpenNI skeleton frames using tf.
 
   <depend package="roscpp"/>
   <depend package="roslib"/>
+  <depend package="tf"/>
+  
+  <depend package="sensor_msgs"/>
   <depend package="geometry_msgs"/>
+  <depend package="body_msgs"/>
+  
   <depend package="openni"/>
   <depend package="nite"/>
   <depend package="kdl"/>
-  <depend package="tf"/>
-  <depend package="body_msgs"/>
+  
+  <depend package="image_transport"/>
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
 </package>

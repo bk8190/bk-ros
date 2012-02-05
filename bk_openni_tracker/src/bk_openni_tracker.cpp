@@ -13,7 +13,14 @@
 #include <geometry_msgs/Polygon.h>
 #include <body_msgs/Skeletons.h>
 
+// OpenCV includes
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/highgui/highgui.hpp>
+
 using std::string;
+static const char WINDOW[] = "Detected Users";
 
 
 xn::Context        g_Context;
@@ -23,8 +30,20 @@ xn::UserGenerator  g_UserGenerator;
 XnBool g_bNeedPose   = FALSE;
 XnChar g_strPose[20] = "";
 
-
 ros::Publisher pmap_pub, skel_pub;
+
+
+void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
+{
+	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
+	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
+
+	std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
+	cv::Mat tempmat(rows, cols, CV_16U);
+	tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
+	cv::Mat tempmat2 = tempmat.clone();
+	tempmat2.convertTo(label_image, CV_8U);
+}
 
 geometry_msgs::Point vecToPt(XnVector3D pt){
    geometry_msgs::Point ret;
@@ -238,6 +257,9 @@ int main(int argc, char **argv) {
 	ros::init(argc, argv, "openni_tracker");
 	ros::NodeHandle nh;
 
+	cv::namedWindow(WINDOW);
+
+	
 	skel_pub = nh.advertise<body_msgs::Skeletons> ("skeletons", 1);
 	pmap_pub = nh.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
 
@@ -259,7 +281,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-    XnCallbackHandle hUserCallbacks;
+	XnCallbackHandle hUserCallbacks;
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
 
 	XnCallbackHandle hCalibrationCallbacks;
@@ -283,35 +305,48 @@ int main(int argc, char **argv) {
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	ros::Rate r(30);
+	ros::Rate r(2.0);
+	
+	ros::NodeHandle pnh("~");
+	string frame_id("openni_depth_frame");
+	pnh.getParam("camera_frame_id", frame_id);
 
-        
-        ros::NodeHandle pnh("~");
-        string frame_id("openni_depth_frame");
-        pnh.getParam("camera_frame_id", frame_id);
-                
-
-		std::vector<mapping_msgs::PolygonalMap> pmaps;
-		body_msgs::Skeletons skels;
-ros::Time tstamp;
+	std::vector<mapping_msgs::PolygonalMap> pmaps;
+	body_msgs::Skeletons skels;
+	ros::Time tstamp;
 	xn::DepthMetaData depthMD;
+	xn::SceneMetaData sceneMD;
 
+	cv::Mat user_label_image;
 
 	while (ros::ok())
 	{
+		std::cout << "First half" << std::endl;
 		g_Context.WaitAndUpdateAll();
 		publishTransforms(frame_id);
 
+		std::cout << "Clearing" << std::endl;
 		pmaps.clear();
 		skels.skeletons.clear();
 		tstamp=ros::Time::now();
 
+		std::cout << "Getting skels" << std::endl;
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
-
+		
+			std::cout << "Getting labels" << std::endl;
+			// Get image with user labels
+			g_UserGenerator.GetUserPixels(0, sceneMD);
+			getUserLabelImage(sceneMD, user_label_image);
+			cv::imshow(WINDOW, (user_label_image*100));
+			cv::waitKey(3);
+			std::cout << "Got dem labels" << std::endl;
+			
 		ROS_DEBUG("skels size %d \n",pmaps.size());
 		if(pmaps.size())
 		{
+
+		
 			// Fill in and publish skeletons object
 			g_DepthGenerator.GetMetaData(depthMD);
 			skels.header.stamp    = tstamp;
@@ -328,6 +363,7 @@ ros::Time tstamp;
 		r.sleep();
 	}
 
+	cv::destroyWindow(WINDOW);
 	g_Context.Shutdown();
 	return 0;
 }
