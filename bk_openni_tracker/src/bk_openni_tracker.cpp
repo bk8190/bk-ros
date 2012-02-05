@@ -22,7 +22,6 @@
 using std::string;
 static const char WINDOW[] = "Detected Users";
 
-
 xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
@@ -31,9 +30,9 @@ XnBool g_bNeedPose   = FALSE;
 XnChar g_strPose[20] = "";
 
 ros::Publisher pmap_pub, skel_pub;
+image_transport::Publisher image_pub;
 
-
-void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
+void getUserLabelImage(const xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 {
 	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
 	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
@@ -158,7 +157,7 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability& c
 
 void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		ROS_INFO("Calibration complete, start tracking user %d", nId);
+		ROS_INFO("Calibration complete, now tracking user %d", nId);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
@@ -256,12 +255,13 @@ void publishTransforms(const std::string& frame_id) {
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "openni_tracker");
 	ros::NodeHandle nh;
+	image_transport::ImageTransport it(nh);
 
 	cv::namedWindow(WINDOW);
 
-	
 	skel_pub = nh.advertise<body_msgs::Skeletons> ("skeletons", 1);
 	pmap_pub = nh.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
+	image_pub = it.advertise("silhouettes", 1);
 
 	string configFilename = ros::package::getPath("bk_openni_tracker") + "/bk_openni_tracker.xml";
 	XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON)) {
-		ROS_INFO("Supplied user generator doesn't support skeleton");
+		ROS_WARN("Supplied user generator doesn't support skeleton");
 		return 1;
 	}
 
@@ -287,16 +287,15 @@ int main(int argc, char **argv) {
 	XnCallbackHandle hCalibrationCallbacks;
 	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
 
-	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration()) {
+	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
+	{
 		g_bNeedPose = TRUE;
 		if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION)) {
 			ROS_INFO("Pose required, but not supported");
 			return 1;
 		}
-
 		XnCallbackHandle hPoseCallbacks;
 		g_UserGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(UserPose_PoseDetected, NULL, NULL, hPoseCallbacks);
-
 		g_UserGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose);
 	}
 
@@ -305,7 +304,7 @@ int main(int argc, char **argv) {
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	ros::Rate r(2.0);
+	ros::Rate r(2);
 	
 	ros::NodeHandle pnh("~");
 	string frame_id("openni_depth_frame");
@@ -316,13 +315,18 @@ int main(int argc, char **argv) {
 	ros::Time tstamp;
 	xn::DepthMetaData depthMD;
 	xn::SceneMetaData sceneMD;
-
+	
 	cv::Mat user_label_image;
+	unsigned int img_seq = 0;
+	cv_bridge::CvImage cv_img;
+	sensor_msgs::Image ros_image;
 
 	while (ros::ok())
 	{
-		std::cout << "First half" << std::endl;
+		std::cout << "Updating contexts" << std::endl;
 		g_Context.WaitAndUpdateAll();
+		
+		std::cout << "Publishing transforms" << std::endl;
 		publishTransforms(frame_id);
 
 		std::cout << "Clearing" << std::endl;
@@ -330,23 +334,30 @@ int main(int argc, char **argv) {
 		skels.skeletons.clear();
 		tstamp=ros::Time::now();
 
-		std::cout << "Getting skels" << std::endl;
+
+		std::cout << "Getting labels" << std::endl;
+		// Get image with user labels
+		g_UserGenerator.GetUserPixels(0, sceneMD);
+		getUserLabelImage(sceneMD, user_label_image);
+		cv::imshow(WINDOW, user_label_image*70 );
+		cv::waitKey(3);
+		
+		// Convert label image to ROS message and publish 
+		cv_img.image = user_label_image;
+		cv_img.encoding = sensor_msgs::image_encodings::MONO8;
+		cv_img.header.seq = ++img_seq;
+		cv_img.header.stamp = tstamp;
+		cv_img.toImageMsg(ros_image);
+		image_pub.publish(ros_image);
+		std::cout << "Got dem labels" << std::endl;
+		
+		/*
+		std::cout << "Getting skeletons" << std::endl;
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
-		
-			std::cout << "Getting labels" << std::endl;
-			// Get image with user labels
-			g_UserGenerator.GetUserPixels(0, sceneMD);
-			getUserLabelImage(sceneMD, user_label_image);
-			cv::imshow(WINDOW, (user_label_image*100));
-			cv::waitKey(3);
-			std::cout << "Got dem labels" << std::endl;
-			
 		ROS_DEBUG("skels size %d \n",pmaps.size());
 		if(pmaps.size())
 		{
-
-		
 			// Fill in and publish skeletons object
 			g_DepthGenerator.GetMetaData(depthMD);
 			skels.header.stamp    = tstamp;
@@ -358,7 +369,7 @@ int main(int argc, char **argv) {
 			pmaps.front().header.seq      = depthMD.FrameID();
 			pmaps.front().header.frame_id = "/camera_depth_optical_frame";
 			pmap_pub.publish(pmaps[0]);
-		}
+		}*/
 
 		r.sleep();
 	}
