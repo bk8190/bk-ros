@@ -1,10 +1,12 @@
 <launch>
-  <node pkg="bk_openni_tracker" type="bk_openni_tracker" name="openni_tracker" output="screen">
+	<!-- Kinect driver -->
+	<include file="$(find bk_launch)/launch/run_openni.launch" >
+	</include>
+
+  <node pkg="bk_openni_tracker" type="bk_openni_tracker" name="bk_openni_tracker" output="screen"  >
     <param name="camera_frame_id" value="/camera_depth_frame" />
     <param name="tf_prefix" value="tracker" />
   </node>
-
-	<node pkg="person_tracker" type="person_tracker" name="person_tracker" output="screen">
-		<remap from="in_skeletons" to="/skeletons" />
-	</node>
+  
+  <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="log"/>
 </launch>

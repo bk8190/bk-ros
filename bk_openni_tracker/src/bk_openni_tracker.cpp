@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
 	ros::NodeHandle nh;
 	image_transport::ImageTransport it(nh);
 
-	cv::namedWindow(WINDOW);
+	//cv::namedWindow(WINDOW);
 
 	skel_pub = nh.advertise<body_msgs::Skeletons> ("skeletons", 1);
 	pmap_pub = nh.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
-	ros::Rate r(2);
+	ros::Rate r(10);
 	
 	ros::NodeHandle pnh("~");
 	string frame_id("openni_depth_frame");
@@ -339,8 +339,8 @@ int main(int argc, char **argv) {
 		// Get image with user labels
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 		getUserLabelImage(sceneMD, user_label_image);
-		cv::imshow(WINDOW, user_label_image*70 );
-		cv::waitKey(3);
+		//cv::imshow(WINDOW, user_label_image*70 );
+		//cv::waitKey(3);
 		
 		// Convert label image to ROS message and publish 
 		cv_img.image = user_label_image;
@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
 		image_pub.publish(ros_image);
 		std::cout << "Got dem labels" << std::endl;
 		
-		/*
+		
 		std::cout << "Getting skeletons" << std::endl;
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
@@ -369,12 +369,12 @@ int main(int argc, char **argv) {
 			pmaps.front().header.seq      = depthMD.FrameID();
 			pmaps.front().header.frame_id = "/camera_depth_optical_frame";
 			pmap_pub.publish(pmaps[0]);
-		}*/
+		}
 
 		r.sleep();
 	}
 
-	cv::destroyWindow(WINDOW);
+	//cv::destroyWindow(WINDOW);
 	g_Context.Shutdown();
 	return 0;
 }
