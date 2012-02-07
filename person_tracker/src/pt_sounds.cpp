@@ -109,7 +109,7 @@ void PTSoundPlayer::update()
 void PTSoundPlayer::playInitializationSound()
 {
 	ROS_INFO("Initialization sound");
-	sound_client_.playWave("/home/bill/dev/portal_sounds/Hello_where_are_you.ogg");
+	sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Hello_where_are_you.ogg");
 }
 
 void PTSoundPlayer::playLockOnSound()
@@ -120,11 +120,11 @@ void PTSoundPlayer::playLockOnSound()
 	switch(sound_num)
 	{
 		case 0:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/There_you_are.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/There_you_are.ogg");
 			break;
 	
 		case 1:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/There_you_are2.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/There_you_are2.ogg");
 			break;
 			
 		default:
@@ -140,15 +140,15 @@ void PTSoundPlayer::playLockedOnSound()
 	switch(sound_num)
 	{
 		case 0:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/I_see_you.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/I_see_you.ogg");
 			break;
 	
 		case 1:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/There_you_are.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/There_you_are.ogg");
 			break;
 			
 		case 2:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/There_you_are2.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/There_you_are2.ogg");
 			break;
 			
 		default:
@@ -164,11 +164,11 @@ void PTSoundPlayer::playTargetLostSound()
 	switch(sound_num)
 	{
 		case 0:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/Target_Lost.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Target_Lost.ogg");
 			break;
 			
 		case 1:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/Sentry_Mode_Activated.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Sentry_Mode_Activated.ogg");
 			break;
 			
 		default:
@@ -184,19 +184,19 @@ void PTSoundPlayer::playSearchingSound()
 	switch(sound_num)
 	{
 		case 0:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/Searching.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Searching.ogg");
 			break;
 			
 		case 1:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/Is_Anyone_There.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Is_Anyone_There.ogg");
 			break;
 			
 		case 2:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/Still_there.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Still_there.ogg");
 			break;
 			
 		case 3:
-			sound_client_.playWave("/home/bill/dev/portal_sounds/Canvasing.ogg");
+			sound_client_.playWave("/home/bill/dev/bk-ros/portal_sounds/Canvasing.ogg");
 			break;
 			
 		default:
