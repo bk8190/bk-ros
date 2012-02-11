@@ -1,0 +1,8 @@
+<library path="lib/libbk_sbpl_lattice_planner">
+  <class name="BKSBPLLatticePlanner" type="bk_sbpl_lattice_planner::BKSBPLLatticePlanner" base_class_type="nav_core::BaseGlobalPlanner">
+    <description>
+      An implmentation of a search-based planning using anytime a* and a lattice graph
+    </description>
+  </class>
+</library>
+
