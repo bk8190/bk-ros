@@ -1,0 +1,10 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~field_name" : \b [str] The axis on which to perform the multiple passthroughs min: , default: y, max: 
+- \b "~num_slices" : \b [int] The number of total slices to take from the pointcloud. min: 1, default: 5, max: 99
+- \b "~slice_width" : \b [double] The width of a cloud slice in meters. min: 0.001, default: 0.01, max: 100.0
+- \b "~start_threshold" : \b [double] The measurement at which to place the first slice. min: -100.0, default: -1.0, max: 100.0
+- \b "~end_threshold" : \b [double] The measurement at which to place the final slice. min: -100.0, default: 1.0, max: 100.0
+

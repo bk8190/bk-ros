@@ -1,0 +1,11 @@
+\subsubsection usage Usage
+\verbatim
+<node name="pcl_decimator.cpp" pkg="pcl_decimator" type="pcl_decimator.cpp">
+  <param name="field_name" type="str" value="y" />
+  <param name="num_slices" type="int" value="5" />
+  <param name="slice_width" type="double" value="0.01" />
+  <param name="start_threshold" type="double" value="-1.0" />
+  <param name="end_threshold" type="double" value="1.0" />
+</node>
+\endverbatim
+

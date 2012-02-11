@@ -1,0 +1,24 @@
+<!-- -->
+<launch>
+
+	<!-- Kinect driver -->
+	<include file="$(find openni_launch)/launch/openni.launch" >
+		<!--arg name="depth_frame_id" value="/camera/camera_depth_frame" /-->
+		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
+	</include>
+
+	<!-- Kinect static transforms -->
+  <include file="$(find bk_launch)/launch/tf_kinect.launch" />
+  
+	<!-- Image viewer -->
+	<node pkg="image_view" type="image_view" name="depth_image_viewer">
+		<!--remap from="image" to="/camera/depth_registered/image_rect"/-->
+		<remap from="image" to="/camera/depth/image_rect"/>
+	</node>
+	
+	<node pkg="pcl_decimator_bk" type="pcl_decimator_bk" name="pcl_decimator_bk">
+		<!--remap from="/camera/depth/points" to="/camera/depth_registered/points"-->
+	</node>
+	
+  
+</launch>
