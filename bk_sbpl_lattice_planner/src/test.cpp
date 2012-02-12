@@ -69,7 +69,6 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		// Positive r: segment bending to the left
 		// Negative r: segment bending to the right
 		chord_length = sqrt(dx*dx + dy*dy);
-		fprintf(stdout,"Chord length = %.2f\n",chord_length);
 		denom = 2*sin(dth/2);
 		if(denom != 0)
 		{
@@ -93,9 +92,6 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 			ang_to_center = t1 + pi/2; // 90 degrees to the left
 		if( dth<0 )
 			ang_to_center = t1 - pi/2; // 90 degrees to the right
-		
-		fprintf(stdout,"Ang to center = %.2f\n",ang_to_center);
-		fprintf(stdout,"R = %.2f, dtheta = %.2f\n", abs_r, dth);
 		
 		// Move to the circle's center
 		xcenter = x1 + abs_r*cos(ang_to_center);
