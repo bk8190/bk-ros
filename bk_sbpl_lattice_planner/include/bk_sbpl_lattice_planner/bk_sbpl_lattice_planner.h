@@ -18,6 +18,12 @@ using namespace std;
 //global representation
 #include <nav_core/base_global_planner.h>
 
+// Precision navigation
+#include <precision_navigation_msgs/PathSegment.h>
+#ifndef PI
+#define PI 3.14159265
+#endif
+
 namespace bk_sbpl_lattice_planner{
 
 class BKSBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
@@ -58,6 +64,14 @@ public:
 
   virtual ~BKSBPLLatticePlanner(){};
 
+
+	void ConvertStateIDPathintoSegmentPath(const EnvironmentNAVXYTHETALAT& env, 
+	                                       const vector<int>& stateIDPath,
+	                                       vector<precision_navigation_msgs::PathSegment>& segmentPath);
+	                                       
+	precision_navigation_msgs::PathSegment makePathSegment(double x1, double y1, double t1,
+	                                                       double x2, double y2, double t2);
+	
 private:
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   void publishStats(int solution_cost, int solution_size, 

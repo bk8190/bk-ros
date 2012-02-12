@@ -1,5 +1,5 @@
-#ifndef SBPL_LATTICE_PLANNER_H
-#define SBPL_LATTICE_PLANNER_H
+#ifndef BK_SBPL_LATTICE_PLANNER_H
+#define BK_SBPL_LATTICE_PLANNER_H
 
 #include <iostream>
 #include <vector>
@@ -18,15 +18,19 @@ using namespace std;
 //global representation
 #include <nav_core/base_global_planner.h>
 
-namespace sbpl_lattice_planner{
+// Precision navigation
+#include <precision_navigation_msgs/PathSegment.h>
+#define PI 3.14159265
 
-class SBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
+namespace bk_sbpl_lattice_planner{
+
+class BKSBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
 public:
   
   /**
    * @brief  Default constructor for the NavFnROS object
    */
-  SBPLLatticePlanner();
+  BKSBPLLatticePlanner();
 
   
   /**
@@ -34,7 +38,7 @@ public:
    * @param  name The name of this planner
    * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use
    */
-  SBPLLatticePlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
+  BKSBPLLatticePlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
 
 
   /**
@@ -56,8 +60,16 @@ public:
                         const geometry_msgs::PoseStamped& goal, 
                         std::vector<geometry_msgs::PoseStamped>& plan);
 
-  virtual ~SBPLLatticePlanner(){};
+  virtual ~BKSBPLLatticePlanner(){};
 
+
+	void ConvertStateIDPathintoSegmentPath(const EnvironmentNAVXYTHETALAT& env, 
+	                                       const vector<int>& stateIDPath,
+	                                       vector<precision_navigation_msgs::PathSegment>& segmentPath);
+	                                       
+	precision_navigation_msgs::PathSegment makePathSegment(double x1, double y1, double t1,
+	                                                       double x2, double y2, double t2);
+	
 private:
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   void publishStats(int solution_cost, int solution_size, 

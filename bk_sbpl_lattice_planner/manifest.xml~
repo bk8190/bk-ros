@@ -17,7 +17,7 @@
   <depend package="nav_msgs"/>
 
   <export>
-    <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lbksbpl_lattice_planner"/>
+    <cpp cflags="-I${prefix}/include" lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lbk_sbpl_lattice_planner"/>
     <nav_core plugin="${prefix}/bgp_plugin.xml" />
   </export>
 

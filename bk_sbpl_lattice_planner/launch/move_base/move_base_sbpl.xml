@@ -7,10 +7,11 @@
     <param name="controller_patience" value="100.0" />
     
     <param name="base_global_planner" value="BKSBPLLatticePlanner" />
-    <param name="BKSBPLLatticePlanner/primitive_filename" value="$(find sbpl)/matlab/mprim/pr2.mprim" />
-    <!--param name="BKSBPLLatticePlanner/primitive_filename" value="$(find sbpl)/matlab/mprim/unicycle_backonlystraight.mprim" /-->
+    <!--param name="BKSBPLLatticePlanner/primitive_filename" value="$(find sbpl)/matlab/mprim/pr2.mprim" /-->
+    <param name="BKSBPLLatticePlanner/primitive_filename" value="$(find sbpl)/matlab/mprim/unicycle_backonlystraight.mprim" />
     
-    <!--param name="base_local_planner" value="BKSBPLLatticePlanner" /-->
+    <!--param name="base_local_planner" value="pose_follower/PoseFollower" /-->
+    <!--param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" /-->
     
     <rosparam file="$(find bk_sbpl_lattice_planner)/launch/move_base/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find bk_sbpl_lattice_planner)/launch/move_base/costmap_common_params.yaml" command="load" ns="local_costmap" />
