@@ -1,12 +1,8 @@
 #include <iostream>
-
-
 #include <tf/tf.h>
 
 // Precision navigation
 #include <precision_navigation_msgs/PathSegment.h>
-
-using namespace std;
 
 // Returns a path segment between two points (x,y,theta)
 // Note: initializes all speed/accel limits to 0
