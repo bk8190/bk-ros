@@ -19,10 +19,9 @@ using namespace std;
 #include <nav_core/base_global_planner.h>
 
 // Precision navigation
+#include <nav_msgs/Path.h>
+#include <precision_navigation_msgs/Path.h>
 #include <precision_navigation_msgs/PathSegment.h>
-#ifndef PI
-#define PI 3.14159265
-#endif
 
 namespace bk_sbpl_lattice_planner{
 
@@ -64,15 +63,17 @@ public:
                         
 	virtual bool makeSegmentPlan(const geometry_msgs::PoseStamped&        start,
                                const geometry_msgs::PoseStamped&        goal,
-                               std::vector<geometry_msgs::PoseStamped>& plan
-                               precision_navigation_msgs::Path&         segmentPlan){
+                               std::vector<geometry_msgs::PoseStamped>& plan,
+                               precision_navigation_msgs::Path&         segmentPlan);
                         
   virtual ~BKSBPLLatticePlanner(){};
 
 
-	void ConvertStateIDPathintoSegmentPath(const EnvironmentNAVXYTHETALAT& env, 
+	void ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, 
 	                                       const vector<int>& stateIDPath,
-	                                       vector<precision_navigation_msgs::PathSegment>& segmentPath);
+	                                       precision_navigation_msgs::Path& segmentPath,
+	                                       double dx,
+	                                       double dy );
 	                                       
 	precision_navigation_msgs::PathSegment makePathSegment(double x1, double y1, double t1,
 	                                                       double x2, double y2, double t2);

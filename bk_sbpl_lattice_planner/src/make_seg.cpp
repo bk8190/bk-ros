@@ -1,8 +1,19 @@
+
+#include <precision_navigation_msgs/PathSegment.h>
+#include <nav_msgs/Path.h>
 #include <iostream>
 #include <tf/tf.h>
 
-// Precision navigation
-#include <precision_navigation_msgs/PathSegment.h>
+// Takes in an angle, returns an equivalent angle in the range (-pi, pi)
+double rect_angle(double t)
+{/*
+	while( t > pi )
+		t -= 2*pi;
+	while( t < -1.0*pi )
+		t += 2*pi;	
+	return t;*/
+	return tf::getYaw(tf::createQuaternionMsgFromYaw(t));
+}
 
 // Returns a path segment between two points (x,y,theta)
 // Note: initializes all speed/accel limits to 0
@@ -10,11 +21,14 @@ precision_navigation_msgs::PathSegment
 makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2)
 {
   const double pi = 3.1415926;
+	double eps = .0001; // Precision for floating point comparison
 	precision_navigation_msgs::PathSegment seg;
 	double dx = x2-x1;
 	double dy = y2-y1;
+	t1 = rect_angle(t1);
+	t2 = rect_angle(t2);
 	double dth = t2-t1;
-	double eps = .0001; // Precision for floating point comparison
+	fprintf(stdout,"t1 = %.2fpi, t2 = %.2fpi, dtheta = %.2fpi\n", t1/pi, t2/pi, dth/pi);
 	
 	// Arc parameters
 	double chord_length, denom, signed_r, abs_r, ang_to_center, xcenter, ycenter;
@@ -28,7 +42,7 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 	seg.decel_limit          = 0;
 	
 	// No change in theta: line segment
-	if(abs(dth) < eps)
+	if(fabs(dth) < eps)
 	{
 		seg.seg_type       = precision_navigation_msgs::PathSegment::LINE;
 		seg.seg_length     = sqrt(dx*dx + dy*dy);
@@ -37,9 +51,16 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		seg.ref_point.z    = 0.0;
 		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(t1);
 		seg.curvature      = 0.0;
+		
+		// Make sure the start/end angle is consistent with the path direction
+		double expected_angle = rect_angle(atan2(dy,dx));
+		if( fabs(expected_angle-t1) > eps ){
+			ROS_ERROR("Path segment start/end angles were not consistent with line segment direction!");
+		}
+		
 	}
 	// No change in position: turn in place
-	else if( abs(dx)<eps && abs(dy)<eps )
+	else if( fabs(dx)<eps && fabs(dy)<eps )
 	{
 		seg.seg_type       = precision_navigation_msgs::PathSegment::SPIN_IN_PLACE;
 		seg.seg_length     = abs(dth);
@@ -69,7 +90,7 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		if(denom != 0)
 		{
 			signed_r = chord_length / (denom);
-			abs_r    = abs(signed_r); // Absolute, positive radius
+			abs_r    = fabs((double)signed_r); // Absolute, positive radius
 			
 			if(signed_r != 0)		
 				seg.curvature = 1/signed_r;
@@ -85,47 +106,54 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		
 		// Find the angle to the circle's center from the starting point
 		if( dth>0 )
-			ang_to_center = t1 + pi/2; // 90 degrees to the left
+			ang_to_center = rect_angle(t1 + pi/2); // 90 degrees to the left
 		if( dth<0 )
-			ang_to_center = t1 - pi/2; // 90 degrees to the right
+			ang_to_center = rect_angle(t1 - pi/2); // 90 degrees to the right
 		
 		// Move to the circle's center
-		xcenter = x1 + abs_r*cos(ang_to_center);
-		ycenter = y1 + abs_r*sin(ang_to_center);
+		xcenter = x1 + abs_r*cos((double)ang_to_center);
+		ycenter = y1 + abs_r*sin((double)ang_to_center);
 		
 		seg.ref_point.x = xcenter;
 		seg.ref_point.y = ycenter;
 		seg.ref_point.z = 0.0;
 		
 		// Arc length = r*theta
-		seg.seg_length = abs_r * abs(dth);
+		seg.seg_length = abs_r * fabs((double)dth);
+		
+		fprintf(stdout,"dtheta        = %.2fpi\n"         , dth/pi);
+		fprintf(stdout,"ang_to_center = %.2fpi\n"         , ang_to_center/pi);
+		fprintf(stdout,"radius        = %.2f (%.2f)\n"    , signed_r, abs_r);
+		fprintf(stdout,"chord_length  = %.2f\n"           , chord_length);
+		fprintf(stdout,"arclength     = %.2f (%.2fpi)\n\n", seg.seg_length, seg.seg_length/pi);
 	}
 	
-	return(seg);
+	return seg;
 }
 
 // DEBUG
 void print_path_segment(precision_navigation_msgs::PathSegment s)
 {
+  const double pi = 3.1415926;
 	switch(s.seg_type)
 	{
 		case precision_navigation_msgs::PathSegment::LINE:
-			fprintf(stdout,"Line");
+			fprintf(stdout,"Line segment");
 			break;
 		case precision_navigation_msgs::PathSegment::SPIN_IN_PLACE:
-			fprintf(stdout,"Spin");
+			fprintf(stdout,"Spin in place");
 			break;
 		case precision_navigation_msgs::PathSegment::ARC:
-			fprintf(stdout,"Arc");
+			fprintf(stdout,"Arc segment");
 			break;
 		default:
 			fprintf(stdout,"ERROR: Bad seg type");
 	}
 	
 	fprintf(stdout,"\n");
-	fprintf(stdout,"Length:     %.2f\n", s.seg_length);
+	fprintf(stdout,"Length:     %.2f (%.2fpi)\n", s.seg_length, s.seg_length/pi);
 	fprintf(stdout,"Ref point: (%.2f,%.2f)\n", s.ref_point.x, s.ref_point.y);
-	fprintf(stdout,"Init angle: %.2f\n", tf::getYaw(s.init_tan_angle));
+	fprintf(stdout,"Init angle: %.2fpi\n", tf::getYaw(s.init_tan_angle)/pi);
 	fprintf(stdout,"Curvature:  %.2f\n", s.curvature);
 	
 }
@@ -146,8 +174,21 @@ int main(int argc, char** argv)
 	/*p = makePathSegment(0,0,pi/2,
 	                    1,1,0);
 	*/
-	p = makePathSegment(0,0,pi/2,
+	/*p = makePathSegment(0,0,pi/2,
 	                    0,0,pi);
+	*/
+	/*p = makePathSegment(1,2,pi,
+	                    -1,0,3*pi/2);
+	*/
+	
+	/*p = makePathSegment(0,0,5*pi/4,
+	                    -5,-5,5*pi/4);
+	*/
+	p = makePathSegment(-1,-1,3*pi/4,
+	                    -1,1 ,pi/4);
+	                    
+	
+	
 	print_path_segment(p);
 	
 	return(0);
