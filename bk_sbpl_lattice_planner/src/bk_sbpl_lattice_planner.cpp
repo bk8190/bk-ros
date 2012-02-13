@@ -184,7 +184,7 @@ std::cout << "INITIALIZED WHAT NOW BITCHES" << std::endl;
     }
 
     ROS_INFO("[sbpl_lattice_planner] Initialized successfully");
-    plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
+    plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan_visualization", 1);
     stats_publisher_ = private_nh.advertise<bk_sbpl_lattice_planner::SBPLLatticePlannerStats>("sbpl_lattice_planner_stats", 1);
     
     initialized_ = true;
@@ -226,15 +226,28 @@ void BKSBPLLatticePlanner::publishStats(int solution_cost, int solution_size,
   stats_publisher_.publish(stats);
 }
 
-bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start,
-                                 const geometry_msgs::PoseStamped& goal,
-                                 std::vector<geometry_msgs::PoseStamped>& plan){
+
+bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped&     start,
+                                 const geometry_msgs::PoseStamped&        goal,
+                                 std::vector<geometry_msgs::PoseStamped>& plan)
+{
+	precision_navigation_msgs::Path segmentPlan;
+	return( this->makeSegmentPlan(start, goal, plan, segmentPlan) );
+}
+                                 
+bool
+BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        start,
+                                      const geometry_msgs::PoseStamped&        goal,
+                                      std::vector<geometry_msgs::PoseStamped>& plan
+                                      precision_navigation_msgs::Path&         segmentPlan)
+{
   if(!initialized_){
     ROS_ERROR("Global planner is not initialized");
     return false;
   }
 
   plan.clear();
+  segmentPlan.segs.clear();
 
   ROS_DEBUG("[sbpl_lattice_planner] getting fresh copy of costmap");
   costmap_ros_->clearRobotFootprint();
@@ -346,9 +359,16 @@ bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start,
 
   ROS_DEBUG("size of solution=%d", (int)solution_stateIDs.size());
 
-  vector<EnvNAVXYTHETALAT3Dpt_t> sbpl_path;
+  vector<EnvNAVXYTHETALAT3Dpt_t>  sbpl_path;   // Plan of points for visualization
   try{
     env_->ConvertStateIDPathintoXYThetaPath(&solution_stateIDs, &sbpl_path);
+    
+    // Added: convert the state ID path into path segments
+    segmentPlan.header.frame_id = costmap_ros_->getGlobalFrameID();
+    segmentPlan.header.stamp    = plan_time;
+    double dx = cost_map_.getOriginX();
+    double dy = cost_map_.getOriginY()
+    this->ConvertStateIDPathintoSegmentPath(env_, solution_stateIDs, segmentPlan, dx, dy);
   }
   catch(SBPL_Exception e){
     ROS_ERROR("SBPL encountered a fatal exception while reconstructing the path");
@@ -391,7 +411,7 @@ bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped& start,
 }
 
 
-void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(const EnvironmentNAVXYTHETALAT& env, const vector<int>& stateIDPath, vector<precision_navigation_msgs::PathSegment>& segmentPath)
+void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(const EnvironmentNAVXYTHETALAT& env, const vector<int>& stateIDPath, precision_navigation_msgs::Path& segmentPath, double dx, double dy;)
 {
 	// Discrete state
 	int x1_c, y1_c, t1_c;
@@ -403,7 +423,7 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(const EnvironmentNA
 
 	precision_navigation_msgs::PathSegment this_seg;
 	bool ret1, ret2;
-	segmentPath.clear();
+	segmentPath.segs.clear();
 	
 	// Make a path segment for every change in state
 	for(int path_index = 0; path_index < (int)(stateIDPath.size())-1; path_index++)
@@ -421,13 +441,17 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(const EnvironmentNA
 		
 		if(ret1<0 || ret2<0){
 			ROS_ERROR("Error converting discrete pose to continuous");
-			segmentPath.clear();
+			segmentPath.segsclear();
 			return;
 		}
 		
 		// We now have source and destination states.  Build a path segment.
-		this_seg = makePathSegment(x1,y1,t1, x2,y2,t2); 
-		segmentPath.push_back(this_seg);
+		this_seg = makePathSegment(x1+dx,y1+dy,t1, x2+dx,y2+dy,t2); 
+		
+		this_seg.header.frame_id = segmentPath.header.frame_id;
+		this_seg.time_stamp      = segmentPath.header.time_stamp;
+		this_seg.seq             = segmentPath.header.seq;
+		segmentPath.segs.push_back(this_seg);
 	}
 }
 
