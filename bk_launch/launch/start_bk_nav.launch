@@ -1,22 +1,29 @@
-<!-- Starts localization and brings up the planner -->
+<!-- Brings up the planner -->
 <launch>
-	
-	<!--- Run AMCL -->
-	<!--include file="$(find cwru_nav)/amcl_diff.launch" /-->
-	
 	<node pkg="bk_planner" type="bk_planner" respawn="false" name="bk_planner" output="screen">
 		
 		<!-- Common costmap params (global and local) -->
-		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml" command="load" ns="local_costmap" />
-		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml" command="load" ns="global_costmap" />
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml"
+			command="load" ns="local_costmap"  />
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml"
+			command="load" ns="global_costmap" />
 		
 		<!-- Costmap params specific to global or local -->
-		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_local_params.yaml" command="load" />
-		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_global_params.yaml" command="load" />
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_local_params.yaml"
+			command="load" ns="local_costmap"  />
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_global_params.yaml" 
+			command="load" ns="global_costmap" />
+		
+		<!-- Lattice planner parameters -->
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/sbpl_global_params.yaml"
+			command="load" ns="lattice_planner" />
+		<param name="lattice_planner/primitive_filename" value="$(find sbpl)/matlab/mprim/unicycle_backonlystraight.mprim" />
 		
 		<!-- Parameters for the planner itself -->
-		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/bk_planner_params.yaml" command="load" />
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/bk_planner_params.yaml"
+			command="load" />
 		
+		<!-- Topic remappings -->
 		<remap from="goal" to="/move_base_simple/goal" />
 		<remap from="plan" to="plan" />
 		<remap from="plan_visualization" to="plan_visualization" />

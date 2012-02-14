@@ -483,7 +483,7 @@ BKSBPLLatticePlanner::makePathSegment(double x1, double y1, double t1, double x2
 	t1 = BKSBPLLatticePlanner::rect_angle(t1);
 	t2 = BKSBPLLatticePlanner::rect_angle(t2);
 	double dth = t2-t1;
-	fprintf(stdout,"t1 = %.2fpi, t2 = %.2fpi, dtheta = %.2fpi\n", t1/pi, t2/pi, dth/pi);
+	//fprintf(stdout,"t1 = %.2fpi, t2 = %.2fpi, dtheta = %.2fpi\n", t1/pi, t2/pi, dth/pi);
 	
 	// Arc parameters
 	double chord_length, denom, signed_r, abs_r, ang_to_center, xcenter, ycenter;
@@ -576,11 +576,11 @@ BKSBPLLatticePlanner::makePathSegment(double x1, double y1, double t1, double x2
 		// Arc length = r*theta
 		seg.seg_length = abs_r * fabs((double)dth);
 		
-		fprintf(stdout,"dtheta        = %.2fpi\n"         , dth/pi);
+		/*fprintf(stdout,"dtheta        = %.2fpi\n"         , dth/pi);
 		fprintf(stdout,"ang_to_center = %.2fpi\n"         , ang_to_center/pi);
 		fprintf(stdout,"radius        = %.2f (%.2f)\n"    , signed_r, abs_r);
 		fprintf(stdout,"chord_length  = %.2f\n"           , chord_length);
-		fprintf(stdout,"arclength     = %.2f (%.2fpi)\n\n", seg.seg_length, seg.seg_length/pi);
+		fprintf(stdout,"arclength     = %.2f (%.2fpi)\n\n", seg.seg_length, seg.seg_length/pi);*/
 	}
 	
 	return seg;

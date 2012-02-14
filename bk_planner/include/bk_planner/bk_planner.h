@@ -19,10 +19,11 @@ namespace bk_planner {
 			//void initialize(std::string name, 
 	
 		private:
-      costmap_2d::Costmap2DROS* planner_costmap_ros_;
+      costmap_2d::Costmap2DROS*                      planner_costmap_;
       bk_sbpl_lattice_planner::BKSBPLLatticePlanner* lattice_planner_;
       
       ros::NodeHandle nh_;
+      ros::NodeHandle priv_nh_;
 			ros::Subscriber goal_sub_;
 			ros::Publisher  plan_pub_;
 			ros::Publisher  plan_vis_pub_;
@@ -32,7 +33,8 @@ namespace bk_planner {
 			
 			void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
 			bool makePlan(const geometry_msgs::PoseStamped& goal);
-			
+			geometry_msgs::PoseStamped goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg);
+
 			
 			//boost::recursive_mutex configuration_mutex_;
 			//dynamic_reconfigure::Server<bk_planner::BKPlannerConfig> *dsrv_;
