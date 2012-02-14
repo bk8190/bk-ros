@@ -6,18 +6,21 @@ namespace bk_planner
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	nh_                 (),
 	tf_                 (tf),
-	planner_costmap_ros_("local_costmap", tf),
-	lattice_planner_    ("lattice_planner", &planner_costmap_ros_)
+	planner_costmap_ros_(NULL),
+	lattice_planner_(NULL)
+	//planner_costmap_ros_("local_costmap", tf),
+	//lattice_planner_    ("lattice_planner", &planner_costmap_ros_)
 {
 	nh_.param("test_param", test_param_, 0.0);
 	
 	goal_sub_     = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	plan_pub_     = nh_.advertise<precision_navigation_msgs::Path>("plan", 1);
 	plan_vis_pub_ = nh_.advertise<nav_msgs::Path>("plan_visualization", 1);
-	
+
 //	dsrv_ = new dynamic_reconfigure::Server<move_base::MoveBaseConfig>(ros::NodeHandle("~"));
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
-//	dsrv_->setCallback(cb);
+//	dsrv_->setCallback(cb);	
+	ROS_INFO("BKPlanner constructor finished");
 }
 
 BKPlanner::~BKPlanner()

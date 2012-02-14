@@ -19,8 +19,8 @@ namespace bk_planner {
 			//void initialize(std::string name, 
 	
 		private:
-      costmap_2d::Costmap2DROS planner_costmap_ros_;
-      bk_sbpl_lattice_planner::BKSBPLLatticePlanner lattice_planner_;
+      costmap_2d::Costmap2DROS* planner_costmap_ros_;
+      bk_sbpl_lattice_planner::BKSBPLLatticePlanner* lattice_planner_;
       
       ros::NodeHandle nh_;
 			ros::Subscriber goal_sub_;

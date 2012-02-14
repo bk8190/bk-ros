@@ -1,8 +1,8 @@
-<!-- -->
+<!-- Starts localization and brings up the planner -->
 <launch>
 	
 	<!--- Run AMCL -->
-	<include file="$(find cwru_nav)/amcl_diff.launch" />
+	<!--include file="$(find cwru_nav)/amcl_diff.launch" /-->
 	
 	<node pkg="bk_planner" type="bk_planner" respawn="false" name="bk_planner" output="screen">
 		
@@ -17,10 +17,9 @@
 		<!-- Parameters for the planner itself -->
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/bk_planner_params.yaml" command="load" />
 		
-		<remap from="goal" to="goal" />
+		<remap from="goal" to="/move_base_simple/goal" />
 		<remap from="plan" to="plan" />
 		<remap from="plan_visualization" to="plan_visualization" />
 	</node>
-	
 	
 </launch>
