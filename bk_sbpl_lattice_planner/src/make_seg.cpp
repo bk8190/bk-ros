@@ -1,9 +1,6 @@
+#include <bk_sbpl_lattice_planner/make_seg.h>
 
-#include <precision_navigation_msgs/PathSegment.h>
-#include <nav_msgs/Path.h>
-#include <iostream>
-#include <tf/tf.h>
-
+namespace bk_sbpl_lattice_planner{
 // Takes in an angle, returns an equivalent angle in the range (-pi, pi)
 double rect_angle(double t)
 {/*
@@ -193,4 +190,4 @@ int main(int argc, char** argv)
 	
 	return(0);
 }
-
+};

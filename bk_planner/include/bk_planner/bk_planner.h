@@ -14,8 +14,9 @@ namespace bk_planner {
 	{
 		public:
 			BKPlanner(std::string name, tf::TransformListener& tf);
+			~BKPlanner();
 			
-			void initialize(std::string name, 
+			//void initialize(std::string name, 
 	
 		private:
       costmap_2d::Costmap2DROS planner_costmap_ros_;
@@ -30,12 +31,12 @@ namespace bk_planner {
   		double test_param_;
 			
 			void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
-			bool makePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan);
+			bool makePlan(const geometry_msgs::PoseStamped& goal);
 			
 			
-      boost::recursive_mutex configuration_mutex_;
-      dynamic_reconfigure::Server<bk_planner::BKPlannerConfig> *dsrv_;
-			void BKPlanner::reconfigureCB(bk_planner::BKPlannerConfig &config, uint32_t level);
+			//boost::recursive_mutex configuration_mutex_;
+			//dynamic_reconfigure::Server<bk_planner::BKPlannerConfig> *dsrv_;
+			//void BKPlanner::reconfigureCB(bk_planner::BKPlannerConfig &config, uint32_t level);
 	};
 
 

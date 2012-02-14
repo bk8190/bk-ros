@@ -28,6 +28,12 @@ namespace bk_sbpl_lattice_planner{
 class BKSBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
 public:
   
+  static double rect_angle(double t);
+  static precision_navigation_msgs::PathSegment
+makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2);
+	static void print_path_segment(precision_navigation_msgs::PathSegment s);
+//	static int main(int argc, char** argv);
+  
   /**
    * @brief  Default constructor for the NavFnROS object
    */
@@ -47,7 +53,7 @@ public:
    * @param  name The name of this planner
    * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use
    */
-  virtual void initialize(std::string name, 
+  void initialize(std::string name, 
                           costmap_2d::Costmap2DROS* costmap_ros);
   
   /**
@@ -57,16 +63,16 @@ public:
    * @param plan The plan... filled by the planner
    * @return True if a valid plan was found, false otherwise
    */
-  virtual bool makePlan(const geometry_msgs::PoseStamped& start, 
-                        const geometry_msgs::PoseStamped& goal, 
-                        std::vector<geometry_msgs::PoseStamped>& plan);
+  bool makePlan(const geometry_msgs::PoseStamped&        start, 
+                const geometry_msgs::PoseStamped&        goal , 
+                std::vector<geometry_msgs::PoseStamped>& plan );
                         
-	virtual bool makeSegmentPlan(const geometry_msgs::PoseStamped&        start,
-                               const geometry_msgs::PoseStamped&        goal,
-                               std::vector<geometry_msgs::PoseStamped>& plan,
-                               precision_navigation_msgs::Path&         segmentPlan);
+	bool makeSegmentPlan(const geometry_msgs::PoseStamped&        start      ,
+                       const geometry_msgs::PoseStamped&        goal       ,
+                       std::vector<geometry_msgs::PoseStamped>& plan       ,
+                       precision_navigation_msgs::Path&         segmentPlan);
                         
-  virtual ~BKSBPLLatticePlanner(){};
+  ~BKSBPLLatticePlanner(){};
 
 
 	void ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, 
@@ -74,9 +80,6 @@ public:
 	                                       precision_navigation_msgs::Path& segmentPath,
 	                                       double dx,
 	                                       double dy );
-	                                       
-	precision_navigation_msgs::PathSegment makePathSegment(double x1, double y1, double t1,
-	                                                       double x2, double y2, double t2);
 	
 private:
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
