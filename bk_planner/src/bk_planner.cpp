@@ -8,16 +8,24 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	priv_nh_            ("~"),
 	tf_                 (tf),
 	planner_costmap_    (NULL),
-	lattice_planner_    (NULL)
+	lattice_planner_    (NULL),
+	client_             ("execute_path", true)
 	//planner_costmap_ros_("local_costmap", tf),
 	//lattice_planner_    ("lattice_planner", &planner_costmap_ros_)
 {
 
+	priv_nh_.param("speeds/max_vel_x"         ,max_vel_x_         ,0.0);
+	priv_nh_.param("speeds/max_rotational_vel",max_rotational_vel_,0.0);
+	priv_nh_.param("speeds/acc_lim_th"        ,acc_lim_th_        ,0.0);
+	priv_nh_.param("speeds/acc_lim_x"         ,acc_lim_x_         ,0.0);
+	priv_nh_.param("speeds/acc_lim_y"         ,acc_lim_y_         ,0.0);
+	
+	ROS_INFO("Max speeds: (x,theta)   = (%.2f,%.2f)"     , max_vel_x_, max_rotational_vel_);
+	ROS_INFO("Max accels: (x,theta,y) = (%.2f,%.2f,%.2f)", acc_lim_x_, acc_lim_th_, acc_lim_y_);
 /*
 	// Test to see if parameters are working
 	priv_nh_.param("test_param", test_param_, 0.0);
 	double vel;
-	priv_nh_.param("speeds/max_vel_x", vel, 0.0);
 	ROS_INFO("Param vel  = %.2f", vel);
 	ROS_INFO("Param test = %.2f", test_param_);
 */
@@ -26,7 +34,7 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	goal_sub_     = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	plan_pub_     = nh_.advertise<precision_navigation_msgs::Path>(name + "/plan", 1);
 	plan_vis_pub_ = nh_.advertise<nav_msgs::Path>(name + "/plan_visualization", 1);
-
+	
 	planner_costmap_ = new costmap_2d::Costmap2DROS("local_costmap", tf_);
 	lattice_planner_ = new bk_sbpl_lattice_planner::BKSBPLLatticePlanner("lattice_planner", planner_costmap_);
 	
@@ -34,6 +42,9 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
 //	dsrv_->setCallback(cb);	
 
+	ROS_INFO("Waiting for server...");
+	client_.waitForServer();
+	
 	ROS_INFO("BKPlanner constructor finished");
 }
 
@@ -86,18 +97,20 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	tf::Stamped<tf::Pose> robot_pose;
 	if(!planner_costmap_->getRobotPose(robot_pose)){
 		ROS_ERROR("bk_planner cannot make a plan for you because it could not get the start pose of the robot");
-	return false;
+		return false;
 	}
-	
 	geometry_msgs::PoseStamped start;
 	tf::poseStampedTFToMsg(robot_pose, start);
 
 	nav_msgs::Path vis_plan;
 	precision_navigation_msgs::Path segment_plan;
 	
-	if( !start.header.frame_id.compare(goal.header.frame_id) ){
+	/*if( !start.header.frame_id.compare(goal.header.frame_id) ){
 		ROS_ERROR("Start and goal poses are in different frames.  What are you trying to pull here?");
+		return false;
+	}*/
     
+  ros::Time t1 = ros::Time::now();
 	ROS_INFO("Planning.");
 	bool ret = lattice_planner_->makeSegmentPlan(start, goal, vis_plan.poses, segment_plan);
 
@@ -106,19 +119,60 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 		return false;
 	}
 	
-	ROS_INFO("Plan succeeded. Visualization has %ld points",vis_plan.poses.size());
-	
+	ros::Duration t = ros::Time::now() - t1;
+	ROS_INFO("Plan succeeded in %.2f seconds. Visualization has %ld points", t.toSec(), vis_plan.poses.size());
 	vis_plan.header.stamp        = ros::Time::now();
 	vis_plan.header.frame_id     = start.header.frame_id;
 	segment_plan.header.stamp    = ros::Time::now();
 	segment_plan.header.frame_id = start.header.frame_id;
-	
 	plan_vis_pub_.publish(vis_plan);
-	plan_pub_    .publish(segment_plan);
+	plan_pub_.publish(segment_plan);
+	
+	fillInVelocities(segment_plan);
+	
+	client_.waitForServer();
+	ROS_INFO("Sending to server...");
+	precision_navigation_msgs::ExecutePathGoal action_goal;
+	action_goal.segments = segment_plan.segs;
+	client_.sendGoal(action_goal);
+	ROS_INFO("Done.");
 	
 	return true;
 }
+
+void BKPlanner::fillInVelocities(precision_navigation_msgs::Path& path)
+{
+	precision_navigation_msgs::PathSegment p;
+	for( int i = 0; i<path.segs.size(); i++ )
+	{
+		p = path.segs.at(i);
+		
+		p.seg_number = i;
+		p.max_speeds.linear.x  = max_vel_x_;
+		p.max_speeds.angular.z = max_rotational_vel_;
+		
+		switch(p.seg_type)
+		{
+			case precision_navigation_msgs::PathSegment::LINE:
+				p.accel_limit = acc_lim_x_;
+				p.decel_limit = acc_lim_x_;
+				break;
+				
+			case precision_navigation_msgs::PathSegment::ARC:
+				p.accel_limit = acc_lim_x_;
+				p.decel_limit = acc_lim_x_;
+			break;
 			
+			case precision_navigation_msgs::PathSegment::SPIN_IN_PLACE:
+				p.accel_limit = acc_lim_th_;
+				p.decel_limit = acc_lim_th_;
+			break;
+		}
+		
+		path.segs.at(i) = p;
+	}
+}
+
 /*void BKPlanner::reconfigureCB(bk_planner::BKPlannerConfig &config, uint32_t level)
 {
 	boost::recursive_mutex::scoped_lock l(configuration_mutex_);

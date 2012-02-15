@@ -6,6 +6,11 @@
 
 #include <precision_navigation_msgs/Path.h>
 #include <precision_navigation_msgs/PathSegment.h>
+#include <precision_navigation_msgs/ExecutePathAction.h>
+#include <precision_navigation_msgs/ExecutePathGoal.h>
+
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib_msgs/GoalStatus.h>
 #include <tf/transform_listener.h>
 
 namespace bk_planner {
@@ -29,12 +34,19 @@ namespace bk_planner {
 			ros::Publisher  plan_vis_pub_;
   		tf::TransformListener& tf_;
   		
-  		double test_param_;
+  		actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
+  		
+  		double max_vel_x_;
+  		double max_rotational_vel_;
+  		double acc_lim_th_;
+  		double acc_lim_x_;
+  		double acc_lim_y_;
+  		
 			
 			void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
 			bool makePlan(const geometry_msgs::PoseStamped& goal);
+			void fillInVelocities(precision_navigation_msgs::Path& path);
 			geometry_msgs::PoseStamped goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg);
-
 			
 			//boost::recursive_mutex configuration_mutex_;
 			//dynamic_reconfigure::Server<bk_planner::BKPlannerConfig> *dsrv_;

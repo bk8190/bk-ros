@@ -16,6 +16,8 @@
   <depend package="nav_core"/>
   <depend package="geometry_msgs"/>
   <depend package="nav_msgs"/>
+  <depend package="actionlib"/>
+  <depend package="actionlib_msgs"/>
   <depend package="precision_navigation_msgs"/>
   <depend package="bk_sbpl_lattice_planner"/>
   
