@@ -1,0 +1,8 @@
+speeds:
+ max_vel_x: 0.3
+ max_rotational_vel: 0.5
+ acc_lim_th: 0.05
+ acc_lim_x: 0.1
+ acc_lim_y: 0.0
+
+test_param: 5.6
