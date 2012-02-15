@@ -29,9 +29,6 @@ rosbuild_genmsg()
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-rosbuild_add_executable(${PROJECT_NAME} src/bk_sbpl_lattice_planner.cpp)
-#rosbuild_add_library(seg src/make_seg.cpp)
-
 rosbuild_add_library(${PROJECT_NAME} src/bk_sbpl_lattice_planner.cpp)
-#target_link_libraries(${PROJECT_NAME} seg)
+target_link_libraries(${PROJECT_NAME} segment_lib)
 
