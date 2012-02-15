@@ -14,6 +14,7 @@
 #include <tf/transform_listener.h>
 
 #include <bk_planner/path_checker.h>
+#include <segment_lib/segment_lib.h>
 
 namespace bk_planner {
 
@@ -27,6 +28,7 @@ namespace bk_planner {
       costmap_2d::Costmap2DROS*                      planner_costmap_;
       bk_sbpl_lattice_planner::BKSBPLLatticePlanner* lattice_planner_;
       path_checker::PathChecker*                     path_checker_;
+      segment_lib::SegmentVisualization*             segment_visualizer_;
       
       ros::NodeHandle  nh_;
       ros::NodeHandle  priv_nh_;

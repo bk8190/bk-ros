@@ -9,6 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/sbpl_lattice_planner</url>
   <depend package="roscpp"/>
+  <depend package="segment_lib"/>
   <depend package="sbpl"/>
   <depend package="costmap_2d"/>
   <depend package="nav_core"/>

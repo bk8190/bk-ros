@@ -71,12 +71,12 @@ double getClosestDist(const precision_navigation_msgs::PathSegment& p)
 }
 
 // Returns indices of all segments colliding with obstacles
-std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path);
+std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path)
 {
 	std::vector<int> indices;
 	indices.clear();
 	
-	for( int i=0; i<path.size(); i++ ) {
+	for( int i=0; i<path.segs.size(); i++ ) {
 		if( !isSegClear(path.segs.at(i)) ) {
 			indices.push_back(i);
 		}
