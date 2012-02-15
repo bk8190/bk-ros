@@ -21,7 +21,10 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #uncomment if you have defined services
 #rosbuild_gensrv()
 
+rosbuild_add_library(path_checker src/path_checker.cpp)
+
 rosbuild_add_executable(bk_planner src/bk_planner.cpp)
+target_link_libraries(bk_planner path_checker)
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)

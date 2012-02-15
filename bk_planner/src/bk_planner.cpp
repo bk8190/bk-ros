@@ -1,6 +1,5 @@
 #include <bk_planner/bk_planner.h>
 
-
 namespace bk_planner
 {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
@@ -37,6 +36,7 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	
 	planner_costmap_ = new costmap_2d::Costmap2DROS("local_costmap", tf_);
 	lattice_planner_ = new bk_sbpl_lattice_planner::BKSBPLLatticePlanner("lattice_planner", planner_costmap_);
+	path_checker_    = new path_checker::PathChecker("path_checker", planner_costmap_);
 	
 //	dsrv_ = new dynamic_reconfigure::Server<move_base::MoveBaseConfig>(ros::NodeHandle("~"));
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
@@ -53,17 +53,17 @@ BKPlanner::~BKPlanner()
 	//delete dsrv_;
 	delete lattice_planner_;
 	delete planner_costmap_;
+	delete path_checker_;
 }
 
 
-geometry_msgs::PoseStamped BKPlanner::goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg)
+geometry_msgs::PoseStamped BKPlanner::poseToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg)
 {
 	std::string global_frame = planner_costmap_->getGlobalFrameID();
 	tf::Stamped<tf::Pose> goal_pose, global_pose;
-	poseStampedMsgToTF(goal_pose_msg, goal_pose);
+	poseStampedMsgToTF(pose_msg, goal_pose);
 	
-	//just get the latest available transform... for accuracy they should send
-	//goals in the frame of the planner
+	//just get the latest available transform
 	goal_pose.stamp_ = ros::Time();
 	
 	try{
@@ -72,7 +72,7 @@ geometry_msgs::PoseStamped BKPlanner::goalToGlobalFrame(const geometry_msgs::Pos
 	catch(tf::TransformException& ex){
 		ROS_WARN("Failed to transform the goal pose from %s into the %s frame: %s",
 		goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
-		return goal_pose_msg;
+		return pose_msg;
 	}
 	
 	geometry_msgs::PoseStamped global_pose_msg;
@@ -86,7 +86,7 @@ void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
 
 	ROS_INFO("Got new goal: (%.2f,%.2f) in frame %s", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str());
 	
-	geometry_msgs::PoseStamped goal_transformed = goalToGlobalFrame(goal);
+	geometry_msgs::PoseStamped goal_transformed = poseToGlobalFrame(goal);
 	
 	this->makePlan(goal_transformed);
 }
@@ -128,7 +128,8 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	plan_vis_pub_.publish(vis_plan);
 	plan_pub_.publish(segment_plan);
 	
-	fillInVelocities(segment_plan);
+	// Get safe velocities for the segments
+	path_checker_->assignPathVelocity(segment_plan);
 	
 	client_.waitForServer();
 	ROS_INFO("Sending to server...");
@@ -140,38 +141,7 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	return true;
 }
 
-void BKPlanner::fillInVelocities(precision_navigation_msgs::Path& path)
-{
-	precision_navigation_msgs::PathSegment p;
-	for( int i = 0; i<path.segs.size(); i++ )
-	{
-		p = path.segs.at(i);
-		
-		p.seg_number = i;
-		p.max_speeds.linear.x  = max_vel_x_;
-		p.max_speeds.angular.z = max_rotational_vel_;
-		
-		switch(p.seg_type)
-		{
-			case precision_navigation_msgs::PathSegment::LINE:
-				p.accel_limit = acc_lim_x_;
-				p.decel_limit = acc_lim_x_;
-				break;
-				
-			case precision_navigation_msgs::PathSegment::ARC:
-				p.accel_limit = acc_lim_x_;
-				p.decel_limit = acc_lim_x_;
-			break;
-			
-			case precision_navigation_msgs::PathSegment::SPIN_IN_PLACE:
-				p.accel_limit = acc_lim_th_;
-				p.decel_limit = acc_lim_th_;
-			break;
-		}
-		
-		path.segs.at(i) = p;
-	}
-}
+
 
 /*void BKPlanner::reconfigureCB(bk_planner::BKPlannerConfig &config, uint32_t level)
 {

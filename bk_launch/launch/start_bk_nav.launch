@@ -2,13 +2,13 @@
 <launch>
 	<node pkg="bk_planner" type="bk_planner" respawn="false" name="bk_planner" output="screen">
 		
-		<!-- Common costmap params (global and local) -->
+		<!-- Common costmap parameters (both global and local) -->
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml"
 			command="load" ns="local_costmap"  />
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml"
 			command="load" ns="global_costmap" />
 		
-		<!-- Costmap params specific to global or local -->
+		<!-- Costmap parameters specific to global or local -->
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_local_params.yaml"
 			command="load" ns="local_costmap"  />
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_global_params.yaml" 
@@ -19,7 +19,11 @@
 			command="load" ns="lattice_planner" />
 		<param name="lattice_planner/primitive_filename" value="$(find sbpl)/matlab/mprim/unicycle_backonlystraight.mprim" />
 		
-		<!-- Parameters for the planner itself -->
+		<!-- Path checker parameters -->
+		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/path_checker_params.yaml"
+			command="load" ns="path_checker" />
+			
+		<!-- Finally, parameters for the planner itself -->
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/bk_planner_params.yaml"
 			command="load" />
 		

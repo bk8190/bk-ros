@@ -478,23 +478,25 @@ BKSBPLLatticePlanner::makePathSegment(double x1, double y1, double t1, double x2
   const double pi = 3.1415926;
 	double eps = .0001; // Precision for floating point comparison
 	precision_navigation_msgs::PathSegment seg;
+	
 	double dx = x2-x1;
 	double dy = y2-y1;
 	t1 = BKSBPLLatticePlanner::rect_angle(t1);
 	t2 = BKSBPLLatticePlanner::rect_angle(t2);
-	double dth = t2-t1;
+	double dth = BKSBPLLatticePlanner::rect_angle(t2-t1);
+	
 	//fprintf(stdout,"t1 = %.2fpi, t2 = %.2fpi, dtheta = %.2fpi\n", t1/pi, t2/pi, dth/pi);
 	
 	// Arc parameters
 	double chord_length, denom, signed_r, abs_r, ang_to_center, xcenter, ycenter;
 	
 	// Initialize the segment, set all speeds/accels to 0
-	seg.max_speeds.linear.x  = 0;
-	seg.max_speeds.angular.z = 0;
-	seg.min_speeds.linear.x  = 0;
-	seg.min_speeds.angular.z = 0;
-	seg.accel_limit          = 0;
-	seg.decel_limit          = 0;
+	seg.max_speeds.linear.x  = 0.0;
+	seg.max_speeds.angular.z = 0.0;
+	seg.min_speeds.linear.x  = 0.0;
+	seg.min_speeds.angular.z = 0.0;
+	seg.accel_limit          = 0.0;
+	seg.decel_limit          = 0.0;
 	
 	// No change in theta: line segment
 	if(fabs(dth) < eps)
@@ -507,15 +509,22 @@ BKSBPLLatticePlanner::makePathSegment(double x1, double y1, double t1, double x2
 		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(t1);
 		seg.curvature      = 0.0;
 		
-		// Make sure the start/end angle is consistent with the path direction
-		double expected_angle = BKSBPLLatticePlanner::rect_angle(atan2(dy,dx));
-		if( fabs(expected_angle-t1) > eps ){
-			ROS_ERROR("Path segment start/end angles were not consistent with line segment direction!");
+		if( seg.seg_length < eps )
+			ROS_WARN("Degenerate line segment (length 0)");
+		else
+		{
+			// Make sure the start/end angle is consistent with the path direction
+			double expected_angle = BKSBPLLatticePlanner::rect_angle(atan2(dy,dx));
+			double angle_error    = BKSBPLLatticePlanner::rect_angle(t1 - expected_angle);
+			if( fabs(angle_error) > eps ){
+				ROS_WARN("Path segment start/end angles were not consistent with line segment direction!");
+				ROS_WARN("Calculated %.2fpi, but start=%.2fpi, end=%.2fpi",expected_angle/pi,t1/pi,t2/pi);
+			}
 		}
 		
 	}
 	// No change in position: turn in place
-	else if( fabs(dx)<eps && fabs(dy)<eps )
+	else if( fabs(dx) + fabs(dy) < eps )
 	{
 		seg.seg_type       = precision_navigation_msgs::PathSegment::SPIN_IN_PLACE;
 		seg.seg_length     = abs(dth);
@@ -551,12 +560,12 @@ BKSBPLLatticePlanner::makePathSegment(double x1, double y1, double t1, double x2
 				seg.curvature = 1/signed_r;
 			else{
 				seg.curvature = 0;
-				ROS_ERROR("Invalid arc segment created!");
+				ROS_WARN("Invalid arc segment (0 radius)!");
 			}
 		}
 		else{
 			seg.curvature = 0;
-			ROS_ERROR("Invalid arc segment created!");
+			ROS_WARN("Invalid arc segment (divide by 0)!");
 		}
 		
 		// Find the angle to the circle's center from the starting point
@@ -575,6 +584,17 @@ BKSBPLLatticePlanner::makePathSegment(double x1, double y1, double t1, double x2
 		
 		// Arc length = r*theta
 		seg.seg_length = abs_r * fabs((double)dth);
+		
+		// Perform a consistency check.  From the circle's center, navigate to the end point.
+		double ang_center_to_end = ang_to_center+dth+pi;
+		double x2_predicted = xcenter + abs_r*cos((double)(ang_center_to_end));
+		double y2_predicted = ycenter + abs_r*sin((double)(ang_center_to_end));
+		
+		// Make sure the calculated endpoint is consistent with the actual endpoint
+		double deviation = abs(x2 - x2_predicted) + abs(y2 - y2_predicted);
+		if( deviation > eps ){
+			ROS_WARN("Detected an arc segment with inconsistent endpoint angles: Deviation=%.5f",deviation);
+		}
 		
 		/*fprintf(stdout,"dtheta        = %.2fpi\n"         , dth/pi);
 		fprintf(stdout,"ang_to_center = %.2fpi\n"         , ang_to_center/pi);
@@ -609,43 +629,68 @@ void BKSBPLLatticePlanner::print_path_segment(precision_navigation_msgs::PathSeg
 	fprintf(stdout,"Length:     %.2f (%.2fpi)\n", s.seg_length, s.seg_length/pi);
 	fprintf(stdout,"Ref point: (%.2f,%.2f)\n", s.ref_point.x, s.ref_point.y);
 	fprintf(stdout,"Init angle: %.2fpi\n", tf::getYaw(s.init_tan_angle)/pi);
-	fprintf(stdout,"Curvature:  %.2f\n", s.curvature);
-	
+	fprintf(stdout,"Curvature:  %.2f\n\n", s.curvature);
 }
 
 
 };
-/*
+
+#define makeseg  bk_sbpl_lattice_planner::BKSBPLLatticePlanner::makePathSegment
+#define printseg bk_sbpl_lattice_planner::BKSBPLLatticePlanner::print_path_segment
+
 // DEBUG
 int main(int argc, char** argv)
 {
   const double pi = 3.1415926;
 	
 	precision_navigation_msgs::PathSegment p;
+
+
+/*
+	printf("(-1,-1,3/4p) -> (-1,1,1/4p)\n");
+	p = makeseg(-1,-1,3*pi/4,
+	            -1, 1,pi/4);
+	printseg(p);
 	
-	/*p = makePathSegment(0,0,pi/2,
-	                    0,1,pi/2);
-	*/
-	/*p = makePathSegment(0.0, 0.0, pi/2.0,
-	                   -1.0, 1.0, pi);
-  */                   
-	/*p = makePathSegment(0,0,pi/2,
-	                    1,1,0);
-	*/
-	/*p = makePathSegment(0,0,pi/2,
-	                    0,0,pi);
-	*/
-	/*p = makePathSegment(1,2,pi,
-	                    -1,0,3*pi/2);
-	*/
+	printf("(-1,1,-3/4p) -> (-1,-1,-1/4p)\n");
+	p = makeseg(-1, 1,5*pi/4,
+	            -1,-1,-pi/4);
+	printseg(p);
 	
-	/*p = makePathSegment(0,0,5*pi/4,
-	                    -5,-5,5*pi/4);
-	*/
-	/*p = BKSBPLLatticePlanner::makePathSegment(-1,-1,3*pi/4,
-	                    -1,1 ,pi/4);
-	        
-	BKSBPLLatticePlanner::print_path_segment(p);
+	printf("(1,-1,1/4p) -> (1,1,3/4p)\n");
+	p = makeseg(1,-1,pi/4,
+	            1, 1,3*pi/4);
+	printseg(p);
+	
+	printf("(1,-1,1/4p) -> (1,1,4/4p) (bad)\n");
+	p = makeseg(1,-1,pi/4,
+	            1, 1,pi);
+	printseg(p);
+	
+	printf("(1,0,1/2p) -> (-1,0,-1/2p)\n");
+	p = makeseg( 1.0/sqrt(2.0),1.0/sqrt(2.0),3*pi/4,
+	            -1,0,-pi/2);
+	printseg(p);
+*/
+
+	printf("(1,1,1/4p) -> (1,1,1/4p) (degenerate)\n");
+	p = makeseg( 1,1,1*pi/4,
+	             1,1,1*pi/4);
+
+	printf("(1,1,1/4p) -> (6,6,1/4p) (bad angle)\n");
+	p = makeseg( 1,1,1*pi/4+.1,
+	             6,6,1*pi/4+.1);
+	printseg(p);
+	
+	printf("(1,1,1/4p) -> (1,1,pi)\n");
+	p = makeseg( 1,1,pi/4,
+	             1,1,pi);
+	printseg(p);
+	
+	printf("(1,1,.25p) -> (1,1,-.9pi)\n");
+	p = makeseg( 1,1, .25*pi,
+	             1,1,-.90*pi);
+	printseg(p);
 	
 	return(0);
-}*/
+}

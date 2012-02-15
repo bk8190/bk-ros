@@ -13,6 +13,8 @@
 #include <actionlib_msgs/GoalStatus.h>
 #include <tf/transform_listener.h>
 
+#include <bk_planner/path_checker.h>
+
 namespace bk_planner {
 
 	class BKPlanner
@@ -21,17 +23,16 @@ namespace bk_planner {
 			BKPlanner(std::string name, tf::TransformListener& tf);
 			~BKPlanner();
 			
-			//void initialize(std::string name, 
-	
 		private:
       costmap_2d::Costmap2DROS*                      planner_costmap_;
       bk_sbpl_lattice_planner::BKSBPLLatticePlanner* lattice_planner_;
+      path_checker::PathChecker*                     path_checker_;
       
-      ros::NodeHandle nh_;
-      ros::NodeHandle priv_nh_;
-			ros::Subscriber goal_sub_;
-			ros::Publisher  plan_pub_;
-			ros::Publisher  plan_vis_pub_;
+      ros::NodeHandle  nh_;
+      ros::NodeHandle  priv_nh_;
+			ros::Subscriber  goal_sub_;
+			ros::Publisher   plan_pub_;
+			ros::Publisher   plan_vis_pub_;
   		tf::TransformListener& tf_;
   		
   		actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
@@ -45,15 +46,13 @@ namespace bk_planner {
 			
 			void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
 			bool makePlan(const geometry_msgs::PoseStamped& goal);
-			void fillInVelocities(precision_navigation_msgs::Path& path);
-			geometry_msgs::PoseStamped goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg);
+			
+			geometry_msgs::PoseStamped poseToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);
 			
 			//boost::recursive_mutex configuration_mutex_;
 			//dynamic_reconfigure::Server<bk_planner::BKPlannerConfig> *dsrv_;
 			//void BKPlanner::reconfigureCB(bk_planner::BKPlannerConfig &config, uint32_t level);
-	};
 
-
-
+	};//class
 }; //namespace
 #endif
