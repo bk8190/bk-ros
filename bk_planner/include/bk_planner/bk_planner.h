@@ -15,6 +15,7 @@
 
 #include <bk_planner/path_checker.h>
 #include <segment_lib/segment_lib.h>
+#include <segment_lib/SegmentVisualizer.h>
 
 namespace bk_planner {
 
@@ -28,7 +29,7 @@ namespace bk_planner {
       costmap_2d::Costmap2DROS*                      planner_costmap_;
       bk_sbpl_lattice_planner::BKSBPLLatticePlanner* lattice_planner_;
       path_checker::PathChecker*                     path_checker_;
-      segment_lib::SegmentVisualization*             segment_visualizer_;
+      segment_lib::SegmentVisualizer*                segment_visualizer_;
       
       ros::NodeHandle  nh_;
       ros::NodeHandle  priv_nh_;

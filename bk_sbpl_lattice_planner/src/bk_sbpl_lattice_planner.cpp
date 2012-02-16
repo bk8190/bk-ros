@@ -416,6 +416,7 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
 
 void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, const vector<int>& stateIDPath, precision_navigation_msgs::Path& segmentPath, double dx, double dy)
 {
+	static double pi = 3.1415926;
 	// Discrete state
 	int x1_c, y1_c, t1_c;
 	int x2_c, y2_c, t2_c;
@@ -423,6 +424,8 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 	// Continuous state
 	double x1, y1, t1;
 	double x2, y2, t2;
+	
+	double end_angle;
 
 	precision_navigation_msgs::PathSegment this_seg;
 	bool ret1, ret2;
@@ -450,11 +453,26 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 		}
 		
 		// We now have source and destination states.  Build a path segment.
+		ROS_INFO("Segment  %d: (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", path_index, x1+dx, y1+dy, x2+dx, y2+dy, t1/pi, t2/pi);
+		
 		this_seg = segment_lib::makePathSegment(x1+dx,y1+dy,t1, x2+dx,y2+dy,t2); 
 		
+		// Check the endpoints
+		std::vector<geometry_msgs::PoseStamped> interp = segment_lib::interpSegment(this_seg, 1, 1);
+		geometry_msgs::Pose start_pose = interp.front().pose;
+		geometry_msgs::Pose end_pose   = interp.back().pose;
+		
+		
+		ROS_INFO("Actually, : (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", start_pose.position.x, start_pose.position.y, end_pose.position.x, end_pose.position.y, segment_lib::rect_angle(tf::getYaw(start_pose.orientation))/pi, segment_lib::rect_angle(tf::getYaw(end_pose.orientation)/pi));
+		
+		ROS_INFO(".");
+		
+		
+		
 		this_seg.header.frame_id   = segmentPath.header.frame_id;
-		this_seg.header.stamp = segmentPath.header.stamp;
+		this_seg.header.stamp      = segmentPath.header.stamp;
 		this_seg.header.seq        = segmentPath.header.seq;
+		this_seg.seg_number        = path_index;
 		segmentPath.segs.push_back(this_seg);
 	}
 }

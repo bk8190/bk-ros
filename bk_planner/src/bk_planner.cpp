@@ -37,7 +37,7 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	planner_costmap_ = new costmap_2d::Costmap2DROS("local_costmap", tf_);
 	lattice_planner_ = new bk_sbpl_lattice_planner::BKSBPLLatticePlanner("lattice_planner", planner_costmap_);
 	path_checker_    = new path_checker::PathChecker("path_checker", planner_costmap_);
-	//segment_visualizer_ = new segment_lib::SegmentVisualization("segment_visualization");
+	segment_visualizer_ = new segment_lib::SegmentVisualizer(std::string("segment_visualization"));
 	
 //	dsrv_ = new dynamic_reconfigure::Server<move_base::MoveBaseConfig>(ros::NodeHandle("~"));
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
@@ -125,17 +125,12 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	
 	// Get safe velocities for the segments
 	path_checker_->assignPathVelocity(segment_plan);
-	
-	vis_plan.header.stamp        = ros::Time::now();
-	vis_plan.header.frame_id     = start.header.frame_id;
 	segment_plan.header.stamp    = ros::Time::now();
 	segment_plan.header.frame_id = start.header.frame_id;
-	plan_vis_pub_.publish(vis_plan);
-	plan_pub_.publish(segment_plan);
-	//segment_visualizer_->publishVisualization(segment_plan);
 	
-	double d = segment_lib::rect_angle(5.4);
-//	precision_navigation_msgs::PathSegment p = segment_lib::makePathSegment(0,0,0,0,0,0);
+	// Publish the plan, and have the visualizer publish visualization
+	plan_pub_.publish(segment_plan);
+	segment_visualizer_->publishVisualization(segment_plan);
 	
 	client_.waitForServer();
 	ROS_INFO("Sending to server...");

@@ -5,7 +5,11 @@
 #include <vector>
 #include <ros/ros.h>
 #include <tf/tf.h>
+
+#include <nav_msgs/Path.h>
+#include <std_msgs/ColorRGBA.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -15,29 +19,33 @@
 
 namespace segment_lib {
 
-double rect_angle(double t);
+	const double pi = 3.1415926;
 
-precision_navigation_msgs::PathSegment makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2);
+	double rect_angle(double t);
 
-void printPathSegment(const precision_navigation_msgs::PathSegment& s);
-
-// Returns a vector of poses from a segment: the beginning, the end, and regular samples along distance dx (line/arc) and dtheta (spin in place).
-std::vector<geometry_msgs::Pose> interpSegment(const precision_navigation_msgs::PathSegment& s, double dx, double dtheta);
-
-class SegmentVisualization
-{
-	public:
-		SegmentVisualization(std::string name);
-		~SegmentVisualization();
+	precision_navigation_msgs::PathSegment
+	makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2);
+	precision_navigation_msgs::PathSegment
+	makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2, double& end_angle);
 	
-		void publishVisualization(const precision_navigation_msgs::Path& path);
-		
-	private:
-		ros::NodeHandle nh_;
-		ros::NodeHandle private_nh_;
-		
-		ros::Publisher  vis_pub_;
-};
+	void printPathSegment(const precision_navigation_msgs::PathSegment& s);
+
+	// Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating)
+	nav_msgs::Path
+	interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta);
+
+	// Returns a vector of poses sampled from a segment: the beginning, the end, and regular samples along distance dx (line/arc) and dtheta (spin in place).
+	std::vector<geometry_msgs::PoseStamped>
+	interpSegment(const precision_navigation_msgs::PathSegment& seg, double dx, double dtheta);
+
+	std::vector<geometry_msgs::PoseStamped>
+	interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx);
+
+	std::vector<geometry_msgs::PoseStamped>
+	interpArcSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta);
+
+	std::vector<geometry_msgs::PoseStamped>
+	interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta);
 
 };//namespace
 #endif

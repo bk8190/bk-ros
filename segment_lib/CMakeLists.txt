@@ -22,8 +22,13 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_gensrv()
 
 rosbuild_add_library(${PROJECT_NAME} src/segment_lib.cpp)
+rosbuild_add_library(SegmentVisualizer src/SegmentVisualizer.cpp)
 rosbuild_add_executable(segment_test src/segment_test.cpp)
+
+target_link_libraries(${PROJECT_NAME} SegmentVisualizer)
+
 target_link_libraries(segment_test ${PROJECT_NAME})
+target_link_libraries(segment_test SegmentVisualizer)
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)

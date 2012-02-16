@@ -26,6 +26,7 @@ rosbuild_add_library(path_checker src/path_checker.cpp)
 rosbuild_add_executable(bk_planner src/bk_planner.cpp)
 target_link_libraries(bk_planner path_checker)
 target_link_libraries(bk_planner segment_lib)
+target_link_libraries(bk_planner SegmentVisualizer)
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)

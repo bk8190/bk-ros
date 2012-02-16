@@ -2,7 +2,28 @@ Background\ ColorR=0
 Background\ ColorG=0
 Background\ ColorB=0
 Fixed\ Frame=/map
-Target\ Frame=/base_link
+Target\ Frame=<Fixed Frame>
+Footprint.Alpha=1
+Footprint.ColorR=0
+Footprint.ColorG=0
+Footprint.ColorB=0
+Footprint.Enabled=1
+Footprint.Topic=/bk_planner/local_costmap/robot_footprint
+Grid.Alpha=0.5
+Grid.Cell\ Size=1
+Grid.ColorR=0.5
+Grid.ColorG=0.5
+Grid.ColorB=0.5
+Grid.Enabled=1
+Grid.Line\ Style=0
+Grid.Line\ Width=0.03
+Grid.Normal\ Cell\ Count=0
+Grid.OffsetX=0
+Grid.OffsetY=0
+Grid.OffsetZ=0
+Grid.Plane=0
+Grid.Plane\ Cell\ Count=10
+Grid.Reference\ Frame=/map
 Laser\ Scan.Alpha=0.6
 Laser\ Scan.Billboard\ Size=0.05
 Laser\ Scan.Color\ Transformer=Intensity
@@ -43,12 +64,35 @@ Local\ obstacles.ColorG=0
 Local\ obstacles.ColorB=0.0117647
 Local\ obstacles.Enabled=1
 Local\ obstacles.Topic=/bk_planner/local_costmap/obstacles
+Map\ axes.Enabled=1
+Map\ axes.Length=1
+Map\ axes.Radius=0.05
+Map\ axes.Reference\ Frame=/map
 Map.Alpha=0.7
-Map.Draw\ Behind=0
+Map.Draw\ Behind=1
 Map.Enabled=1
 Map.Topic=/map
+Odometry.Angle\ Tolerance=0.1
+Odometry.ColorR=1
+Odometry.ColorG=0.1
+Odometry.ColorB=0
+Odometry.Enabled=1
+Odometry.Keep=1
+Odometry.Position\ Tolerance=0.1
+Odometry.Topic=/odom
+Plan\ \(poses\).ColorR=1
+Plan\ \(poses\).ColorG=0.1
+Plan\ \(poses\).ColorB=0
+Plan\ \(poses\).Enabled=1
+Plan\ \(poses\).Topic=/segment_visualization/pose_array
+Plan.Alpha=1
+Plan.ColorR=0.1
+Plan.ColorG=1
+Plan.ColorB=0
+Plan.Enabled=1
+Plan.Topic=/segment_visualization/path
 TF.All\ Enabled=1
-TF.Enabled=1
+TF.Enabled=0
 TF.Frame\ Timeout=15
 TF.Marker\ Scale=1
 TF.Show\ Arrows=1
@@ -58,31 +102,49 @@ TF.Update\ Interval=0.05
 Tool\ 2D\ Nav\ GoalTopic=move_base_simple/goal
 Tool\ 2D\ Pose\ EstimateTopic=initialpose
 Camera\ Type=rviz::FixedOrientationOrthoViewController
-Camera\ Config=89.8286 1.67877 17.6231 2.33748 0.653765 -0.269427 -0.269427 -0.653765
-Property\ Grid\ State=selection=Local obstacles.Enabled;expanded=.Global Options,TF./base_footprint/base_footprint,TF./base_laser_link/base_laser_link,TF./base_link/base_link,TF./odom/odom,TF./map/map,TF.Enabled.TF.Tree,TF./mapTree/map,TF./odomTree/odom,TF./base_footprintTree/base_footprint,TF./base_linkTree/base_link,TF./base_laser_linkTree/base_laser_link,Local obstacles.Enabled;scrollpos=0,0;splitterpos=176,353;ispageselected=1
+Camera\ Config=1779.54 -9.78072 17.6231 -3.26263 0.488364 -0.511372 -0.511372 -0.488364
+Property\ Grid\ State=selection=Plan (poses).Enabled;expanded=.Global Options,TF.Enabled.TF.StatusTopStatus,TF.Enabled.TF.Tree,Plan.Enabled,Plan (poses).Enabled;scrollpos=0,0;splitterpos=176,353;ispageselected=1
 [Display0]
-Name=Map
-Package=rviz
-ClassName=rviz::MapDisplay
-[Display1]
-Name=Laser Scan
-Package=rviz
-ClassName=rviz::LaserScanDisplay
-[Display2]
 Name=TF
 Package=rviz
 ClassName=rviz::TFDisplay
+[Display1]
+Name=Map
+Package=rviz
+ClassName=rviz::MapDisplay
+[Display2]
+Name=Map axes
+Package=rviz
+ClassName=rviz::AxesDisplay
 [Display3]
+Name=Grid
+Package=rviz
+ClassName=rviz::GridDisplay
+[Display4]
+Name=Laser Scan
+Package=rviz
+ClassName=rviz::LaserScanDisplay
+[Display5]
 Name=Local obstacles
 Package=rviz
 ClassName=rviz::GridCellsDisplay
-[Display4]
+[Display6]
 Name=Local inflated
 Package=rviz
 ClassName=rviz::GridCellsDisplay
-[TF.]
-base_footprintEnabled=1
-base_laser_linkEnabled=1
-base_linkEnabled=1
-mapEnabled=1
-odomEnabled=1
+[Display7]
+Name=Footprint
+Package=rviz
+ClassName=rviz::PolygonDisplay
+[Display8]
+Name=Odometry
+Package=rviz
+ClassName=rviz::OdometryDisplay
+[Display9]
+Name=Plan
+Package=rviz
+ClassName=rviz::PathDisplay
+[Display10]
+Name=Plan (poses)
+Package=rviz
+ClassName=rviz::PoseArrayDisplay
