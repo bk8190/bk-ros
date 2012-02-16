@@ -23,7 +23,7 @@ SegmentVisualizer::~SegmentVisualizer()
 void SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Path& path)
 {
 	// Discretize the path
-	nav_msgs::Path vis_path = interpPath(path, .5, pi/16);
+	nav_msgs::Path vis_path = interpPath(path, .01, pi/32);
 	
 	// Publish markers path, and pose array visualizations.
 	publishMarkerVisualization(path);

@@ -376,8 +376,11 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
     return false;
   }
   
+  // Combine some segments together
+  segmentPlan = segment_lib::combineSegments(segmentPlan);
+  
 	// Resample segment endpoints to avoid discretization error
-	//segmentPath = segment_lib::smoothPath(segmentPath);
+	//segmentPlan = segment_lib::smoothPath(segmentPlan);
 	
   ROS_DEBUG("Plan has %d path segments.\n", (int)segmentPlan.segs.size());
 

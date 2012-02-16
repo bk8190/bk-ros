@@ -12,18 +12,91 @@ double rect_angle(double t)
 	return t;*/
 	return tf::getYaw(tf::createQuaternionMsgFromYaw(t));
 }
+
+// Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
+precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path)
+{
+	precision_navigation_msgs::Path newpath;
+	newpath = replaceTurnArcs(path);
+	return newpath;
+}
+
+
+// Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
+precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs::Path& path)
+{
+	const double max_combine_angle = pi/4;
+	precision_navigation_msgs::PathSegment currentseg, nextseg, newseg;
+	geometry_msgs::Pose                    start1, start2, end1, end2;
+	precision_navigation_msgs::Path        newpath;
+	newpath.header = path.header;
+	double dtheta;
+	bool combined_segs; // whether or not we combined a segment on this loop
+	
+	for(int path_idx = 0; path_idx < path.segs.size(); path_idx++)
+	{
+		currentseg = path.segs.at(path_idx);
+		combined_segs = false;
+		
+		// If there is a segment left after this one
+		if( path_idx < path.segs.size() - 1 )
+		{
+			nextseg    = path.segs.at(path_idx+1);
+		
+			// If current is arc and next is turn (or other way around)
+			if(((currentseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
+				  && (nextseg.seg_type == precision_navigation_msgs::PathSegment::ARC)) ||
+				 ((currentseg.seg_type == precision_navigation_msgs::PathSegment::ARC)
+				  && (nextseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)))
+			{
+				//ROS_INFO("Detected arc/turn or turn/arc");
+				// If both are moving in the same direction (curvature has same sign)
+				if( currentseg.curvature * nextseg.curvature > 0.0 )
+				{
+					
+					if( currentseg.seg_type == precision_navigation_msgs::PathSegment::ARC)
+						dtheta = currentseg.seg_length;
+					else
+						dtheta = nextseg.seg_length;
+						
+					//ROS_INFO("Same curvature. Dtheta = %.2f",dtheta);
+					
+					if( fabs(dtheta) < max_combine_angle)
+					{
+						ROS_INFO("Combining segments %d and %d", path_idx, path_idx+1);
+						
+						start1 = interpSegment(currentseg, 1, .1).front().pose;
+						//end1   = interpSegment(currentseg, 1, .1).back().pose;
+						//start2 = interpSegment(nextseg   , 1, .1).front().pose;
+						end2   = interpSegment(nextseg   , 1, .1).back().pose;
+					
+						// Combine both into a single segment
+						newseg = makePathSegment(start1.position.x, start1.position.y, tf::getYaw(start1.orientation),
+								                     end2.position.x  , end2.position.y  , tf::getYaw(end2.orientation));
+						newseg.header     = currentseg.header;
+						newseg.seg_number = currentseg.seg_number;
+				
+						// Push back the new segment.  Increment the loop index so we skip the next segment.
+						newpath.segs.push_back(newseg);
+						combined_segs = true;
+						path_idx++;
+					}// max combine angle
+				}// same curvature
+			}// arc+turn
+		}// >1 seg left
+		
+		if( !combined_segs ) {
+			newpath.segs.push_back(currentseg);
+		}
+	}
+	
+	return newpath;
+}
+	
 // Returns a path segment between two points (x,y,theta)
 // Note: initializes all speed/accel limits to 0
 precision_navigation_msgs::PathSegment
 makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2)
-{
-	double temp;
- 	return makePathSegment(x1,y1,t1,x2,y2,t2,temp);
-}
-// Returns a path segment between two points (x,y,theta)
-// Note: initializes all speed/accel limits to 0
-precision_navigation_msgs::PathSegment
-makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2, double& end_angle)
 {
 	double eps = .0001; // Precision for floating point comparison
 	precision_navigation_msgs::PathSegment seg;
@@ -34,7 +107,7 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 	t2 = rect_angle(t2);
 	double dth = rect_angle(t2-t1);
 	
-	//fprintf(stdout,"t1 = %.2fpi, t2 = %.2fpi, dtheta = %.2fpi\n", t1/pi, t2/pi, dth/pi);
+	//ROS_INFO("t1 = %.2fpi, t2 = %.2fpi, dtheta = %.2fpi\n", t1/pi, t2/pi, dth/pi);
 	
 	// Arc parameters
 	double chord_length, denom, signed_r, abs_r, ang_to_center, xcenter, ycenter;
@@ -79,9 +152,6 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 				ROS_WARN("%.2fpi off", rect_angle(angle_error));
 			}*/
 		}
-		
-		end_angle = expected_angle;
-		
 	}
 	// No change in position: turn in place
 	else if( position_change < eps && angle_change > eps)
@@ -92,8 +162,6 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		seg.ref_point.y    = y1;
 		seg.ref_point.z    = 0.0;
 		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(t1);
-		
-		end_angle = t2;
 		
 		// Positive curvature -> CW rotation.  Negative curvature -> CCW rotation
 		if( dth>0 )
@@ -172,13 +240,12 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 			*/
 		
 		//ROS_INFO("Arc from (%.2f,%.2f)->(%.2f,%.2f)",x1,y1,x2_predicted,y2_predicted);
-		//end_angle = t2;
 		
-		/*fprintf(stdout,"dtheta        = %.2fpi\n"         , dth/pi);
-		fprintf(stdout,"ang_to_center = %.2fpi\n"         , ang_to_center/pi);
-		fprintf(stdout,"radius        = %.2f (%.2f)\n"    , signed_r, abs_r);
-		fprintf(stdout,"chord_length  = %.2f\n"           , chord_length);
-		fprintf(stdout,"arclength     = %.2f (%.2fpi)\n\n", seg.seg_length, seg.seg_length/pi);*/
+		/*ROS_INFO("dtheta        = %.2fpi\n"         , dth/pi);
+		ROS_INFO("ang_to_center = %.2fpi\n"         , ang_to_center/pi);
+		ROS_INFO("radius        = %.2f (%.2f)\n"    , signed_r, abs_r);
+		ROS_INFO("chord_length  = %.2f\n"           , chord_length);
+		ROS_INFO("arclength     = %.2f (%.2fpi)\n\n", seg.seg_length, seg.seg_length/pi);*/
 	}
 	
 	return seg;
@@ -190,26 +257,26 @@ void printPathSegment(const precision_navigation_msgs::PathSegment& s)
 	switch(s.seg_type)
 	{
 		case precision_navigation_msgs::PathSegment::LINE:
-			fprintf(stdout,"Line segment");
+			ROS_INFO("Line segment");
 			break;
 		case precision_navigation_msgs::PathSegment::SPIN_IN_PLACE:
-			fprintf(stdout,"Spin in place");
+			ROS_INFO("Spin in place");
 			break;
 		case precision_navigation_msgs::PathSegment::ARC:
-			fprintf(stdout,"Arc segment");
+			ROS_INFO("Arc segment");
 			break;
 		default:
-			fprintf(stdout,"ERROR: Bad seg type");
+			ROS_INFO("ERROR: Bad seg type");
 	}
 	
-	fprintf(stdout,"\n");
-	fprintf(stdout,"Length:     %.2f (%.2fpi)\n", s.seg_length, s.seg_length/pi);
-	fprintf(stdout,"Ref point: (%.2f,%.2f)\n", s.ref_point.x, s.ref_point.y);
-	fprintf(stdout,"Init angle: %.2fpi\n", tf::getYaw(s.init_tan_angle)/pi);
-	fprintf(stdout,"Curvature:  %.2f\n\n", s.curvature);
+	ROS_INFO("\n");
+	ROS_INFO("Length:     %.2f (%.2fpi)\n", s.seg_length, s.seg_length/pi);
+	ROS_INFO("Ref point: (%.2f,%.2f)\n", s.ref_point.x, s.ref_point.y);
+	ROS_INFO("Init angle: %.2fpi\n", tf::getYaw(s.init_tan_angle)/pi);
+	ROS_INFO("Curvature:  %.2f\n\n", s.curvature);
 }
 
-// Resamples the path's poses
+// Performs multiple passes of resampling
 precision_navigation_msgs::Path
 smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes)
 {
@@ -221,7 +288,7 @@ smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes)
 		newpath = smoothPath(oldpath);
 	}
 	
-	return(newpath);
+	return newpath;
 }
 	
 // Resamples the path's segments
@@ -292,7 +359,7 @@ smoothPath(const precision_navigation_msgs::Path& path)
 }
 
 	
-// Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating)
+// Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating the results)
 nav_msgs::Path
 interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta)
 {

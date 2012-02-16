@@ -30,6 +30,11 @@ namespace segment_lib {
 	
 	void printPathSegment(const precision_navigation_msgs::PathSegment& s);
 
+	// Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
+	precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path);
+
+	precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs::Path& path);
+
 	// Resamples the path's poses
 	precision_navigation_msgs::Path
 	smoothPath(const precision_navigation_msgs::Path& path);
