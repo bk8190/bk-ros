@@ -32,7 +32,11 @@ namespace segment_lib {
 
 	// Resamples the path's poses
 	precision_navigation_msgs::Path
-	smoothPath(const precision_navigation_msgs::Path& path, int passes);
+	smoothPath(const precision_navigation_msgs::Path& path);
+	
+	// Resamples the path's poses
+	precision_navigation_msgs::Path
+	smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes);
 	
 	// Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating)
 	nav_msgs::Path

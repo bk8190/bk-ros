@@ -180,7 +180,7 @@ void BKSBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS
     }
 
     ROS_INFO("[sbpl_lattice_planner] Initialized successfully");
-    plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan_visualization", 1);
+    //plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan_visualization", 1);
     stats_publisher_ = private_nh.advertise<bk_sbpl_lattice_planner::SBPLLatticePlannerStats>("sbpl_lattice_planner_stats", 1);
     
     initialized_ = true;
@@ -222,19 +222,17 @@ void BKSBPLLatticePlanner::publishStats(int solution_cost, int solution_size,
   stats_publisher_.publish(stats);
 }
 
-
 bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped&     start,
                                  const geometry_msgs::PoseStamped&        goal,
                                  std::vector<geometry_msgs::PoseStamped>& plan)
 {
-	precision_navigation_msgs::Path segmentPlan;
-	return( this->makeSegmentPlan(start, goal, plan, segmentPlan) );
+	ROS_FATAL("Herp de derp this function doesn't actually exist");
+	return false;
 }
                                  
 bool
 BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        start,
                                       const geometry_msgs::PoseStamped&        goal,
-                                      std::vector<geometry_msgs::PoseStamped>& plan,
                                       precision_navigation_msgs::Path&         segmentPlan)
 {
   if(!initialized_){
@@ -242,7 +240,6 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
     return false;
   }
 
-  plan.clear();
   segmentPlan.segs.clear();
 
   costmap_ros_->clearRobotFootprint();
@@ -378,36 +375,12 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
     ROS_ERROR("SBPL encountered a fatal exception while reconstructing the path");
     return false;
   }
+  
+	// Resample segment endpoints to avoid discretization error
+	//segmentPath = segment_lib::smoothPath(segmentPath);
+	
   ROS_DEBUG("Plan has %d path segments.\n", (int)segmentPlan.segs.size());
 
-  //create a message for visualization of the plan
-  nav_msgs::Path gui_path;
-  gui_path.poses.resize(sbpl_path.size());
-  gui_path.header.frame_id = costmap_ros_->getGlobalFrameID();
-  gui_path.header.stamp = plan_time;
-  for(unsigned int i=0; i<sbpl_path.size(); i++){
-    geometry_msgs::PoseStamped pose;
-    pose.header.stamp = plan_time;
-    pose.header.frame_id = costmap_ros_->getGlobalFrameID();
-
-    pose.pose.position.x = sbpl_path[i].x + cost_map_.getOriginX();
-    pose.pose.position.y = sbpl_path[i].y + cost_map_.getOriginY();
-    pose.pose.position.z = start.pose.position.z;
-
-    btQuaternion temp;
-    temp.setEulerZYX(sbpl_path[i].theta,0,0);
-    pose.pose.orientation.x = temp.getX();
-    pose.pose.orientation.y = temp.getY();
-    pose.pose.orientation.z = temp.getZ();
-    pose.pose.orientation.w = temp.getW();
-
-    plan.push_back(pose);
-
-    gui_path.poses[i].pose.position.x = plan[i].pose.position.x;
-    gui_path.poses[i].pose.position.y = plan[i].pose.position.y;
-    gui_path.poses[i].pose.position.z = plan[i].pose.position.z;
-  }
-  plan_pub_.publish(gui_path);
   publishStats(solution_cost, sbpl_path.size(), start, goal);
 
   return true;
@@ -453,7 +426,7 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 		}
 		
 		// We now have source and destination states.  Build a path segment.
-		ROS_INFO("Segment  %d: (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", path_index, x1+dx, y1+dy, x2+dx, y2+dy, t1/pi, t2/pi);
+		//ROS_INFO("Segment  %d: (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", path_index, x1+dx, y1+dy, x2+dx, y2+dy, t1/pi, t2/pi);
 		
 		this_seg = segment_lib::makePathSegment(x1+dx,y1+dy,t1, x2+dx,y2+dy,t2); 
 		
@@ -462,12 +435,9 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 		geometry_msgs::Pose start_pose = interp.front().pose;
 		geometry_msgs::Pose end_pose   = interp.back().pose;
 		
+		//ROS_INFO("Actually, : (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", start_pose.position.x, start_pose.position.y, end_pose.position.x, end_pose.position.y, segment_lib::rect_angle(tf::getYaw(start_pose.orientation))/pi, segment_lib::rect_angle(tf::getYaw(end_pose.orientation)/pi));
 		
-		ROS_INFO("Actually, : (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", start_pose.position.x, start_pose.position.y, end_pose.position.x, end_pose.position.y, segment_lib::rect_angle(tf::getYaw(start_pose.orientation))/pi, segment_lib::rect_angle(tf::getYaw(end_pose.orientation)/pi));
-		
-		ROS_INFO(".");
-		
-		
+		// ROS_INFO(".");
 		
 		this_seg.header.frame_id   = segmentPath.header.frame_id;
 		this_seg.header.stamp      = segmentPath.header.stamp;
@@ -476,7 +446,6 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 		segmentPath.segs.push_back(this_seg);
 	}
 	
-	segment_lib::smoothPath(segmentPath,5);
 }
 
 };//namespace

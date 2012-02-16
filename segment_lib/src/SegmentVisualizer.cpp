@@ -63,7 +63,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 	// Do this by changing the command to "DELETE" and republishing.
 	if( marker_uid_ > 0 )
 	{
-		for( int i=0; i<vis_markers_.markers.size(); i++ )
+		for( unsigned int i=0; i<vis_markers_.markers.size(); i++ )
 		{
 			vis_markers_.markers.at(i).action = visualization_msgs::Marker::DELETE;
 		}
@@ -90,31 +90,31 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 		m.header.stamp    = seg.header.stamp;
 		m.ns              = name_;
 		m.action          = visualization_msgs::Marker::ADD;
+		m.points.clear();
+		m.colors.clear();
 		
 		switch(seg.seg_type)
 		{
 			case precision_navigation_msgs::PathSegment::LINE:
 				//ROS_INFO("Line segment");
-			
 				
 				// Add a label
 				m.id    = ++marker_uid_;
 				m.type  = visualization_msgs::Marker::TEXT_VIEW_FACING;
 				perp_angle = tf::getYaw(seg.init_tan_angle) + pi/2;
-				m.pose.position.x = seg.ref_point.x + .1*cos(perp_angle);
-				m.pose.position.y = seg.ref_point.y + .1*sin(perp_angle);
+				m.pose.position.x = seg.ref_point.x + .05*cos(perp_angle);
+				m.pose.position.y = seg.ref_point.y + .05*sin(perp_angle);
 				m.pose.position.z = 0.3;
 				m.scale.z = 0.03;
-				
 				m.color.a = 1.0;
 				m.color.r = 1.0;
 				m.color.g = 0.0;
-				m.color.b = 1.0;
+				m.color.b = 0.5;
 				sprintf(buffer,"%d: Line %.3fm\n", seg.seg_number, seg.seg_length);
 				m.text = std::string(buffer);
 				vis_markers_.markers.push_back(m);
 				
-				// Add the start point
+				// Add a marker at the start point
 				m.id              = ++marker_uid_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = seg.ref_point.x;
@@ -123,8 +123,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				
 				m.scale.x = .005;
 				m.scale.y = m.scale.x;
-				m.scale.z = 1;	
-				
+				m.scale.z = 1;
 				m.color.a = 1.0;
 				m.color.r = 1.0;
 				m.color.g = 1.0;
@@ -132,7 +131,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				vis_markers_.markers.push_back(m);
 				
 				
-				// Add the boundary line
+				// Add the line
 				m.id      = ++marker_uid_;
 				m.type    = visualization_msgs::Marker::LINE_STRIP;
 				m.pose.position.x = 0.0;
@@ -143,7 +142,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				color.a = 1.0;
 				color.r = 1.0;
 				color.g = 0.0;
-				color.b = 1.0;
+				color.b = 0.5;
 				m.color = color;
 				
 				m.points.clear();
@@ -165,34 +164,54 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				m.id    = ++marker_uid_;
 				m.type  = visualization_msgs::Marker::TEXT_VIEW_FACING;
 				perp_angle = tf::getYaw(seg.init_tan_angle) + pi/2;
-				m.pose.position.x = seg.ref_point.x + .1*cos(perp_angle);
-				m.pose.position.y = seg.ref_point.y + .1*sin(perp_angle);
+				m.pose.position.x = seg.ref_point.x + .09*cos(perp_angle);
+				m.pose.position.y = seg.ref_point.y + .09*sin(perp_angle);
 				m.pose.position.z = 0.3;
 				m.scale.z = 0.03;
 				
 				m.color.a = 1.0;
-				m.color.r = 1.0;
-				m.color.g = 0.0;
-				m.color.b = 1.0;
+				m.color.r = 0.9;
+				m.color.g = 0.9;
+				m.color.b = 0.0;
 				sprintf(buffer,"%d: Spin %.2fpi\n", seg.seg_number, seg.seg_length/pi);
 				m.text = std::string(buffer);
 				vis_markers_.markers.push_back(m);
 			
-				// Add the start point
+				// Add the vertex
 				m.id              = ++marker_uid_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = seg.ref_point.x;
 				m.pose.position.y = seg.ref_point.y;
 				m.pose.position.z = 0.0;
 				
-				m.scale.x = .001;
+				m.scale.x = .01;
 				m.scale.y = m.scale.x;
-				m.scale.z = .5;	
+				m.scale.z = .2;	
 				
 				m.color.a = 1.0;
-				m.color.r = 0.0;
+				m.color.r = 1.0;
 				m.color.g = 1.0;
 				m.color.b = 0.0;
+				vis_markers_.markers.push_back(m);
+				
+				// Add direction arrows
+				m.id      = ++marker_uid_;
+				m.type    = visualization_msgs::Marker::ARROW;
+				m.pose    = disc_seg.front().pose;
+				m.scale.x = 1.0;
+				m.scale.y = 0.10;
+				m.scale.z = 0.10;
+				m.color.a = 1.0;
+				m.color.r = 1.0;
+				m.color.g = 0.0;
+				m.color.b = 0.0;
+				vis_markers_.markers.push_back(m);
+				
+				m.id      = ++marker_uid_;
+				m.pose    = disc_seg.back().pose;
+				m.scale.z *= 0.8;
+				m.color.r = 0.0;
+				m.color.g = 1.0;
 				vis_markers_.markers.push_back(m);
 				
 				
@@ -212,7 +231,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				m.scale.x = 2*fabs(1/seg.curvature);
 				m.scale.y = m.scale.x;
 				m.scale.z = 0.01;	
-				m.color.a = 0.07;
+				m.color.a = 0.03;
 				m.color.r = 0.0;
 				m.color.g = 0.0;
 				m.color.b = 1.0;
@@ -221,17 +240,37 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				// Add a label
 				m.id  = ++marker_uid_;
 				m.type  = visualization_msgs::Marker::TEXT_VIEW_FACING;
-				m.pose.position.x = seg.ref_point.x;
-				m.pose.position.y = seg.ref_point.y;
+				perp_angle        = tf::getYaw(seg.init_tan_angle) + pi/2;
+				m.pose.position.x = disc_seg.front().pose.position.x + .05*cos(perp_angle);
+				m.pose.position.y = disc_seg.front().pose.position.y + .05*sin(perp_angle);
 				m.pose.position.z = 0.3;
+				
 				m.scale.z = 0.03;
 				m.color.a = 1.0;
-				m.color.r = 1.0;
-				m.color.g = 1.0;
+				m.color.r = 0.3;
+				m.color.g = 0.3;
 				m.color.b = 1.0;
-				sprintf(buffer,"Arc %d\n", seg.seg_number);
+				sprintf(buffer,"%d: Arc\n", seg.seg_number);
 				m.text = std::string(buffer);
 				vis_markers_.markers.push_back(m);
+			
+				// Add the start point
+				m.id              = ++marker_uid_;
+				m.type            = visualization_msgs::Marker::CYLINDER;
+				m.pose.position.x = disc_seg.front().pose.position.x;
+				m.pose.position.y = disc_seg.front().pose.position.y;
+				m.pose.position.z = 0.0;
+				
+				m.scale.x = .005;
+				m.scale.y = m.scale.x;
+				m.scale.z = .5;	
+				
+				m.color.a = 1.0;
+				m.color.r = 0.0;
+				m.color.g = 1.0;
+				m.color.b = 1.0;
+				vis_markers_.markers.push_back(m);
+				
 			
 				// Add the boundary line
 				m.id      = ++marker_uid_;
@@ -252,7 +291,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				m.points.clear();
 				m.colors.clear();
 				
-				for( int j=0; j<disc_seg.size(); j++ )
+				for( unsigned int j=0; j<disc_seg.size(); j++ )
 				{
 					m.points.push_back(disc_seg.at(j).pose.position);
 					m.colors.push_back(color);

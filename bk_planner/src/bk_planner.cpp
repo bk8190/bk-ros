@@ -3,11 +3,11 @@
 namespace bk_planner
 {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
+	planner_costmap_    (NULL),
+	lattice_planner_    (NULL),
 	nh_                 (),
 	priv_nh_            ("~"),
 	tf_                 (tf),
-	planner_costmap_    (NULL),
-	lattice_planner_    (NULL),
 	client_             ("execute_path", true)
 	//planner_costmap_ros_("local_costmap", tf),
 	//lattice_planner_    ("lattice_planner", &planner_costmap_ros_)
@@ -32,7 +32,6 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	// This node subscribes to a goal pose.  It publishes a segment plan, and a standard ROS path for visualization
 	goal_sub_     = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	plan_pub_     = nh_.advertise<precision_navigation_msgs::Path>(name + "/plan", 1);
-	plan_vis_pub_ = nh_.advertise<nav_msgs::Path>(name + "/plan_visualization", 1);
 	
 	planner_costmap_ = new costmap_2d::Costmap2DROS("local_costmap", tf_);
 	lattice_planner_ = new bk_sbpl_lattice_planner::BKSBPLLatticePlanner("lattice_planner", planner_costmap_);
@@ -103,7 +102,6 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	geometry_msgs::PoseStamped start;
 	tf::poseStampedTFToMsg(robot_pose, start);
 
-	nav_msgs::Path vis_plan;
 	precision_navigation_msgs::Path segment_plan;
 	
 	/*if( !start.header.frame_id.compare(goal.header.frame_id) ){
@@ -113,8 +111,7 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
     
   ros::Time t1 = ros::Time::now();
 	ROS_INFO("Planning.");
-	bool ret = lattice_planner_->makeSegmentPlan(start, goal, vis_plan.poses, segment_plan);
-	segment_plan = segment_lib::smoothPath(segment_plan, 1);
+	bool ret = lattice_planner_->makeSegmentPlan(start, goal, segment_plan);
 
 	if( ret == false ){
 		ROS_ERROR("Planner failed!");
@@ -122,7 +119,7 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	}
 	
 	ros::Duration t = ros::Time::now() - t1;
-	ROS_INFO("Plan succeeded in %.2f seconds. Visualization has %ld points", t.toSec(), vis_plan.poses.size());
+	ROS_INFO("Plan succeeded in %.2f seconds. Plan has %d segments.", t.toSec(), segment_plan.segs.size());
 	
 	// Get safe velocities for the segments
 	path_checker_->assignPathVelocity(segment_plan);
@@ -133,6 +130,7 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	plan_pub_.publish(segment_plan);
 	segment_visualizer_->publishVisualization(segment_plan);
 	
+	// Temporary: execute the whole plan
 	client_.waitForServer();
 	ROS_INFO("Sending to server...");
 	precision_navigation_msgs::ExecutePathGoal action_goal;

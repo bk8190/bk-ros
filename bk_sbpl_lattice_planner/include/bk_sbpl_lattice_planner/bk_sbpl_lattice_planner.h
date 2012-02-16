@@ -64,7 +64,6 @@ public:
                         
 	bool makeSegmentPlan(const geometry_msgs::PoseStamped&        start      ,
                        const geometry_msgs::PoseStamped&        goal       ,
-                       std::vector<geometry_msgs::PoseStamped>& plan       ,
                        precision_navigation_msgs::Path&         segmentPlan);
                         
   ~BKSBPLLatticePlanner(){};

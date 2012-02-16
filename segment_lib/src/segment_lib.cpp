@@ -49,8 +49,6 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 	
 	double position_change = sqrt((double)dx*(double)dx + (double)dy*(double)dy);
 	double angle_change    = fabs(dth);
-	//ROS_INFO("pos change = %.3f ang change = %.3f", position_change, angle_change);
-	//ROS_INFO("dx = %.2f dy = %.2f", dx, dy);
 	
 	// No change in theta: line segment
 	if( angle_change < eps)
@@ -117,9 +115,9 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		double arclen_theta    = 2.0*tan_chord_angle *dth/fabs(dth);
 		chord_length           = sqrt(dx*dx + dy*dy);
 		
-		ROS_INFO("Dir p1->p2:      %.2fpi", dir_p1_p2/pi);
+		/*ROS_INFO("Dir p1->p2:      %.2fpi", dir_p1_p2/pi);
 		ROS_INFO("tan_chord_angle: %.2fpi", tan_chord_angle/pi);
-		ROS_INFO("arclen_theta:    %.2fpi", arclen_theta/pi);
+		ROS_INFO("arclen_theta:    %.2fpi", arclen_theta/pi);*/
 		
 		// Use the formula chord_length = 2*radius*sin(dtheta/2) -> radius = chord_length/(2*sin(dtheta/2))
 		// Note that from this formula, r can be either positive or negative (same as with curvature).
@@ -143,7 +141,7 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 			ROS_WARN("Invalid arc segment (divide by 0)!");
 		}
 		
-		ROS_INFO("radius:          %.2f"  , signed_r);
+		// ROS_INFO("radius:          %.2f"  , signed_r);
 		
 		// Find the angle to the circle's center from the starting point
 		if( arclen_theta>0 )
@@ -211,43 +209,86 @@ void printPathSegment(const precision_navigation_msgs::PathSegment& s)
 	fprintf(stdout,"Curvature:  %.2f\n\n", s.curvature);
 }
 
+// Resamples the path's poses
+precision_navigation_msgs::Path
+smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes)
+{
+	precision_navigation_msgs::Path oldpath, newpath;
+	newpath = path;
+	
+	for( int i=0; i<passes; i++ ){
+		oldpath = newpath;
+		newpath = smoothPath(oldpath);
+	}
+	
+	return(newpath);
+}
+	
 // Resamples the path's segments
 precision_navigation_msgs::Path
 smoothPath(const precision_navigation_msgs::Path& path)
 {
 	precision_navigation_msgs::Path         smoothpath;
-	precision_navigation_msgs::PathSegment  newseg;
+	precision_navigation_msgs::PathSegment  newseg, currentseg, nextseg;
 	std::vector<geometry_msgs::PoseStamped> interp1, interp2;
 	geometry_msgs            ::Pose         start, end;
 
+	// Preserve the path's header information
 	smoothpath.header = path.header;
 	smoothpath.segs.clear();
 	
+	// Smoothing is possible with more than 2 segments
 	if( path.segs.size() >= 2 )
 	{
-		for( int i=0; i<path.segs.size() - 1; i++ )
+		for( unsigned int i=0; i<path.segs.size() - 1; i++ )
 		{
-			interp1 = interpSegment(path.segs.at(i)  , 1, 1);
-			interp2 = interpSegment(path.segs.at(i+1), 1, 1);
+			currentseg = path.segs.at(i);
 			
-			start  = interp1.front().pose;
-			end    = interp2.front().pose;
+			// First segment: start of segment 0 -> start of segment 1
+			if( i==0 )
+			{
+				interp1 = interpSegment(path.segs.at(0), .01, .01);
+				interp2 = interpSegment(path.segs.at(1), .01, .01);
+				start   = interp1.front().pose;
+				end     = interp2.front().pose;
+			}
+			// Last segment: last ending pose -> end of segment i
+			else if( i == path.segs.size()-1 )
+			{
+				interp1 = interpSegment(newseg         , .01, .01);
+				interp2 = interpSegment(path.segs.at(i), .01, .01);
+				start   = interp1.back().pose;
+				end     = interp2.back().pose;
+			}
+			// Middle segment: last ending pose -> front of segment i+1
+			else
+			{
+				interp1 = interpSegment(newseg           , .01, .01);
+				interp2 = interpSegment(path.segs.at(i+1), .01, .01);
+				start   = interp1.back().pose;
+				end     = interp2.front().pose;
+			}
 
 			// Create a new segment from the start of the current segment to the start of the next segment
 			newseg = makePathSegment(start.position.x, start.position.y, tf::getYaw(start.orientation),
 					                     end.position.x  , end.position.y  , tf::getYaw(end.orientation));
 
-			// Preserve the header of the current segment
-			newseg.header = path.segs.at(i).header;
-
+			// Preserve some information from the current segment
+			newseg.header     = currentseg.header;
+			newseg.seg_number = currentseg.seg_number;
+			
 			smoothpath.segs.push_back(newseg);
 		}
 		
 		// Copy over the last segment as-is
 		smoothpath.segs.push_back(path.segs.back());
+		
+		return smoothpath;
 	}
-	
-	return smoothpath;
+	// No smoothing is possible, return the old path
+	else{
+		return path;
+	}
 }
 
 	
@@ -328,11 +369,11 @@ interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx)
 	}
 	
 	// Add the endpoint
-	p.pose.position.x  = x0 + seg.seg_length*cos(tan_angle);
-	p.pose.position.y  = y0 + seg.seg_length*sin(tan_angle);
+	p.pose.position.x  = x0 + fabs(seg.seg_length)*cos(tan_angle);
+	p.pose.position.y  = y0 + fabs(seg.seg_length)*sin(tan_angle);
 	p.pose.position.z  = 0.0;
 	p.pose.orientation = seg.init_tan_angle;
-	p.header.frame_id = seg.header.frame_id;
+	p.header.frame_id  = seg.header.frame_id;
 	points.push_back(p);
 	
 	return points;
