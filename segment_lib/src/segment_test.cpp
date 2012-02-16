@@ -61,23 +61,23 @@ int main(int argc, char** argv)
 	             1,1,pi);
 	printseg(seg);*/
 	
-	printf("Center (-1,-2) radius = 3, tangent 3pi/4 -> -pi/2");
+	ROS_INFO("Center (-1,-2) radius = 3, tangent 3pi/4 -> -pi/2");
 	seg = makeseg(-1 + 3/sqrt(2), -2+3/sqrt(2), 3*pi/4,
 	              -1-3, -2, -pi/2);
 	seg.header.frame_id = "map";
 	path.segs.push_back(seg);
 	printseg(seg);
 	
-	
-	printf("Center (0,0) radius = 2, tangent -.75pi -> -.25pi");
+	/*
+	ROS_INFO("Center (0,0) radius = 2, tangent -.75pi -> -.25pi");
 	seg = makeseg(-2/sqrt(2), 2/sqrt(2), -.75*pi,
 	              -2/sqrt(2),-2/sqrt(2), -.25*pi);
 	seg.header.frame_id = "map";
 	path.segs.push_back(seg);
 	printseg(seg);
 	
-	
-	printf("Line (5,3) -> (-1,3)");
+	/*
+	ROS_INFO("Line (5,3) -> (-1,3)");
 	seg = makeseg(5,3,pi,
 	              -1,3,pi);
 	seg.header.frame_id = "map";
@@ -85,12 +85,12 @@ int main(int argc, char** argv)
 	printseg(seg);
 	
 	
-	printf("Line (0,0) -> (4,4)");
+	ROS_INFO("Line (0,0) -> (4,4)");
 	seg = makeseg(0,0,pi/4,
 	              4,4,pi/4);
 	seg.header.frame_id = "map";
 	path.segs.push_back(seg);
-	printseg(seg);
+	printseg(seg);*/
 	
 	seg_vis.publishVisualization(path);
 	

@@ -475,6 +475,8 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 		this_seg.seg_number        = path_index;
 		segmentPath.segs.push_back(this_seg);
 	}
+	
+	segment_lib::smoothPath(segmentPath,5);
 }
 
 };//namespace

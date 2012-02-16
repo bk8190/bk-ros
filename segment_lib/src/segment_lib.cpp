@@ -109,13 +109,24 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		seg.seg_type = precision_navigation_msgs::PathSegment::ARC;
 		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(t1);
 		
+		// Find the angle alpha between the starting point and the chord
+		double dir_p1_p2       = rect_angle(atan2(dy, dx));
+		double tan_chord_angle = fabs(rect_angle(dir_p1_p2-t1));
+		
+		// By geometry: the tangent-chord angle is twice the intercepted arc
+		double arclen_theta    = 2.0*tan_chord_angle *dth/fabs(dth);
+		chord_length           = sqrt(dx*dx + dy*dy);
+		
+		ROS_INFO("Dir p1->p2:      %.2fpi", dir_p1_p2/pi);
+		ROS_INFO("tan_chord_angle: %.2fpi", tan_chord_angle/pi);
+		ROS_INFO("arclen_theta:    %.2fpi", arclen_theta/pi);
+		
 		// Use the formula chord_length = 2*radius*sin(dtheta/2) -> radius = chord_length/(2*sin(dtheta/2))
 		// Note that from this formula, r can be either positive or negative (same as with curvature).
 		// Positive r: segment bending to the left
 		// Negative r: segment bending to the right
-		chord_length = sqrt(dx*dx + dy*dy);
-		denom = 2*sin(dth/2);
-		if(denom != 0)
+		denom = 2*sin(arclen_theta/2.0);
+		if(denom != 0.0)
 		{
 			signed_r = chord_length / (denom);
 			abs_r    = fabs((double)signed_r); // Absolute, positive radius
@@ -132,10 +143,12 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 			ROS_WARN("Invalid arc segment (divide by 0)!");
 		}
 		
+		ROS_INFO("radius:          %.2f"  , signed_r);
+		
 		// Find the angle to the circle's center from the starting point
-		if( dth>0 )
+		if( arclen_theta>0 )
 			ang_to_center = rect_angle(t1 + pi/2); // 90 degrees to the left
-		if( dth<0 )
+		if( arclen_theta<0 )
 			ang_to_center = rect_angle(t1 - pi/2); // 90 degrees to the right
 		
 		// Move to the circle's center
@@ -147,21 +160,21 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		seg.ref_point.z = 0.0;
 		
 		// Arc length = r*theta
-		seg.seg_length = abs_r * fabs((double)dth);
+		seg.seg_length = abs_r * fabs((double)arclen_theta);
 		
-		// Perform a consistency check.  From the circle's center, navigate to the end point.
-		double ang_center_to_end = ang_to_center+dth+pi;
-		double x2_predicted = xcenter + abs_r*cos((double)(ang_center_to_end));
-		double y2_predicted = ycenter + abs_r*sin((double)(ang_center_to_end));
+		/*
+		// Get the angle from the center to p2.
+		double ang_center_to_end = atan2(ycenter-y2, xcenter-x2);
 		
-		// Make sure the calculated endpoint is consistent with the actual endpoint
-		double deviation = abs(x2 - x2_predicted) + abs(y2 - y2_predicted);
-		if( deviation > eps ){
-			ROS_WARN("Arc segment with inconsistent endpoint angles: Deviation=%.5f",deviation);
-		}
+		// Get the tangent angle at p2
+		if( seg.curvature > 0 )
+			actual_t2 = ang_center_to_end + pi/2; // CCW curvature -> turn CCW
+		else
+			actual_t2 = ang_center_to_end - pi/2; //  CW curvature -> turn  CW
+			*/
 		
-		ROS_INFO("Arc from (%.2f,%.2f)->(%.2f,%.2f)",x1,y1,x2_predicted,y2_predicted);
-		end_angle = t2;
+		//ROS_INFO("Arc from (%.2f,%.2f)->(%.2f,%.2f)",x1,y1,x2_predicted,y2_predicted);
+		//end_angle = t2;
 		
 		/*fprintf(stdout,"dtheta        = %.2fpi\n"         , dth/pi);
 		fprintf(stdout,"ang_to_center = %.2fpi\n"         , ang_to_center/pi);
@@ -198,6 +211,46 @@ void printPathSegment(const precision_navigation_msgs::PathSegment& s)
 	fprintf(stdout,"Curvature:  %.2f\n\n", s.curvature);
 }
 
+// Resamples the path's segments
+precision_navigation_msgs::Path
+smoothPath(const precision_navigation_msgs::Path& path)
+{
+	precision_navigation_msgs::Path         smoothpath;
+	precision_navigation_msgs::PathSegment  newseg;
+	std::vector<geometry_msgs::PoseStamped> interp1, interp2;
+	geometry_msgs            ::Pose         start, end;
+
+	smoothpath.header = path.header;
+	smoothpath.segs.clear();
+	
+	if( path.segs.size() >= 2 )
+	{
+		for( int i=0; i<path.segs.size() - 1; i++ )
+		{
+			interp1 = interpSegment(path.segs.at(i)  , 1, 1);
+			interp2 = interpSegment(path.segs.at(i+1), 1, 1);
+			
+			start  = interp1.front().pose;
+			end    = interp2.front().pose;
+
+			// Create a new segment from the start of the current segment to the start of the next segment
+			newseg = makePathSegment(start.position.x, start.position.y, tf::getYaw(start.orientation),
+					                     end.position.x  , end.position.y  , tf::getYaw(end.orientation));
+
+			// Preserve the header of the current segment
+			newseg.header = path.segs.at(i).header;
+
+			smoothpath.segs.push_back(newseg);
+		}
+		
+		// Copy over the last segment as-is
+		smoothpath.segs.push_back(path.segs.back());
+	}
+	
+	return smoothpath;
+}
+
+	
 // Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating)
 nav_msgs::Path
 interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta)

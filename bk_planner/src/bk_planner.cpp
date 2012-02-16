@@ -114,6 +114,7 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
   ros::Time t1 = ros::Time::now();
 	ROS_INFO("Planning.");
 	bool ret = lattice_planner_->makeSegmentPlan(start, goal, vis_plan.poses, segment_plan);
+	segment_plan = segment_lib::smoothPath(segment_plan, 1);
 
 	if( ret == false ){
 		ROS_ERROR("Planner failed!");
