@@ -17,7 +17,8 @@ double rect_angle(double t)
 precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path)
 {
 	precision_navigation_msgs::Path newpath;
-	newpath = replaceTurnArcs(path);
+	newpath = replaceMultipleTurns(path);
+	//newpath = replaceTurnArcs(path);
 	return newpath;
 }
 
@@ -92,6 +93,60 @@ precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs:
 	
 	return newpath;
 }
+	
+
+// Combines all consecutive turn-in-place segments
+precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_msgs::Path& path)
+{
+
+	precision_navigation_msgs::PathSegment currentseg, nextseg, newseg;
+	int end_idx;
+	geometry_msgs::Pose                    start, end;
+	precision_navigation_msgs::Path        newpath;
+	newpath.header = path.header;
+	double dtheta;
+	bool combined_segs; // whether or not we combined a segment on this loop
+	
+	for(int path_idx = 0; path_idx < path.segs.size(); path_idx++)
+	{
+		currentseg = path.segs.at(path_idx);
+		combined_segs = false;
+		
+		// If the current seg is a turn in place
+		if(currentseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
+		{
+			end_idx   = path_idx;
+			
+			// Look forward and find the last consecutive turn-in-place segs
+			while( end_idx+1 < path.segs.size() // the next seg is in range and the next seg is a spin
+			    && path.segs.at(end_idx+1).seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
+			{
+				end_idx++;
+				ROS_INFO("Combining seg %d with %d", path_idx, end_idx);
+			}
+			
+			start = interpSegment(currentseg           , 1, .1).front().pose;
+			end   = interpSegment(path.segs.at(end_idx), 1, .1).back().pose;
+
+			// Combine all into a single segment
+			newseg = makePathSegment(start.position.x, start.position.y, tf::getYaw(start.orientation),
+					                     end.position.x  , end.position.y  , tf::getYaw(end.orientation));
+			newseg.header     = currentseg.header;
+			newseg.seg_number = currentseg.seg_number;
+			newpath.segs.push_back(newseg);
+			
+			// We've now taken care of all segments including end_idx
+			path_idx = end_idx;
+			if( path_idx >= path.segs.size() )
+				break;
+		}// if turn in place
+		else{
+			newpath.segs.push_back(currentseg);
+		}
+	}//for
+	return newpath;
+}
+	
 	
 // Returns a path segment between two points (x,y,theta)
 // Note: initializes all speed/accel limits to 0

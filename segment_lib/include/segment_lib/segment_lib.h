@@ -34,6 +34,7 @@ namespace segment_lib {
 	precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path);
 
 	precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs::Path& path);
+	precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_msgs::Path& path);
 
 	// Resamples the path's poses
 	precision_navigation_msgs::Path

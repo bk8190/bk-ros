@@ -110,7 +110,6 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	}*/
     
   ros::Time t1 = ros::Time::now();
-	ROS_INFO("Planning.");
 	bool ret = lattice_planner_->makeSegmentPlan(start, goal, segment_plan);
 
 	if( ret == false ){
@@ -132,11 +131,9 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	
 	// Temporary: execute the whole plan
 	client_.waitForServer();
-	ROS_INFO("Sending to server...");
 	precision_navigation_msgs::ExecutePathGoal action_goal;
 	action_goal.segments = segment_plan.segs;
 	client_.sendGoal(action_goal);
-	ROS_INFO("Done.");
 	
 	return true;
 }
