@@ -18,16 +18,16 @@ namespace path_checker{
 			void assignPathVelocity(precision_navigation_msgs::Path& path);
 
 			// Fills in a safe velocity to a segment based on nearby obstacles
-			void assignSegVelocity(precision_navigation_msgs::PathSegment& p);
+			void assignSegVelocity(precision_navigation_msgs::PathSegment& seg);
 
 			// Returns true if nothing is blocking the segment
-			bool isSegClear(const precision_navigation_msgs::PathSegment& p);
+			bool isSegClear(const precision_navigation_msgs::PathSegment& seg);
 
 			// Checks for obstacles along the path.  Returns a list of all colliding segment indices
 			std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path);
 			
 			// Returns the closest obstacle to the robot as its footprint moves along the segment
-			double getClosestDist(const precision_navigation_msgs::PathSegment& p);
+			double getClosestDist(const precision_navigation_msgs::PathSegment& seg);
 			
 		private:
 			costmap_2d::Costmap2DROS* costmap_;
