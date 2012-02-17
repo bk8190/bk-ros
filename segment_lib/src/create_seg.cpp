@@ -15,7 +15,7 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 	// No change in theta: line segment
 	if( angle_change < eps)
 	{
-		return makeUndirectedLineSegment(x1, y1, x2, y2);
+		return makeDirectedLineSegment(x1, y1, x2, y2, t1);
 	}
 	// No change in position: turn in place
 	else if( position_change < eps && angle_change > eps)
@@ -39,7 +39,7 @@ makeUndirectedLineSegment(double x1, double y1, double x2, double y2)
 	return makeDirectedLineSegment(x1, y1, x2, y2, expected_angle);
 }
 
-// Makes a line segment respecting an initial angle (can handle backing up that way)
+// Makes a line segment respecting the general direction of an initial angle (can handle backing up that way)
 precision_navigation_msgs::PathSegment
 makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 {
@@ -62,14 +62,19 @@ makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 	seg.ref_point.x    = x1;
 	seg.ref_point.y    = y1;
 	seg.ref_point.z    = 0.0;
-	seg.init_tan_angle = tf::createQuaternionMsgFromYaw(t1);
 	seg.curvature      = 0.0;
 	
 	// If there is a large discrepancy between the initial angle and the direction between the two points, assume the segment is specifying a reverse move
-	ROS_INFO("Deviation %.3fpi", rect_angle(expected_angle-t1)/pi);
-	if( fabs(rect_angle(expected_angle-t1)) > 3*pi/4 ){
-		seg.seg_length *= -1.0;
+	double deviation = rect_angle(expected_angle-t1);
+	
+	ROS_INFO("Deviation %.3fpi", deviation/pi);
+	if( fabs(deviation) > pi/2 ){
+		seg.seg_length    *= -1.0;
+		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(expected_angle+pi);
 		ROS_INFO("Reverse seg detected");
+	}
+	else{
+		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(expected_angle);
 	}
 	
 	if( fabs(seg.seg_length) < eps ){

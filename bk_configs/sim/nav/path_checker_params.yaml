@@ -1,5 +1,5 @@
 speed_lim:
- max_spd_x: 0.3
+ max_spd_x: 0.2
  max_spd_th: 0.5
  
 accel_lim:

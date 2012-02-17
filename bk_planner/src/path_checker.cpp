@@ -30,41 +30,48 @@ void PathChecker::assignPathVelocity(precision_navigation_msgs::Path& path)
 
 
 // Fills in a safe velocity to a segment based on nearby obstacles
-void PathChecker::assignSegVelocity(precision_navigation_msgs::PathSegment& p)
+void PathChecker::assignSegVelocity(precision_navigation_msgs::PathSegment& seg)
 {
 	// herp de derp
-	p.max_speeds.linear.x  = max_speed_.linear.x;
-	p.max_speeds.angular.z = max_speed_.angular.z;
+	seg.max_speeds.linear.x  = max_speed_.linear.x;
+	seg.max_speeds.angular.z = max_speed_.angular.z;
 	
-	switch(p.seg_type)
+	switch(seg.seg_type)
 	{
 		case precision_navigation_msgs::PathSegment::LINE:
-			p.accel_limit = max_accel_.linear.x;
-			p.decel_limit = max_accel_.linear.x;
+			seg.accel_limit = max_accel_.linear.x;
+			seg.decel_limit = max_accel_.linear.x;
+			
+			// HACK: If the length is negative, set it positive but set the max speed negative
+			if( seg.seg_length < 0 ){
+				seg.seg_length = fabs(seg.seg_length);
+				seg.max_speeds.linear.x *= -1.0;
+			}
+			
 			break;
 			
 		case precision_navigation_msgs::PathSegment::ARC:
-			p.accel_limit = max_accel_.linear.x;
-			p.decel_limit = max_accel_.linear.x;
+			seg.accel_limit = max_accel_.linear.x;
+			seg.decel_limit = max_accel_.linear.x;
 		break;
 		
 		case precision_navigation_msgs::PathSegment::SPIN_IN_PLACE:
-			p.accel_limit = max_accel_.angular.z;
-			p.decel_limit = max_accel_.angular.z;
+			seg.accel_limit = max_accel_.angular.z;
+			seg.decel_limit = max_accel_.angular.z;
 		break;
 	}
 }
 
 
 // Returns true if nothing is blocking the segment
-bool isSegClear(const precision_navigation_msgs::PathSegment& p)
+bool isSegClear(const precision_navigation_msgs::PathSegment& seg)
 {
 	// herp de derp
 	return true;
 }
 
 // Returns the closest obstacle to the robot as its footprint moves along the segment
-double getClosestDist(const precision_navigation_msgs::PathSegment& p)
+double getClosestDist(const precision_navigation_msgs::PathSegment& seg)
 {
 	// All aboard the lulz boat
 	return 9001;
