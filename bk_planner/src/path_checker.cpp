@@ -3,7 +3,7 @@
 namespace path_checker
 {
 
-PathChecker::PathChecker(std::string name, costmap_2d::Costmap2DROS* costmap):
+PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap):
 	costmap_(costmap),
 	private_nh_("~/"+name)
 {
@@ -22,7 +22,7 @@ PathChecker::PathChecker(std::string name, costmap_2d::Costmap2DROS* costmap):
 void PathChecker::assignPathVelocity(precision_navigation_msgs::Path& path)
 {
 	// Treat each segment independently
-	for( int i=0; i<path.segs.size(); i++ )
+	for( unsigned int i=0; i<path.segs.size(); i++ )
 	{
 		assignSegVelocity(path.segs.at(i));
 	}
@@ -83,7 +83,7 @@ std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path)
 	std::vector<int> indices;
 	indices.clear();
 	
-	for( int i=0; i<path.segs.size(); i++ ) {
+	for( unsigned int i=0; i<path.segs.size(); i++ ) {
 		if( !isSegClear(path.segs.at(i)) ) {
 			indices.push_back(i);
 		}

@@ -8,6 +8,7 @@ using namespace std;
 
 /** ROS **/
 #include <ros/ros.h>
+#include <boost/shared_ptr.hpp>
 
 // Costmap used for the map representation
 #include <costmap_2d/costmap_2d_ros.h>
@@ -40,6 +41,9 @@ public:
    * @param  name The name of this planner
    * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use
    */
+  BKSBPLLatticePlanner(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros);
+  
+  // Do not use
   BKSBPLLatticePlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
 
 
@@ -49,7 +53,10 @@ public:
    * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use
    */
   void initialize(std::string name, 
-                          costmap_2d::Costmap2DROS* costmap_ros);
+                          boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros);
+                          
+  // Do not use
+  void initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
   
   /**
    * @brief Given a goal pose in the world, compute a plan
@@ -103,7 +110,7 @@ private:
   unsigned char sbpl_cost_multiplier_;
 
 
-  costmap_2d::Costmap2DROS* costmap_ros_; /**< manages the cost map for us */
+  boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros_; /**< manages the cost map for us */
   costmap_2d::Costmap2D cost_map_;        /**< local copy of the costmap underlying cost_map_ros_ */
 
   ros::Publisher plan_pub_;

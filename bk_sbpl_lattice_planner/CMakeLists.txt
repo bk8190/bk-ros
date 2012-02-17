@@ -10,6 +10,7 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 set(ROS_BUILD_TYPE Release)
 
 rosbuild_init()
+rosbuild_add_boost_directories()
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -31,4 +32,4 @@ rosbuild_genmsg()
 
 rosbuild_add_library(${PROJECT_NAME} src/bk_sbpl_lattice_planner.cpp)
 target_link_libraries(${PROJECT_NAME} segment_lib)
-
+rosbuild_link_boost(${PROJECT_NAME} system)

@@ -11,7 +11,7 @@ namespace path_checker{
 	class PathChecker
 	{
 		public:
-			PathChecker(std::string name, costmap_2d::Costmap2DROS* costmap);
+			PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap);
 			~PathChecker() {}
 
 			// Fills in a safe velocity to a path based on nearby obstacles
@@ -30,7 +30,7 @@ namespace path_checker{
 			double getClosestDist(const precision_navigation_msgs::PathSegment& seg);
 			
 		private:
-			costmap_2d::Costmap2DROS* costmap_;
+			boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_;
 			ros::NodeHandle           private_nh_;
 
 			// Absolute maximum speed/accel

@@ -67,11 +67,11 @@ makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 	// If there is a large discrepancy between the initial angle and the direction between the two points, assume the segment is specifying a reverse move
 	double deviation = rect_angle(expected_angle-t1);
 	
-	ROS_INFO("Deviation %.3fpi", deviation/pi);
+	//ROS_INFO("Deviation %.3fpi", deviation/pi);
 	if( fabs(deviation) > pi/2 ){
 		seg.seg_length    *= -1.0;
 		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(expected_angle+pi);
-		ROS_INFO("Reverse seg detected");
+		//ROS_INFO("Reverse seg detected");
 	}
 	else{
 		seg.init_tan_angle = tf::createQuaternionMsgFromYaw(expected_angle);
@@ -90,7 +90,7 @@ makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 		}*/
 	}
 	
-	ROS_INFO("Line (%.2f,%.2f)->(%.2f,%.2f) length %.2f",x1,y1,x2,y2,seg.seg_length);
+	//ROS_INFO("Line (%.2f,%.2f)->(%.2f,%.2f) length %.2f",x1,y1,x2,y2,seg.seg_length);
 	
 	return seg;
 }

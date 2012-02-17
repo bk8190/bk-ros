@@ -3,14 +3,11 @@
 namespace bk_planner
 {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
-	planner_costmap_    (NULL),
-	lattice_planner_    (NULL),
 	nh_                 (),
 	priv_nh_            ("~"),
 	tf_                 (tf),
-	client_             ("execute_path", true)
-	//planner_costmap_ros_("local_costmap", tf),
-	//lattice_planner_    ("lattice_planner", &planner_costmap_ros_)
+	client_             ("execute_path", true),
+	got_new_goal_       (false)
 {
 
 	priv_nh_.param("speeds/max_vel_x"         ,max_vel_x_         ,0.0);
@@ -33,14 +30,30 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	goal_sub_     = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	plan_pub_     = nh_.advertise<precision_navigation_msgs::Path>(name + "/plan", 1);
 	
-	planner_costmap_ = new costmap_2d::Costmap2DROS("local_costmap", tf_);
-	lattice_planner_ = new bk_sbpl_lattice_planner::BKSBPLLatticePlanner("lattice_planner", planner_costmap_);
-	path_checker_    = new path_checker::PathChecker("path_checker", planner_costmap_);
-	segment_visualizer_ = new segment_lib::SegmentVisualizer(std::string("segment_visualization"));
+	planner_costmap_ = boost::shared_ptr<costmap_2d::Costmap2DROS>
+		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );
+	                 
+	lattice_planner_ = boost::shared_ptr<bk_sbpl_lattice_planner::BKSBPLLatticePlanner>
+		(new bk_sbpl_lattice_planner::BKSBPLLatticePlanner("lattice_planner", planner_costmap_) );
+	                 
+	path_checker_    = boost::shared_ptr<path_checker::PathChecker>
+		(new path_checker::PathChecker("path_checker", planner_costmap_));
+	                 
+	segment_visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
+		(new segment_lib::SegmentVisualizer(std::string("segment_visualization")) );
 	
 //	dsrv_ = new dynamic_reconfigure::Server<move_base::MoveBaseConfig>(ros::NodeHandle("~"));
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
 //	dsrv_->setCallback(cb);	
+
+	// Set up the threads
+	planning_thread_    = boost::shared_ptr<boost::thread>
+		(new boost::thread(boost::bind(&BKPlanner::planningThread,   this)) );
+	
+	path_feeder_thread_ = boost::shared_ptr<boost::thread>
+		(new boost::thread(boost::bind(&BKPlanner::pathFeederThread, this)) );
+		
+	// Kick off the threads
 
 	ROS_INFO("Waiting for server...");
 	client_.waitForServer();
@@ -50,10 +63,23 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 
 BKPlanner::~BKPlanner()
 {
-	//delete dsrv_;
-	delete lattice_planner_;
-	delete planner_costmap_;
-	delete path_checker_;
+	// Terminate the threads
+	planning_thread_->interrupt();
+	planning_thread_->join();
+	
+	path_feeder_thread_->interrupt();
+	path_feeder_thread_->join();
+}
+
+
+void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
+{
+	geometry_msgs::PoseStamped goal = *goal_ptr;
+
+	ROS_INFO("Got new goal: (%.2f,%.2f) in frame %s", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str());
+	
+	latest_goal_  = poseToGlobalFrame(goal);
+	got_new_goal_ = true;
 }
 
 
@@ -80,17 +106,7 @@ geometry_msgs::PoseStamped BKPlanner::poseToGlobalFrame(const geometry_msgs::Pos
 	return global_pose_msg;
 }
   
-void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
-{
-	geometry_msgs::PoseStamped goal = *goal_ptr;
-
-	ROS_INFO("Got new goal: (%.2f,%.2f) in frame %s", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str());
-	
-	geometry_msgs::PoseStamped goal_transformed = poseToGlobalFrame(goal);
-	
-	this->makePlan(goal_transformed);
-}
-
+  
 bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 {
 	// Get the robot's current pose
@@ -116,9 +132,9 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 		ROS_ERROR("Planner failed!");
 		return false;
 	}
-	
 	ros::Duration t = ros::Time::now() - t1;
-	ROS_INFO("Plan succeeded in %.2f seconds. Plan has %d segments.", t.toSec(), segment_plan.segs.size());
+	
+	ROS_INFO("Plan succeeded in %.2f seconds. Plan has %lu segments.", t.toSec(), segment_plan.segs.size());
 	
 	// Get safe velocities for the segments
 	path_checker_->assignPathVelocity(segment_plan);
@@ -146,8 +162,45 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	ROS_INFO("Dynamic reconfigure callback");
 }*/
 
-};// namespace
+void BKPlanner::planningThread()
+{
+	ROS_INFO("bk_planner planning thread started");
+	ros::Rate r = 1.0;// planner_frequency_;
+	ros::NodeHandle n;
+	
+	while(n.ok())
+	{
+		while( !got_new_goal_ )
+			r.sleep();
+		got_new_goal_ = false;
+		
+		ROS_INFO("Planning thread got a new goal");
+		this->makePlan(latest_goal_);
 
+		r.sleep();
+	}
+	
+	ROS_INFO("Planning thread done.");
+}
+      
+
+void BKPlanner::pathFeederThread()
+{
+	ROS_INFO("bk_planner path feeder thread started");
+	ros::Rate r = 1.0; //path_feeder_frequency_;
+	ros::NodeHandle n;
+	
+	while(n.ok())
+	{
+	
+		r.sleep();
+	}
+	
+	ROS_INFO("Path feeder thread done.");
+}
+      
+
+};// namespace
 
 int main(int argc, char** argv)
 {
@@ -156,7 +209,14 @@ int main(int argc, char** argv)
 
   bk_planner::BKPlanner bkp("bk_planner", tf);
 
-  ros::spin();
+	// All callbacks are taken care of in the main thread
+	while(ros::ok())
+	{
+  	ros::spinOnce();
+	}
 
+	
+	
+	ROS_INFO("bk_planner finished.");
   return(0);
 }

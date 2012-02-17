@@ -73,16 +73,29 @@ class LatticeSCQ : public StateChangeQuery{
 };
 
 BKSBPLLatticePlanner::BKSBPLLatticePlanner()
-  : initialized_(false), costmap_ros_(NULL){
+  : initialized_(false){
 }
 
-BKSBPLLatticePlanner::BKSBPLLatticePlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros) 
-  : initialized_(false), costmap_ros_(NULL){
+// Don't know why, but without this function I get linker errors.
+// Maybe because this class was initialized from a base class with virtual members.
+void initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
+	while(ros::ok()){
+		ROS_FATAL("FAILFAILFAILFAILFAIL");
+	}
+}
+void BKSBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
+	while(ros::ok()){
+		ROS_FATAL("FAILFAILFAILFAILFAIL");
+	}
+}
+    
+  
+BKSBPLLatticePlanner::BKSBPLLatticePlanner(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros) 
+  : initialized_(false){
   initialize(name, costmap_ros);
 }
 
-    
-void BKSBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
+void BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros){
   if(!initialized_){
     ros::NodeHandle private_nh("~/"+name);
     ros::NodeHandle nh(name);
@@ -392,7 +405,6 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
 
 void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, const vector<int>& stateIDPath, precision_navigation_msgs::Path& segmentPath, double dx, double dy)
 {
-	static double pi = 3.1415926;
 	// Discrete state
 	int x1_c, y1_c, t1_c;
 	int x2_c, y2_c, t2_c;
@@ -400,8 +412,6 @@ void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHE
 	// Continuous state
 	double x1, y1, t1;
 	double x2, y2, t2;
-	
-	double end_angle;
 
 	precision_navigation_msgs::PathSegment this_seg;
 	bool ret1, ret2;
