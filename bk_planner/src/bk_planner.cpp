@@ -46,22 +46,26 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
 //	dsrv_->setCallback(cb);	
 
-	// Set up the threads
+	// Kick off the threads
 	planning_thread_    = boost::shared_ptr<boost::thread>
 		(new boost::thread(boost::bind(&BKPlanner::planningThread,   this)) );
 	
 	path_feeder_thread_ = boost::shared_ptr<boost::thread>
 		(new boost::thread(boost::bind(&BKPlanner::pathFeederThread, this)) );
-		
-	// Kick off the threads
 
-	ROS_INFO("Waiting for server...");
+	ROS_INFO("Waiting for action server...");
 	client_.waitForServer();
 	
 	ROS_INFO("BKPlanner constructor finished");
+	return;
 }
 
 BKPlanner::~BKPlanner()
+{
+	terminateThreads();
+}
+
+void BKPlanner::terminateThreads()
 {
 	// Terminate the threads
 	planning_thread_->interrupt();
@@ -70,7 +74,6 @@ BKPlanner::~BKPlanner()
 	path_feeder_thread_->interrupt();
 	path_feeder_thread_->join();
 }
-
 
 void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
 {
@@ -164,39 +167,39 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 
 void BKPlanner::planningThread()
 {
-	ROS_INFO("bk_planner planning thread started");
-	ros::Rate r = 1.0;// planner_frequency_;
-	ros::NodeHandle n;
+	long period_ms    = (double)1000 * 0.5; // 1/planner_frequency_;
+	long wait_time_ms = (double)1000 * 0.5;
 	
-	while(n.ok())
+	ROS_INFO("bk_planner planning thread started, period is %ld, wait time %ld", period_ms, wait_time_ms);
+	
+	while(true)
 	{
-		while( !got_new_goal_ )
-			r.sleep();
+		boost::this_thread::sleep(boost::posix_time::milliseconds(period_ms));
+		
+		while( !got_new_goal_ ){
+			//ROS_INFO("Planner waiting");
+			boost::this_thread::sleep(boost::posix_time::milliseconds(wait_time_ms));
+		}
 		got_new_goal_ = false;
 		
 		ROS_INFO("Planning thread got a new goal");
 		this->makePlan(latest_goal_);
 
-		r.sleep();
 	}
-	
-	ROS_INFO("Planning thread done.");
 }
       
 
 void BKPlanner::pathFeederThread()
 {
-	ROS_INFO("bk_planner path feeder thread started");
-	ros::Rate r = 1.0; //path_feeder_frequency_;
-	ros::NodeHandle n;
+	long period_ms = (double)1000 * 1.0; // 1/path_feeder_frequency_;
 	
-	while(n.ok())
+	ROS_INFO("bk_planner path feeder thread started, period %ld", period_ms);
+	
+	while(true)
 	{
 	
-		r.sleep();
+		boost::this_thread::sleep(boost::posix_time::milliseconds(period_ms));
 	}
-	
-	ROS_INFO("Path feeder thread done.");
 }
       
 
@@ -209,14 +212,17 @@ int main(int argc, char** argv)
 
   bk_planner::BKPlanner bkp("bk_planner", tf);
 
+	ROS_INFO("Spinning now");
+	
+	//ros::MultiThreadedSpinner spinner(3);
+	//spinner.spin();
+	
 	// All callbacks are taken care of in the main thread
-	while(ros::ok())
-	{
-  	ros::spinOnce();
+	while(bkp.nh_.ok()){
+		ros::spinOnce();
 	}
-
 	
+	std::cout << "[bk_planner_node] Quitting" << std::endl;
 	
-	ROS_INFO("bk_planner finished.");
   return(0);
 }

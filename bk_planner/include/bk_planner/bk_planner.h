@@ -29,6 +29,7 @@ namespace bk_planner {
 		public:
 			BKPlanner(std::string name, tf::TransformListener& tf);
 			~BKPlanner();
+      ros::NodeHandle  nh_;
 			
 		private:
       boost::shared_ptr<costmap_2d::Costmap2DROS>                      planner_costmap_;
@@ -36,6 +37,8 @@ namespace bk_planner {
       boost::shared_ptr<path_checker::PathChecker>                     path_checker_;
       boost::shared_ptr<segment_lib::SegmentVisualizer>                segment_visualizer_;
       
+			void terminateThreads();
+
       boost::shared_ptr<boost::thread> planning_thread_;
       void planningThread();
       
@@ -51,13 +54,11 @@ namespace bk_planner {
       int  last_committed_path_seg_;
       
       // We don't 
-      boost::mutex                     planner_mutex_;
+      //boost::mutex                     planner_mutex_;
       
-      ros::NodeHandle  nh_;
       ros::NodeHandle  priv_nh_;
 			ros::Subscriber  goal_sub_;
 			ros::Publisher   plan_pub_;
-			ros::Publisher   plan_vis_pub_;
   		tf::TransformListener& tf_;
   		
   		actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
@@ -68,7 +69,6 @@ namespace bk_planner {
   		double acc_lim_x_;
   		double acc_lim_y_;
   		
-			
 			bool makePlan(const geometry_msgs::PoseStamped& goal);
 			
 			geometry_msgs::PoseStamped poseToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);

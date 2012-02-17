@@ -100,7 +100,7 @@ void BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costma
     ros::NodeHandle private_nh("~/"+name);
     ros::NodeHandle nh(name);
     
-    ROS_INFO("Name is %s", name.c_str());
+    //ROS_INFO("Name is %s", name.c_str());
 
     private_nh.param("planner_type", planner_type_, string("ARAPlanner"));
     private_nh.param("allocated_time", allocated_time_, 10.0);
