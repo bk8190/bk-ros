@@ -171,7 +171,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				m.color.r = 0.9;
 				m.color.g = 0.9;
 				m.color.b = 0.0;
-				sprintf(buffer,"%d: Spin %.2fpi\n", seg.seg_number, seg.seg_length/pi);
+				sprintf(buffer,"%d: Spin %.3fpi\n", seg.seg_number, seg.seg_length/pi);
 				m.text = std::string(buffer);
 				vis_markers_.markers.push_back(m);
 			

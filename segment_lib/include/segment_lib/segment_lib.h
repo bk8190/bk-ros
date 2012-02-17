@@ -19,16 +19,28 @@
 
 namespace segment_lib {
 
-	const double pi = 3.1415926;
+	const double pi  = 3.1415926;
+	const double eps = .0001;    // Precision for floating point comparison
 
 	double rect_angle(double t);
 
+	void   printPathSegment(const precision_navigation_msgs::PathSegment& s);
+	
+/* Path segment creation (create_seg.cpp) */
+/*==============================================================================*/
 	precision_navigation_msgs::PathSegment
 	makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2);
-	precision_navigation_msgs::PathSegment
-	makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2, double& end_angle);
 	
-	void printPathSegment(const precision_navigation_msgs::PathSegment& s);
+	precision_navigation_msgs::PathSegment makeUndirectedLineSegment(double x1, double y1, double x2, double y2);
+	// Makes a line segment respecting an initial angle (can handle backing up that way)
+	precision_navigation_msgs::PathSegment makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1);	
+	
+	precision_navigation_msgs::PathSegment makeTurnSegment(double x, double y, double t1, double t2);
+	precision_navigation_msgs::PathSegment makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2);
+	
+	
+/* Path segment smoothing (smooth_path.cpp) */
+/*==============================================================================*/
 
 	// Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
 	precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path);
@@ -43,6 +55,10 @@ namespace segment_lib {
 	// Resamples the path's poses
 	precision_navigation_msgs::Path
 	smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes);
+	
+	
+/* Path segment interpolation (interp_seg.cpp) */
+/*==============================================================================*/
 	
 	// Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating)
 	nav_msgs::Path
@@ -60,6 +76,9 @@ namespace segment_lib {
 
 	std::vector<geometry_msgs::PoseStamped>
 	interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta);
-
+	
+	// Returns whether or not seg specifies backward motion
+	bool isLineSegmentReversed(precision_navigation_msgs::PathSegment seg);
+	
 };//namespace
 #endif
