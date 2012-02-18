@@ -119,11 +119,16 @@ namespace bk_planner {
       bool doPartialReplan();
       
       void commitPathSegments();
+      bool canCommitOneSegment();
+			void commitOneSegment();
+
 			bool planPointToPoint(const geometry_msgs::PoseStamped& start,
 						                const geometry_msgs::PoseStamped& goal,
 						                precision_navigation_msgs::Path&  segment_plan);
 			
-			int  last_committed_num_;
+			precision_navigation_msgs::Path planner_path_;
+			int  last_committed_segnum_;
+			int  first_valid_segnum_, last_valid_segnum_;
 			
 			/* Path feeder thread exclusive functions and data */
 			/*============================================================*/
@@ -137,8 +142,8 @@ namespace bk_planner {
 			bool isPathClear();
 			void executePath();
 			
-			precision_navigation_msgs::Path feeder_path_;
-			boost::shared_ptr<path_checker::PathChecker>                     path_checker_;
+			precision_navigation_msgs::Path               feeder_path_;
+			boost::shared_ptr<path_checker::PathChecker>  path_checker_;
 			
 			actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
 			

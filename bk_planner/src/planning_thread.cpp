@@ -7,8 +7,6 @@ void BKPlanner::runPlanningThread()
 	long period_ms    = (double)1000 * 0.5; // 1/planner_frequency_;
 	long wait_time_ms = (double)1000 * 0.5;
 	
-	last_committed_num_ = -1;
-	
 	ROS_INFO("[planning] bk_planner planning thread started, period is %ld, wait time %ld", period_ms, wait_time_ms);
 	
 	while(true)
@@ -54,9 +52,9 @@ void BKPlanner::runPlanningThread()
 		
 		if( getPlannerState() == GOOD )
 		{
-			ROS_INFO("[planning] Planner state good, committing path segments.");
+			ROS_INFO("[planning] Planner state good.");
 			commitPathSegments();
-			enableFeeder();
+			setFeederEnabled(true);
 		}
 	
 		boost::this_thread::sleep(boost::posix_time::milliseconds(period_ms));
@@ -87,9 +85,16 @@ bool BKPlanner::doFullReplan()
 	// Get the goal
 	geometry_msgs::PoseStamped goal = getLatestGoal();
 	
-	precision_navigation_msgs::Path segment_plan;
-	bool success = planPointToPoint(start, goal, segment_plan);
+	// Plan to the goal
+	bool success = planPointToPoint(start, goal, planner_path_);
 	
+	// Reindex the path so that all previous segments are invalid
+	segment_lib::reindexPath(planner_path_, last_valid_segnum_ + 2);
+	
+	// Update our internal path indices
+	first_valid_segnum_    = segment_lib::getFirstSegnum(planner_path_);
+	last_valid_segnum_     = segment_lib::getLastSegnum(planner_path_);
+	last_committed_segnum_ = first_valid_segnum_-1;
 	
 	return success;
 }
@@ -128,7 +133,46 @@ bool BKPlanner::planPointToPoint(const geometry_msgs::PoseStamped& start,
 
 void BKPlanner::commitPathSegments()
 {
+	// Check if we can commit some more
+	for( int i=0; i<2; i++ )
+	{
+		if( canCommitOneSegment() ) {
+			commitOneSegment();
+		}
+	}
+}
 
+// Check if we can commit another segment
+bool BKPlanner::canCommitOneSegment()
+{
+	return(last_committed_segnum_ < last_valid_segnum_);
+}
+
+void BKPlanner::commitOneSegment()
+{
+	precision_navigation_msgs::Path        newsegs;
+	precision_navigation_msgs::PathSegment seg;
+	newsegs.header = planner_path_.header;
+	
+	// Try to find the index of the next segment scheduled to be committed
+	int seg_idx = segment_lib::segnumToIndex(planner_path_, last_committed_segnum_+1);
+	
+	// if it exists, commit it
+	if( seg_idx != -1 )
+	{
+		last_committed_segnum_++;	
+		newsegs.segs.push_back( planner_path_.segs.at(seg_idx));
+	}
+	else
+	{
+		ROS_ERROR("[planning] Tried to commit a path segment (segnum %d) that didn't exist", last_committed_segnum_+1);
+	}
+	
+	if( newsegs.segs.size() > 0 )
+	{
+		ROS_INFO("[planning] Planner committed a path segment");
+		enqueueSegments(newsegs);
+	}
 }
 
 };//namespace

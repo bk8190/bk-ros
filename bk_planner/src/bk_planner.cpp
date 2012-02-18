@@ -3,12 +3,11 @@
 namespace bk_planner
 {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
-	nh_             (),
-	priv_nh_        ("~"),
-	tf_             (tf),
-	client_         ("execute_path", true),
-	got_new_goal_   (false),
-	planner_state_  (NEED_FULL_REPLAN)
+	nh_      (),
+	priv_nh_ ("~"),
+	tf_      (tf),
+	client_  ("execute_path", true)
+	
 {
 	priv_nh_.param("speeds/max_vel_x"         ,max_vel_x_         ,0.0);
 	priv_nh_.param("speeds/max_rotational_vel",max_rotational_vel_,0.0);
@@ -40,6 +39,16 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 
 	ROS_INFO("Waiting for action server...");
 	client_.waitForServer();
+	
+	feeder_path_.segs.clear();
+	planner_path_.segs.clear();
+	
+	planner_state_         = GOOD;
+	last_committed_segnum_ = 0;
+	first_valid_segnum_    = 0;
+	last_valid_segnum_     = 0;
+	got_new_goal_          = false;
+	feeder_enabled_        = false;
 	
 	// Kick off the threads
 	planning_thread_    = boost::shared_ptr<boost::thread>

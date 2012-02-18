@@ -20,7 +20,7 @@ BKPlanner::isFeederEnabled()
 void 
 BKPlanner::sendResetSignals()
 {
-
+	setFeederEnabled(false);
 }
 
 
@@ -50,12 +50,12 @@ BKPlanner::enqueueSegments(precision_navigation_msgs::Path new_segments)
 	
 	// No path exists - commit the new one
 	if( committed_path_.segs.size() == 0 ) {
-		committed_path_ = new_segments
+		committed_path_ = new_segments;
 		return;
 	}
 	
 	// A path already exists.  Make sure the segment numbers are continuous
-	if(committed_path_.back().seg_number+1 != new_segments.front().seg_number){
+	if(committed_path_.segs.back().seg_number+1 != new_segments.segs.front().seg_number){
 		ROS_ERROR("Tried to commit discontinuous segments");
 		return;
 	}

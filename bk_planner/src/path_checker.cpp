@@ -19,7 +19,8 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 
 
 // Fills in a safe velocity to a path based on nearby obstacles
-void PathChecker::assignPathVelocity(precision_navigation_msgs::Path& path)
+void
+PathChecker::assignPathVelocity(precision_navigation_msgs::Path& path)
 {
 	// Treat each segment independently
 	for( unsigned int i=0; i<path.segs.size(); i++ )
@@ -30,7 +31,8 @@ void PathChecker::assignPathVelocity(precision_navigation_msgs::Path& path)
 
 
 // Fills in a safe velocity to a segment based on nearby obstacles
-void PathChecker::assignSegVelocity(precision_navigation_msgs::PathSegment& seg)
+void
+PathChecker::assignSegVelocity(precision_navigation_msgs::PathSegment& seg)
 {
 	// herp de derp
 	seg.max_speeds.linear.x  = max_speed_.linear.x;
@@ -64,21 +66,24 @@ void PathChecker::assignSegVelocity(precision_navigation_msgs::PathSegment& seg)
 
 
 // Returns true if nothing is blocking the segment
-bool isSegClear(const precision_navigation_msgs::PathSegment& seg)
+bool
+PathChecker::isSegClear(const precision_navigation_msgs::PathSegment& seg)
 {
 	// herp de derp
 	return true;
 }
 
 // Returns the closest obstacle to the robot as its footprint moves along the segment
-double getClosestDist(const precision_navigation_msgs::PathSegment& seg)
+double
+PathChecker::getClosestDist(const precision_navigation_msgs::PathSegment& seg)
 {
 	// All aboard the lulz boat
 	return 9001;
 }
 
 // Returns indices of all segments colliding with obstacles
-std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path)
+std::vector<int>
+PathChecker::getBlockedSegs(precision_navigation_msgs::Path& path)
 {
 	std::vector<int> indices;
 	indices.clear();
@@ -91,13 +96,20 @@ std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path)
 	return indices;
 }
 
+// Does a quick check, makes sure the path has all nonzero velocities
+bool
+PathChecker::isPathClear(const precision_navigation_msgs::Path path)
+{
+	return( getMinVelocity(path) > 0.0 );
+}
+
 // Returns the lowest allowed velocity contained in the path
 // Equivalent to min{ all_segs.max_vel }
-double getMinVelocity(const precision_navigation_msgs::Path path)
+double
+PathChecker::getMinVelocity(const precision_navigation_msgs::Path path)
 {
 	// Really?
 	return 100.0;
 }
-
 
 };//namespace

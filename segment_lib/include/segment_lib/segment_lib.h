@@ -24,7 +24,16 @@ namespace segment_lib {
 
 	double rect_angle(double t);
 
-	void   printPathSegment(const precision_navigation_msgs::PathSegment& s);
+	void printPathSegment(const precision_navigation_msgs::PathSegment& s);
+	
+	// Reindexes the seg numbers.  Starts at start_seg_num.  Returns the last index used.
+	int reindexPath(precision_navigation_msgs::Path& path, unsigned int start_seg_num);
+	
+	// Returns the index of seg_num within path.  -1 if DNE.
+	int segnumToIndex(const precision_navigation_msgs::Path& path, unsigned int seg_num);
+	
+	unsigned int getFirstSegnum(const precision_navigation_msgs::Path& path);
+	unsigned int getLastSegnum(const precision_navigation_msgs::Path& path);
 	
 /* Path segment creation (create_seg.cpp) */
 /*==============================================================================*/

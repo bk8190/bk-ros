@@ -105,7 +105,7 @@ precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs:
 	double dtheta;
 	bool combined_segs; // whether or not we combined a segment on this loop
 	
-	for(int path_idx = 0; path_idx < path.segs.size(); path_idx++)
+	for(unsigned int path_idx = 0; path_idx < path.segs.size(); path_idx++)
 	{
 		currentseg = path.segs.at(path_idx);
 		combined_segs = false;
@@ -175,13 +175,10 @@ precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_
 	geometry_msgs::Pose                    start, end;
 	precision_navigation_msgs::Path        newpath;
 	newpath.header = path.header;
-	double dtheta;
-	bool combined_segs; // whether or not we combined a segment on this loop
 	
-	for(int path_idx = 0; path_idx < path.segs.size(); path_idx++)
+	for(unsigned int path_idx = 0; path_idx < path.segs.size(); path_idx++)
 	{
 		currentseg = path.segs.at(path_idx);
-		combined_segs = false;
 		
 		// If the current seg is a turn in place
 		if(currentseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
@@ -193,7 +190,7 @@ precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_
 			    && path.segs.at(end_idx+1).seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
 			{
 				end_idx++;
-				ROS_INFO("Combining seg %d with %d", path_idx, end_idx);
+				//ROS_INFO("Combining seg %d with %d", path_idx, end_idx);
 			}
 			
 			start = interpSegment(currentseg           , 1, .1).front().pose;

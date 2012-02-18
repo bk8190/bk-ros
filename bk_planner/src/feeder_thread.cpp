@@ -10,13 +10,15 @@ void BKPlanner::runFeederThread()
 	
 	while(true)
 	{
-		if( isFeederEnabled() )
+		// Have the visualizer publish visualization
+		segment_visualizer_->publishVisualization(feeder_path_);
+	
+		if( !isFeederEnabled() )
 		{
 			ROS_INFO("[feeder] Feeder disabled");
 			sendHaltState();
 			feeder_path_.segs.clear();
 		}
-		
 		else
 		{
 			// Get new segments from the planner
@@ -39,7 +41,6 @@ void BKPlanner::runFeederThread()
 			// Check if the path is clear.  If so, send it to precision steering.
 			if( isPathClear() ) // >0 velocity
 			{
-				ROS_INFO("[feeder] Executing path");
 				executePath();
 				
 			}
@@ -58,26 +59,29 @@ BKPlanner::sendHaltState()
 void
 BKPlanner::getNewSegments()
 {
-	precision_navigation_msgs::Path new_segs = dequeueSegments();
+	if( segmentsAvailable() )
+	{
+		precision_navigation_msgs::Path new_segs = dequeueSegments();
 	
-	// No path exists - get the new segments
-	if( feeder_path_.segs.size() == 0 ) {
-		ROS_INFO("[feeder] Got new path");
-		feeder_path_ = new_segs;
-		return;
+		// No path exists - get the new segments
+		if( feeder_path_.segs.size() == 0 ) {
+			ROS_INFO("[feeder] Got new path, %d segs", new_segs.segs.size());
+			feeder_path_ = new_segs;
+			return;
+		}
+	
+		// A path already exists.  Check if the segment numbers are continuous
+		if(feeder_path_.segs.back().seg_number+1 != new_segs.segs.front().seg_number){
+			ROS_INFO("[feeder] Got discontinuous segments. Flushing extant path.");
+			feeder_path_ = new_segs;
+			return;
+		}
+	
+		ROS_INFO("[feeder] Appending %d new segments", new_segs.segs.size());
+		// Append new segments to current ones
+		feeder_path_.segs.insert(feeder_path_.segs.end(),
+			                       new_segs.segs.begin(), new_segs.segs.end() );
 	}
-	
-	// A path already exists.  Check if the segment numbers are continuous
-	if(committed_path_.segs.back().seg_number+1 != new_segs.segs.front().seg_number){
-		ROS_INFO("[feeder] Got discontinuous segments. Flushing extant path.");
-		feeder_path_ = new_segs;
-		return;
-	}
-	
-	ROS_INFO("[feeder] Appending new segments");
-	// Append new segments to current ones
-	feeder_path_.segs.insert(feeder_path_.segs.end(),
-	                         new_segs.segs.begin(), new_segs.segs.end() );
 }
 
 void
@@ -115,13 +119,21 @@ void
 BKPlanner::executePath()
 {
 	// Have the visualizer publish visualization
-	segment_visualizer_->publishVisualization(feeder_path_);
+	//segment_visualizer_->publishVisualization(feeder_path_);
 	
-	// Execute the whole plan
-	client_.waitForServer();
-	precision_navigation_msgs::ExecutePathGoal action_goal;
-	action_goal.segments = feeder_path_.segs;
-	client_.sendGoal(action_goal);
+	if( feeder_path_.segs.size() > 0 )
+	{
+		ROS_INFO("[feeder] Executing path");
+		// Execute the whole plan
+		client_.waitForServer();
+		precision_navigation_msgs::ExecutePathGoal action_goal;
+		action_goal.segments = feeder_path_.segs;
+		client_.sendGoal(action_goal);
+	}
+	else
+	{
+		ROS_INFO("[feeder] No path");
+	}
 }
 
 

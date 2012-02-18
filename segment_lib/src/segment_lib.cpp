@@ -42,4 +42,45 @@ void printPathSegment(const precision_navigation_msgs::PathSegment& s)
 	ROS_INFO("Curvature:  %.2f\n\n", s.curvature);
 }
 
+// Reindexes the seg numbers.  Starts at start_seg_num.  Returns the last index used.
+int reindexPath(precision_navigation_msgs::Path& path, unsigned int start_seg_num)
+{
+	int seg_num = start_seg_num;
+	
+	for( int i=0; i<path.segs.size(); i++ )
+	{
+		path.segs.at(i).seg_number = seg_num;
+		
+		if( i+1 < path.segs.size() )
+		{
+			seg_num++;
+		}
+	}
+	
+	return seg_num;
+}
+
+// Returns the index of seg_num within path.  -1 if DNE.
+int segnumToIndex(const precision_navigation_msgs::Path& path, unsigned int seg_num)
+{
+	// Try to find the segment with the given seg_num
+	for( int i=0; i<path.segs.size(); i++ )
+	{
+		if( path.segs.at(i).seg_number == seg_num )
+			return i;
+	}
+	
+	// Didn't find it
+	return -1;
+}
+
+unsigned int getLastSegnum(const precision_navigation_msgs::Path& path)
+{
+	return path.segs.back().seg_number;
+}
+	
+unsigned int getFirstSegnum(const precision_navigation_msgs::Path& path)
+{
+	return path.segs.front().seg_number;
+}
 };//namespace
