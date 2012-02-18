@@ -3,13 +3,13 @@
 namespace bk_planner
 {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
-	nh_                 (),
-	priv_nh_            ("~"),
-	tf_                 (tf),
-	client_             ("execute_path", true),
-	got_new_goal_       (false)
+	nh_             (),
+	priv_nh_        ("~"),
+	tf_             (tf),
+	client_         ("execute_path", true),
+	got_new_goal_   (false),
+	planner_state_  (NEED_FULL_REPLAN)
 {
-
 	priv_nh_.param("speeds/max_vel_x"         ,max_vel_x_         ,0.0);
 	priv_nh_.param("speeds/max_rotational_vel",max_rotational_vel_,0.0);
 	priv_nh_.param("speeds/acc_lim_th"        ,acc_lim_th_        ,0.0);
@@ -18,17 +18,9 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	
 	ROS_INFO("Max speeds: (x,theta)   = (%.2f,%.2f)"     , max_vel_x_, max_rotational_vel_);
 	ROS_INFO("Max accels: (x,theta,y) = (%.2f,%.2f,%.2f)", acc_lim_x_, acc_lim_th_, acc_lim_y_);
-/*
-	// Test to see if parameters are working
-	priv_nh_.param("test_param", test_param_, 0.0);
-	double vel;
-	ROS_INFO("Param vel  = %.2f", vel);
-	ROS_INFO("Param test = %.2f", test_param_);
-*/
 
-	// This node subscribes to a goal pose.  It publishes a segment plan, and a standard ROS path for visualization
+	// This node subscribes to a goal pose.
 	goal_sub_     = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
-	plan_pub_     = nh_.advertise<precision_navigation_msgs::Path>(name + "/plan", 1);
 	
 	planner_costmap_ = boost::shared_ptr<costmap_2d::Costmap2DROS>
 		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );
@@ -46,16 +38,16 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
 //	dsrv_->setCallback(cb);	
 
-	// Kick off the threads
-	planning_thread_    = boost::shared_ptr<boost::thread>
-		(new boost::thread(boost::bind(&BKPlanner::planningThread,   this)) );
-	
-	path_feeder_thread_ = boost::shared_ptr<boost::thread>
-		(new boost::thread(boost::bind(&BKPlanner::pathFeederThread, this)) );
-
 	ROS_INFO("Waiting for action server...");
 	client_.waitForServer();
 	
+	// Kick off the threads
+	planning_thread_    = boost::shared_ptr<boost::thread>
+		(new boost::thread(boost::bind(&BKPlanner::runPlanningThread, this)) );
+	
+	feeder_thread_ = boost::shared_ptr<boost::thread>
+		(new boost::thread(boost::bind(&BKPlanner::runFeederThread  , this)) );
+
 	ROS_INFO("BKPlanner constructor finished");
 	return;
 }
@@ -71,8 +63,8 @@ void BKPlanner::terminateThreads()
 	planning_thread_->interrupt();
 	planning_thread_->join();
 	
-	path_feeder_thread_->interrupt();
-	path_feeder_thread_->join();
+	feeder_thread_->interrupt();
+	feeder_thread_->join();
 }
 
 void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
@@ -81,10 +73,9 @@ void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
 
 	ROS_INFO("Got new goal: (%.2f,%.2f) in frame %s", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str());
 	
-	latest_goal_  = poseToGlobalFrame(goal);
-	got_new_goal_ = true;
+	setNewGoal(poseToGlobalFrame(goal));
+	escalatePlannerState(NEED_PARTIAL_REPLAN);
 }
-
 
 geometry_msgs::PoseStamped BKPlanner::poseToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg)
 {
@@ -108,55 +99,6 @@ geometry_msgs::PoseStamped BKPlanner::poseToGlobalFrame(const geometry_msgs::Pos
 	tf::poseStampedTFToMsg(global_pose, global_pose_msg);
 	return global_pose_msg;
 }
-  
-  
-bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
-{
-	// Get the robot's current pose
-	tf::Stamped<tf::Pose> robot_pose;
-	if(!planner_costmap_->getRobotPose(robot_pose)){
-		ROS_ERROR("bk_planner cannot make a plan for you because it could not get the start pose of the robot");
-		return false;
-	}
-	geometry_msgs::PoseStamped start;
-	tf::poseStampedTFToMsg(robot_pose, start);
-
-	precision_navigation_msgs::Path segment_plan;
-	
-	/*if( !start.header.frame_id.compare(goal.header.frame_id) ){
-		ROS_ERROR("Start and goal poses are in different frames.  What are you trying to pull here?");
-		return false;
-	}*/
-    
-  ros::Time t1 = ros::Time::now();
-	bool ret = lattice_planner_->makeSegmentPlan(start, goal, segment_plan);
-
-	if( ret == false ){
-		ROS_ERROR("Planner failed!");
-		return false;
-	}
-	ros::Duration t = ros::Time::now() - t1;
-	
-	ROS_INFO("Plan succeeded in %.2f seconds. Plan has %lu segments.", t.toSec(), segment_plan.segs.size());
-	
-	// Get safe velocities for the segments
-	path_checker_->assignPathVelocity(segment_plan);
-	segment_plan.header.stamp    = ros::Time::now();
-	segment_plan.header.frame_id = start.header.frame_id;
-	
-	// Publish the plan, and have the visualizer publish visualization
-	plan_pub_.publish(segment_plan);
-	segment_visualizer_->publishVisualization(segment_plan);
-	
-	// Temporary: execute the whole plan
-	client_.waitForServer();
-	precision_navigation_msgs::ExecutePathGoal action_goal;
-	action_goal.segments = segment_plan.segs;
-	client_.sendGoal(action_goal);
-	
-	return true;
-}
-
 
 
 /*void BKPlanner::reconfigureCB(bk_planner::BKPlannerConfig &config, uint32_t level)
@@ -165,42 +107,7 @@ bool BKPlanner::makePlan(const geometry_msgs::PoseStamped& goal)
 	ROS_INFO("Dynamic reconfigure callback");
 }*/
 
-void BKPlanner::planningThread()
-{
-	long period_ms    = (double)1000 * 0.5; // 1/planner_frequency_;
-	long wait_time_ms = (double)1000 * 0.5;
-	
-	ROS_INFO("bk_planner planning thread started, period is %ld, wait time %ld", period_ms, wait_time_ms);
-	
-	while(true)
-	{
-		boost::this_thread::sleep(boost::posix_time::milliseconds(period_ms));
-		
-		while( !got_new_goal_ ){
-			//ROS_INFO("Planner waiting");
-			boost::this_thread::sleep(boost::posix_time::milliseconds(wait_time_ms));
-		}
-		got_new_goal_ = false;
-		
-		ROS_INFO("Planning thread got a new goal");
-		this->makePlan(latest_goal_);
 
-	}
-}
-      
-
-void BKPlanner::pathFeederThread()
-{
-	long period_ms = (double)1000 * 1.0; // 1/path_feeder_frequency_;
-	
-	ROS_INFO("bk_planner path feeder thread started, period %ld", period_ms);
-	
-	while(true)
-	{
-	
-		boost::this_thread::sleep(boost::posix_time::milliseconds(period_ms));
-	}
-}
       
 
 };// namespace
