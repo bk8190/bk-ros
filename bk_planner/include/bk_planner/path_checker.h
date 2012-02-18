@@ -29,6 +29,13 @@ namespace path_checker{
 			// Returns the closest obstacle to the robot as its footprint moves along the segment
 			double getClosestDist(const precision_navigation_msgs::PathSegment& seg);
 			
+			// Does a quick check, makes sure the path has all nonzero velocities
+			bool isPathClear(const precision_navigation_msgs::Path path);
+			
+			// Returns the lowest allowed velocity contained in the path
+			// Equivalent to min{ all_segs.max_vel }
+			double getMinVelocity(const precision_navigation_msgs::Path path);
+			
 		private:
 			boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_;
 			ros::NodeHandle           private_nh_;

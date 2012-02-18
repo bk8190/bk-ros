@@ -7,6 +7,8 @@ void BKPlanner::runPlanningThread()
 	long period_ms    = (double)1000 * 0.5; // 1/planner_frequency_;
 	long wait_time_ms = (double)1000 * 0.5;
 	
+	last_committed_num_ = -1;
+	
 	ROS_INFO("[planning] bk_planner planning thread started, period is %ld, wait time %ld", period_ms, wait_time_ms);
 	
 	while(true)
@@ -18,9 +20,13 @@ void BKPlanner::runPlanningThread()
 		}
 		else if( getPlannerState() == NEED_RECOVERY )
 		{
-			ROS_INFO("[planning] Starting recovery");
+			/*ROS_INFO("[planning] Starting recovery");
 			escalatePlannerState(IN_RECOVERY);
-			startRecovery();
+			startRecovery();*/
+			
+			// HACK: Recovery state does not exist yet
+			ROS_INFO("[planning] Recovery state does not exist, setting state to \"full replan\"");
+			setPlannerState(NEED_FULL_REPLAN);
 		}
 		else if( getPlannerState() == NEED_FULL_REPLAN )
 		{
@@ -84,17 +90,6 @@ bool BKPlanner::doFullReplan()
 	precision_navigation_msgs::Path segment_plan;
 	bool success = planPointToPoint(start, goal, segment_plan);
 	
-	// Get safe velocities for the segments
-	path_checker_->assignPathVelocity(segment_plan);
-	
-	// Have the visualizer publish visualization
-	segment_visualizer_->publishVisualization(segment_plan);
-	
-	// Temporary: execute the whole plan
-	client_.waitForServer();
-	precision_navigation_msgs::ExecutePathGoal action_goal;
-	action_goal.segments = segment_plan.segs;
-	client_.sendGoal(action_goal);
 	
 	return success;
 }

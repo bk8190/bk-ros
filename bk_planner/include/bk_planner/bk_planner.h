@@ -42,7 +42,6 @@ namespace bk_planner {
 		private:
 			boost::shared_ptr<costmap_2d::Costmap2DROS>                      planner_costmap_;
 			boost::shared_ptr<bk_sbpl_lattice_planner::BKSBPLLatticePlanner> lattice_planner_;
-			boost::shared_ptr<path_checker::PathChecker>                     path_checker_;
 			boost::shared_ptr<segment_lib::SegmentVisualizer>                segment_visualizer_;
 			boost::shared_ptr<boost::thread> planning_thread_, feeder_thread_;
 
@@ -64,10 +63,26 @@ namespace bk_planner {
 			
 			/* Common data and access functions for common data */
 			/*============================================================*/
-			void enableFeeder();
-			void disableFeeder();
 			
+			// Thread-safe functions for managing the state of the feeder
+			void setFeederEnabled(bool state);
+			bool isFeederEnabled();
 			void sendResetSignals();
+			
+			// Do not directly access these variables, not thread-safe.
+			bool feeder_enabled_;
+			boost::recursive_mutex feeder_enabled_mutex_;
+			
+			
+			// Thread-safe functions for committing path segments to the feeder
+			bool segmentsAvailable();
+			precision_navigation_msgs::Path dequeueSegments();
+			void enqueueSegments(precision_navigation_msgs::Path new_segments);
+			
+			// Do not directly access these variables, not thread-safe.
+			precision_navigation_msgs::Path committed_path_;
+			boost::recursive_mutex          committed_path_mutex_;
+			
 			
 			// Main thread sets the goal in a callback, planning thread checks it.
 			// These functions are thread-safe.
@@ -80,9 +95,9 @@ namespace bk_planner {
 			geometry_msgs::PoseStamped latest_goal_;
 			boost::recursive_mutex     goal_mutex_;
 
+
 			// Thread-safe functions to indicate need for a replan or recovery
 
-			
 			// Escalates to a higher need of replanning/recovery
 			void escalatePlannerState(plannerState newstate);
 			
@@ -108,11 +123,23 @@ namespace bk_planner {
 						                const geometry_msgs::PoseStamped& goal,
 						                precision_navigation_msgs::Path&  segment_plan);
 			
+			int  last_committed_num_;
 			
 			/* Path feeder thread exclusive functions and data */
 			/*============================================================*/
 			void runFeederThread();
-			int  last_committed_path_seg_;
+			void sendHaltState();
+			void getNewSegments();
+			void updatePathVelocities();
+			bool hasProgressBeenMade();
+			void resetStuckTimer();
+			bool isStuckTimerFull();
+			bool isPathClear();
+			void executePath();
+			
+			precision_navigation_msgs::Path feeder_path_;
+			boost::shared_ptr<path_checker::PathChecker>                     path_checker_;
+			
 			actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
 			
 			//boost::recursive_mutex configuration_mutex_;

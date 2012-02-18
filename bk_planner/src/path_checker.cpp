@@ -91,4 +91,13 @@ std::vector<int> getBlockedSegs(precision_navigation_msgs::Path& path)
 	return indices;
 }
 
+// Returns the lowest allowed velocity contained in the path
+// Equivalent to min{ all_segs.max_vel }
+double getMinVelocity(const precision_navigation_msgs::Path path)
+{
+	// Really?
+	return 100.0;
+}
+
+
 };//namespace
