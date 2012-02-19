@@ -52,7 +52,7 @@ void BKPlanner::runPlanningThread()
 		
 		if( getPlannerState() == GOOD )
 		{
-			ROS_INFO("[planning] Planner state good.");
+			//ROS_INFO("[planning] Planner state good.");
 			commitPathSegments();
 			setFeederEnabled(true);
 		}
@@ -63,12 +63,12 @@ void BKPlanner::runPlanningThread()
 
 void BKPlanner::startRecovery()
 {
-
+	return;
 }
 
 void BKPlanner::doRecovery()
 {
-
+	return;
 }
 
 bool BKPlanner::doFullReplan()
@@ -101,7 +101,28 @@ bool BKPlanner::doFullReplan()
 
 bool BKPlanner::doPartialReplan()
 {
-	return false;
+	// Get the last committed pose
+	int start_idx = segment_lib::segnumToIndex(planner_path_, last_committed_segnum_+1);
+	
+	if( start_idx < 0 ){
+		return false;
+	}
+	
+	geometry_msgs::PoseStamped start = segment_lib::getEndPose(planner_path_.segs.at(start_idx));
+	
+	// Get the goal
+	geometry_msgs::PoseStamped goal = getLatestGoal();
+	
+	// Plan to the goal
+	bool success = planPointToPoint(start, goal, planner_path_);
+	
+	// Reindex the path, keeping previous segments valid
+	segment_lib::reindexPath(planner_path_, first_valid_segnum_);
+	
+	// Update our internal path indices
+	last_valid_segnum_     = segment_lib::getLastSegnum(planner_path_);
+	
+	return success;
 }
 
 // Point/point planner
@@ -170,7 +191,7 @@ void BKPlanner::commitOneSegment()
 	
 	if( newsegs.segs.size() > 0 )
 	{
-		ROS_INFO("[planning] Planner committed a path segment");
+		//ROS_INFO("[planning] Planner committed a path segment");
 		enqueueSegments(newsegs);
 	}
 }

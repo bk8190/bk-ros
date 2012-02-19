@@ -236,4 +236,18 @@ bool isLineSegmentReversed(precision_navigation_msgs::PathSegment seg)
 	return( seg.seg_length < 0 );
 }
 
+geometry_msgs::PoseStamped
+getEndPose(const precision_navigation_msgs::PathSegment& seg)
+{
+	std::vector<geometry_msgs::PoseStamped> interp = interpSegment(seg, 1.0, 1.0);
+	return interp.back();
+}
+
+geometry_msgs::PoseStamped
+getStartPose(const precision_navigation_msgs::PathSegment& seg)
+{
+	std::vector<geometry_msgs::PoseStamped> interp = interpSegment(seg, 1.0, 1.0);
+	return interp.front();
+}
+
 }//namespace

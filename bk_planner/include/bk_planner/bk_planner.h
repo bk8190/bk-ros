@@ -140,10 +140,20 @@ namespace bk_planner {
 			void resetStuckTimer();
 			bool isStuckTimerFull();
 			bool isPathClear();
+
 			void executePath();
+			void discardOldSegs();
+			
+			void doneCb(const actionlib::SimpleClientGoalState& state,
+                  const precision_navigation_msgs::ExecutePathResultConstPtr& result);
+			void activeCb();
+			void feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback);
+			precision_navigation_msgs::ExecutePathFeedback latest_feedback_;
+			boost::recursive_mutex  feedback_mutex_;
 			
 			precision_navigation_msgs::Path               feeder_path_;
 			boost::shared_ptr<path_checker::PathChecker>  path_checker_;
+			bool feeder_path_has_changed_;
 			
 			actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
 			

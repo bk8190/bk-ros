@@ -86,6 +86,12 @@ namespace segment_lib {
 	std::vector<geometry_msgs::PoseStamped>
 	interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta);
 	
+	geometry_msgs::PoseStamped
+	getEndPose(const precision_navigation_msgs::PathSegment& seg);
+	
+	geometry_msgs::PoseStamped
+	getStartPose(const precision_navigation_msgs::PathSegment& seg);
+	
 	// Returns whether or not seg specifies backward motion
 	bool isLineSegmentReversed(precision_navigation_msgs::PathSegment seg);
 	
