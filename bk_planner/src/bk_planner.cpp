@@ -146,14 +146,13 @@ int main(int argc, char** argv)
 			ros::spinOnce();
 		}
 	}
-	// The planner will go out of scope here and call the destructor.
-	// (I think) because terminate() is called on the threads, it throws a lock error.
+	// The planner will go out of scope here and call its destructor.
+	// It throws a lock error, possibly because terminate() is called on the threads.
 	catch(boost::lock_error e) {
 		cout << "Boost threw a lock error.  Honey badger don't care honey badger don't give a &$%#\n";
 	}
 
 	std::cout << "[bk_planner_node] Quitting" << std::endl;
 	ros::shutdown();
-	
   return(0);
 }

@@ -261,7 +261,7 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
   ROS_DEBUG("[sbpl_lattice_planner] getting fresh copy of costmap");
   costmap_ros_->getCostmapCopy(cost_map_);
 
-  ROS_INFO("[sbpl_lattice_planner] getting start point (%g,%g) goal point (%g,%g)",
+  ROS_DEBUG("[sbpl_lattice_planner] getting start point (%g,%g) goal point (%g,%g)",
            start.pose.position.x, start.pose.position.y,goal.pose.position.x, goal.pose.position.y);
   double theta_start = 2 * atan2(start.pose.orientation.z, start.pose.orientation.w);
   double theta_goal = 2 * atan2(goal.pose.orientation.z, goal.pose.orientation.w);
@@ -359,7 +359,7 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
     if(ret)
       ROS_DEBUG("Solution is found\n");
     else{
-      ROS_INFO("Solution not found\n");
+      ROS_DEBUG("Solution not found\n");
       publishStats(solution_cost, 0, start, goal);
       return false;
     }
@@ -391,12 +391,8 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
   
   // Combine some segments together
   segmentPlan = segment_lib::combineSegments(segmentPlan);
-  
-	// Resample segment endpoints to avoid discretization error
-	//segmentPlan = segment_lib::smoothPath(segmentPlan);
 	
   ROS_DEBUG("Plan has %d path segments.\n", (int)segmentPlan.segs.size());
-
   publishStats(solution_cost, sbpl_path.size(), start, goal);
 
   return true;

@@ -15,62 +15,65 @@ void BKPlanner::runFeederThread()
 	
 	while(ros::ok())
 	{
-		// Wait until we are allowed to run the feeder
-		boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex);
-		
-		if(!l){
-			boost::this_thread::interruption_point();
-			ROS_WARN("[feeder] Locked out!");
-			r.sleep();
-			continue;
-		}
-		
-		if( !isFeederEnabled() )
 		{
-			ROS_INFO_THROTTLE(5,"[feeder] Feeder disabled");
-			feeder_path_.segs.clear();
-			sendHaltState();
-		}
-		else
-		{
-			// Get new segments from the planner
-			getNewSegments();
+			// Wait until we are allowed to run the feeder
+			boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex);
 		
-			// Find safe velocities
-			updatePathVelocities();
-			
-			// Request a replan if the robot has not moved in a while
-			if( hasProgressBeenMade() )
-			{
-				resetStuckTimer();
+			if(!l){
+				boost::this_thread::interruption_point();
+				ROS_WARN("[feeder] Locked out!");
+				sendHaltState();
+				r.sleep();
+				continue;
 			}
-			else if(isStuckTimerFull())
-			{
-				ROS_INFO("[feeder] Stuck timer full, requesting replan.");
-				escalatePlannerState(NEED_PARTIAL_REPLAN);
-			}
-			
-			discardOldSegs();
 		
-			// Check if the path is clear.  If so, send it to precision steering.
-			if( isPathClear() ) // >0 velocity
+			if( !isFeederEnabled() )
 			{
-				executePath();
+				ROS_INFO_THROTTLE(5,"[feeder] Feeder disabled");
+				feeder_path_.segs.clear();
+				sendHaltState();
 			}
 			else
 			{
-				ROS_INFO("[feeder] Path blocked, requesting replan.");
-				escalatePlannerState(NEED_FULL_REPLAN);
-			}
-		}
+				// Get new segments from the planner
+				getNewSegments();
 		
-		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
-		if( feeder_path_.segs.size() > 0 ){
-			feeder_path_.segs.back().header.stamp = ros::Time::now();
-			segment_lib::reFrame(feeder_path_);
+				// Find safe velocities
+				updatePathVelocities();
+			
+				// Request a replan if the robot has not moved in a while
+				if( hasProgressBeenMade() )
+				{
+					resetStuckTimer();
+				}
+				else if(isStuckTimerFull())
+				{
+					ROS_INFO("[feeder] Stuck timer full, requesting replan.");
+					escalatePlannerState(NEED_PARTIAL_REPLAN);
+				}
+			
+				discardOldSegs();
+		
+				// Check if the path is clear.  If so, send it to precision steering.
+				if( isPathClear() ) // >0 velocity
+				{
+					executePath();
+				}
+				else
+				{
+					ROS_INFO("[feeder] Path blocked, requesting replan.");
+					escalatePlannerState(NEED_FULL_REPLAN);
+				}
+			}
+		
+			// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
+			if( feeder_path_.segs.size() > 0 ){
+				feeder_path_.segs.back().header.stamp = ros::Time::now();
+				segment_lib::reFrame(feeder_path_);
+			}
+			// Have the visualizer publish visualization
+			feeder_visualizer_->publishVisualization(feeder_path_);
 		}
-		// Have the visualizer publish visualization
-		feeder_visualizer_->publishVisualization(feeder_path_);
 		
 		boost::this_thread::interruption_point();
 		r.sleep();

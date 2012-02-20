@@ -60,9 +60,19 @@ BKPlanner::runPlanningThread()
 		
 		if( getPlannerState() == GOOD && made_one_plan )
 		{
-			//ROS_INFO("[planning] Planner state good.");
-			commitPathSegments();
-			setFeederEnabled(true);
+		
+			// Check if the path is clear
+			if( ! path_checker_->isPathClear(planner_path_) )
+			{
+				ROS_INFO_THROTTLE(2, "[planning] Found obstacles.");
+				escalatePlannerState(NEED_PARTIAL_REPLAN);
+			}
+			else
+			{
+				ROS_INFO_THROTTLE(2, "[planning] Planner state good.");
+				commitPathSegments();
+				setFeederEnabled(true);
+			}
 		}
 	
 		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
@@ -85,14 +95,16 @@ BKPlanner::runPlanningThread()
 void
 BKPlanner::startRecovery()
 {
-	setPlannerState(NEED_FULL_REPLAN);
 }
 
 void
 BKPlanner::doRecovery()
 {
+	if(got_new_goal_) {
+		setPlannerState(NEED_FULL_REPLAN);
+	}
 	// Hack: recovery doesn't exist yet
-	setPlannerState(NEED_FULL_REPLAN);
+	//setPlannerState(NEED_FULL_REPLAN);
 }
 
 bool
@@ -193,7 +205,21 @@ BKPlanner::planPointToPoint(const geometry_msgs::PoseStamped& start,
 		ROS_ERROR("Start and goal poses are in different frames.  What are you trying to pull here?");
 		return false;
 	}*/
-    
+   
+  // Make sure the goal is in bounds
+  if( !path_checker_->isPoseClear(start) )
+  {
+  	ROS_INFO("[planning] Start pose blocked");
+  	return false;
+  } 
+  
+  // Make sure the goal is in bounds
+  if( !path_checker_->isPoseClear(goal) )
+  {
+  	ROS_INFO("[planning] Goal pose blocked");
+  	return false;
+  } 
+   
   ros::Time t1 = ros::Time::now();
 	bool success = lattice_planner_->makeSegmentPlan(start, goal, path);
 
