@@ -45,28 +45,28 @@ smoothPath(const precision_navigation_msgs::Path& path)
 		{
 			currentseg = path.segs.at(i);
 			
-			// First segment: start of segment 0 -> start of segment 1
+			// First segment: start of segment 0 -> end of segment 1
 			if( i==0 )
 			{
 				interp1 = interpSegment(path.segs.at(0), .01, .01);
-				interp2 = interpSegment(path.segs.at(1), .01, .01);
+				interp2 = interpSegment(path.segs.at(0), .01, .01);
 				start   = interp1.front().pose;
-				end     = interp2.front().pose;
-			}
-			// Last segment: last ending pose -> end of segment i
-			else if( i == path.segs.size()-1 )
-			{
-				interp1 = interpSegment(newseg         , .01, .01);
-				interp2 = interpSegment(path.segs.at(i), .01, .01);
-				start   = interp1.back().pose;
 				end     = interp2.back().pose;
 			}
-			// Middle segment: last ending pose -> front of segment i+1
+			// Last segment: start of i -> end of segment i
+			else if( i == path.segs.size()-1 )
+			{
+				interp1 = interpSegment(path.segs.at(i), .01, .01);
+				interp2 = interpSegment(path.segs.at(i), .01, .01);
+				start   = interp1.front().pose;
+				end     = interp2.back().pose;
+			}
+			// Middle segment: front of i -> front of segment i+1
 			else
 			{
-				interp1 = interpSegment(newseg           , .01, .01);
+				interp1 = interpSegment(path.segs.at(i)  , .01, .01);
 				interp2 = interpSegment(path.segs.at(i+1), .01, .01);
-				start   = interp1.back().pose;
+				start   = interp1.front().pose;
 				end     = interp2.front().pose;
 			}
 

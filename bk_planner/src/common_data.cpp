@@ -23,6 +23,62 @@ BKPlanner::sendResetSignals()
 	setFeederEnabled(false);
 }
 
+// Returns the a snapshot of linear distance left for the feeder
+precision_navigation_msgs::ExecutePathFeedback last_fb_checked_;
+double
+BKPlanner::getFeederDistLeft()
+{
+	bool stale_fb = false;
+	
+	p_nav::Path p;
+	int current_segnum;
+	double current_seg_complete = 0.0;
+	double d = 0.0;
+	
+	{
+		boost::recursive_mutex::scoped_lock l1(feeder_path_mutex_);
+		boost::mutex::scoped_lock           l2(feedback_mutex_);
+		p = feeder_path_;
+		
+		current_segnum       = latest_feedback_.current_segment.seg_number;
+		current_seg_complete = latest_feedback_.seg_distance_done;
+		
+		
+		if( last_fb_checked_.seg_distance_done          == latest_feedback_.seg_distance_done
+		 && last_fb_checked_.current_segment.seg_number == latest_feedback_.current_segment.seg_number){
+			stale_fb = false;
+		}
+		last_fb_checked_ = latest_feedback_;
+		
+	}
+	
+	
+	if( stale_fb ) {
+		return(1000.0);
+	}
+	
+	if( p.segs.size() == 0 ){
+		return(0.0);
+	}
+	
+	int start_idx = segment_lib::segnumToIndex(p, current_segnum);
+	
+	// Length of first segment
+	d = segment_lib::linDist(p.segs.front());
+	d = max(0.0, d-current_seg_complete);
+	
+	
+	if( p.segs.size() > 1)
+	{
+		// Length of the rest
+		for( int i = start_idx + 1; i < p.segs.size(); i++ )
+		{
+			d += segment_lib::linDist(p.segs.at(i));
+		}
+	}
+	
+	return d;
+}
 
 bool
 BKPlanner::segmentsAvailable()

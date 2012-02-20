@@ -116,17 +116,36 @@ BKPlanner::doPartialReplan()
 {
 // return false; // h4x
 
-	// Get the goal
-	geometry_msgs::PoseStamped goal = getLatestGoal();
+	// If there aren't outstanding, uncommitted segments, do a full replan instead.
+	if(planner_path_.segs.size() < 1){
+		ROS_INFO("[planning] No outstanding segments, doing full replan instead.");
+		planner_path_.segs.clear();
+		return false;
+	}
+		
+	// Clear all but the first uncommitted segment
+	if( planner_path_.segs.size() > 1 ) {
+		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
+	}
 	
-	// Clear current path
-	planner_path_.segs.clear();
+	if( planner_path_.segs.size() > 1 ){
+		ROS_ERROR("DERPDEDERP");};
 	
-	// Make a plan from the last committed pose to the goal
-	bool success = planPointToPoint(last_committed_pose_, goal, planner_path_);
+	// Plan from the end of the first uncommitted segment to the goal
+  geometry_msgs::PoseStamped start = segment_lib::getEndPose(planner_path_.segs.front());
+	geometry_msgs::PoseStamped goal  = getLatestGoal();
+	
+	// Make the plan and append it
+	p_nav::Path splice;
+	bool success = planPointToPoint(start, goal, splice);
 	
 	if( success ){
-		// Reindex the path splice to be continuous with the segments previously committed
+		planner_path_.segs.insert(planner_path_.segs.begin()+1, splice.segs.begin(), splice.segs.end() );
+		
+		// Resample the path
+		//planner_path_ = segment_lib::smoothPath(planner_path_);
+		
+		// Reindex the path to be continuous with the segments previously committed
 		segment_lib::reindexPath(planner_path_, last_committed_segnum_+1 );
 	
 		return true;
@@ -167,23 +186,34 @@ void
 BKPlanner::commitPathSegments()
 {
 	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
-	// Check if we can commit some more
-	for( int i=0; i<2; i++ )
+	
+	// Get the current length of the feeder path
+	double dist_left = getFeederDistLeft();
+	
+	p_nav::PathSegment seg_just_committed;
+	// Desired distance to add
+	double dist_to_add = 1.0 - dist_left;
+	double dist_just_committed;
+	
+	ROS_INFO("Feeder has %.2f left, committing %.2f", dist_left, dist_to_add);
+	
+	while( planner_path_.segs.size() > 0 && dist_to_add > 0 )
 	{
-		if( canCommitOneSegment() ) {
-			commitOneSegment();
-		}
+		seg_just_committed  = commitOneSegment();
+		dist_just_committed = segment_lib::linDist(seg_just_committed);
+		dist_to_add -= dist_just_committed;
 	}
+	ROS_INFO("Done committing");
 }
 
 // Check if we can commit another segment
 bool
 BKPlanner::canCommitOneSegment()
 {
-	return(planner_path_.segs.size() > 0);
+	return(false);
 }
 
-void
+p_nav::PathSegment
 BKPlanner::commitOneSegment()
 {
 	precision_navigation_msgs::Path path_to_commit;
@@ -194,12 +224,13 @@ BKPlanner::commitOneSegment()
 	planner_path_.segs.erase(planner_path_.segs.begin());
 	
 	// Remember our last committed pose
-	last_committed_pose_   = segment_lib::getEndPose(seg);
+	//last_committed_pose_   = segment_lib::getEndPose(seg);
 	last_committed_segnum_ = seg.seg_number;
 	
-	ROS_INFO("[planning] Planner committed segment %d", last_committed_segnum_);
-	path_to_commit.segs.push_back( planner_path_.segs.front());
+	path_to_commit.segs.push_back(seg);
 	enqueueSegments(path_to_commit);
+	ROS_INFO("[planning] Planner committed segment %d", last_committed_segnum_);
+	return seg;
 }
 
 };//namespace

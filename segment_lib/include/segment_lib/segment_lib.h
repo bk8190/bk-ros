@@ -19,6 +19,9 @@
 
 namespace segment_lib {
 
+	// Shorthand
+	namespace p_nav = precision_navigation_msgs;
+	
 	const double pi  = 3.1415926;
 	const double eps = .0001;    // Precision for floating point comparison
 
@@ -36,6 +39,7 @@ namespace segment_lib {
 	int getFirstSegnum(const precision_navigation_msgs::Path& path);
 	int getLastSegnum(const precision_navigation_msgs::Path& path);
 	
+	double linDist(const p_nav::PathSegment& seg);
 /* Path segment creation (create_seg.cpp) */
 /*==============================================================================*/
 	precision_navigation_msgs::PathSegment

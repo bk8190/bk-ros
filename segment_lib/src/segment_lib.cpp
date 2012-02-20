@@ -86,4 +86,16 @@ getFirstSegnum(const precision_navigation_msgs::Path& path)
 {
 	return path.segs.front().seg_number;
 }
+
+
+double
+linDist(const p_nav::PathSegment& seg)
+{
+	/*if( seg.seg_type == SPIN_IN_PLACE ) {
+		return 0.0;
+	}*/
+	
+	return seg.seg_length;
+}
+
 };//namespace

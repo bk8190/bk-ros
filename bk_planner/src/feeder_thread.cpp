@@ -80,6 +80,7 @@ void
 BKPlanner::getNewSegments()
 {
 	boost::recursive_mutex::scoped_lock l1(committed_path_mutex_);
+	boost::recursive_mutex::scoped_lock l2(feeder_path_mutex_);
 	if( segmentsAvailable() )
 	{
 		precision_navigation_msgs::Path new_segs = dequeueSegments();
@@ -120,6 +121,7 @@ BKPlanner::getNewSegments()
 void
 BKPlanner::updatePathVelocities()
 {
+	boost::recursive_mutex::scoped_lock l(feeder_path_mutex_);
 	// Get safe velocities for the segments
 	path_checker_->assignPathVelocity(feeder_path_);
 }
@@ -151,6 +153,8 @@ BKPlanner::isPathClear()
 void
 BKPlanner::executePath()
 {
+	boost::recursive_mutex::scoped_lock l(feeder_path_mutex_);
+	
 	if( feeder_path_.segs.size() > 0 )
 	{
 		if( feeder_path_has_changed_ )
@@ -207,7 +211,8 @@ void
 BKPlanner::discardOldSegs()
 {
 	// We don't want new feedback to arrive while we are using it
-	boost::mutex::scoped_lock l(feedback_mutex_);
+	boost::mutex::scoped_lock           l1(feedback_mutex_);
+	boost::recursive_mutex::scoped_lock l2(feeder_path_mutex_);
 	
 	int curr_seg_number = latest_feedback_.current_segment.seg_number;
 	
@@ -218,7 +223,7 @@ BKPlanner::discardOldSegs()
 		// Drop old segments ( keep 4 trailing )
 		while( feeder_path_.segs.front().seg_number+4 < curr_seg_number && feeder_path_.segs.size() > 0)
 		{
-			ROS_INFO("[feeder] Dropping segment %d", feeder_path_.segs.front().seg_number);
+			//ROS_INFO("[feeder] Dropping segment %d", feeder_path_.segs.front().seg_number);
 			feeder_path_.segs.erase( feeder_path_.segs.begin() );
 		}
 	}

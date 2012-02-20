@@ -23,6 +23,10 @@
 #include <segment_lib/SegmentVisualizer.h>
 
 namespace bk_planner {
+
+	// shorthand
+	namespace p_nav = precision_navigation_msgs;
+
 	enum plannerState
 	{
 		GOOD                 = 0,
@@ -65,13 +69,14 @@ namespace bk_planner {
 			/*============================================================*/
 			
 			// Thread-safe functions for managing the state of the feeder
-			void setFeederEnabled(bool state);
-			bool isFeederEnabled();
-			void sendResetSignals();
+			void   setFeederEnabled(bool state);
+			bool   isFeederEnabled();
+			void   sendResetSignals();
+			double getFeederDistLeft();
 			
 			// Do not directly access these variables, not thread-safe.
 			bool feeder_enabled_;
-			boost::recursive_mutex feeder_enabled_mutex_;
+			boost::recursive_mutex feeder_enabled_mutex_, feeder_path_mutex_;
 			
 			
 			// Thread-safe functions for committing path segments to the feeder
@@ -120,7 +125,7 @@ namespace bk_planner {
       
       void commitPathSegments();
       bool canCommitOneSegment();
-			void commitOneSegment();
+			p_nav::PathSegment commitOneSegment();
 
 			bool planPointToPoint(const geometry_msgs::PoseStamped& start,
 						                const geometry_msgs::PoseStamped& goal,
@@ -150,7 +155,7 @@ namespace bk_planner {
 			void activeCb();
 			void feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback);
 			precision_navigation_msgs::ExecutePathFeedback latest_feedback_;
-			boost::mutex  feedback_mutex_, feeder_path_mutex_;
+			boost::mutex  feedback_mutex_;
 			
 			precision_navigation_msgs::Path               feeder_path_;
 			boost::shared_ptr<path_checker::PathChecker>  path_checker_;
