@@ -79,12 +79,13 @@ BKPlanner::~BKPlanner()
 
 void BKPlanner::terminateThreads()
 {
-	// Terminate the threads
-	planning_thread_->interrupt();
-	planning_thread_->join();
+		// Terminate the threads
+		planning_thread_->interrupt();
+		planning_thread_->join();
 	
-	feeder_thread_->interrupt();
-	feeder_thread_->join();
+		feeder_thread_->interrupt();
+		feeder_thread_->join();
+
 }
 
 void BKPlanner::goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal_ptr)
@@ -134,21 +135,23 @@ geometry_msgs::PoseStamped BKPlanner::poseToGlobalFrame(const geometry_msgs::Pos
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "bk_planner_node");
-  tf::TransformListener tf(ros::Duration(10));
+	ros::init(argc, argv, "bk_planner_node");
+	tf::TransformListener tf(ros::Duration(10));
 
-  bk_planner::BKPlanner bkp("bk_planner", tf);
+	try	{
+		bk_planner::BKPlanner bkp("bk_planner", tf);
 
-	ROS_INFO("Spinning now");
-	
-	//ros::MultiThreadedSpinner spinner(3);
-	//spinner.spin();
-	
-	// All callbacks are taken care of in the main thread
-	while(bkp.nh_.ok()){
-		ros::spinOnce();
+		// All callbacks are taken care of in the main thread
+		while(bkp.nh_.ok()) {
+			ros::spinOnce();
+		}
 	}
-	
+	// The planner will go out of scope here and call the destructor.
+	// (I think) because terminate() is called on the threads, it throws a lock error.
+	catch(boost::lock_error e) {
+		cout << "Boost threw a lock error.  Honey badger don't care honey badger don't give a &$%#\n";
+	}
+
 	std::cout << "[bk_planner_node] Quitting" << std::endl;
 	ros::shutdown();
 	

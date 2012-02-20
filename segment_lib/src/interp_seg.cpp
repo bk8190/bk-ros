@@ -8,16 +8,19 @@ interpPath(const p_nav::Path& path, double dx, double dtheta)
 	nav_msgs::Path interp_path;
 	std::vector<geometry_msgs::PoseStamped> newpoints;
 	
+	// Fill out the path's header
+	if( path.segs.size() > 0 ){
+		interp_path.header.stamp    = path.segs.back().header.stamp;
+		interp_path.header.frame_id = path.segs.back().header.frame_id;
+	}else {
+		interp_path.header.stamp    = path.header.stamp;
+		interp_path.header.frame_id = path.header.frame_id;
+	}
+	
 	// Interpolate each segment and concatenate to the path
 	for( unsigned int i=0; i<path.segs.size(); i++ ) {
 		newpoints = interpSegment(path.segs.at(i), dx, dtheta);
 		interp_path.poses.insert( interp_path.poses.end(), newpoints.begin(), newpoints.end() );
-	}
-	
-	// Fill out the path's header
-	if( path.segs.size() > 0 ) {
-		interp_path.header.stamp    = path.segs.back().header.stamp;
-		interp_path.header.frame_id = path.segs.back().header.frame_id;
 	}
 	
 	return interp_path;
@@ -43,8 +46,8 @@ std::vector<geometry_msgs::PoseStamped> interpSegment(const p_nav::PathSegment& 
 			
 		default :
 			ROS_ERROR("Interpolate called on an unknown segment type");
-			std::vector<geometry_msgs::PoseStamped> points;
-			return points;
+			// points;
+			return std::vector<geometry_msgs::PoseStamped>();
 	}
 }
 

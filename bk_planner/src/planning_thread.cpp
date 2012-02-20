@@ -70,6 +70,9 @@ BKPlanner::runPlanningThread()
 			planner_path_.segs.back().header.stamp = ros::Time::now();
 			segment_lib::reFrame(planner_path_);
 		}
+		else{
+			planner_path_.header.stamp = ros::Time::now();
+		}
 		
 		// publish visualization
 		planner_visualizer_->publishVisualization(planner_path_);
@@ -128,19 +131,16 @@ bool
 BKPlanner::doPartialReplan()
 {
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
-	if( getFeederDistLeft() < 0.01 ){
-		ROS_INFO("[planning] Feeder path empty, doing full replan instead.");
+	double dist_left = getFeederDistLeft();
+	ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
+	if( dist_left < 0.02 && planner_path_.segs.size() == 0){
+		ROS_INFO("[planning] Feeder path empty, nothing more to commit, doing full replan instead.");
 		planner_path_.segs.clear();
 	}
 		
 	// Clear all but the first uncommitted segment
 	if( planner_path_.segs.size() > 1 ) {
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
-	}
-	
-	if( planner_path_.segs.size() > 1 ){
-		ROS_ERROR("DERPDEDERP");
-		return false;
 	}
 	
 	geometry_msgs::PoseStamped goal  = getLatestGoal();

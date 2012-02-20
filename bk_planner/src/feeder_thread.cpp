@@ -16,7 +16,14 @@ void BKPlanner::runFeederThread()
 	while(ros::ok())
 	{
 		// Wait until we are allowed to run the feeder
-		boost::recursive_mutex::scoped_lock l(feeder_lock_mutex);
+		boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex);
+		
+		if(!l){
+			boost::this_thread::interruption_point();
+			ROS_WARN("[feeder] Locked out!");
+			r.sleep();
+			continue;
+		}
 		
 		if( !isFeederEnabled() )
 		{

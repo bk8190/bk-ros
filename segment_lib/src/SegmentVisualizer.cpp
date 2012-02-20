@@ -55,6 +55,7 @@ void SegmentVisualizer::publishPoseVisualization(const nav_msgs::Path& vis_path)
 	vis_posearray_pub_.publish(poses);
 }
 
+
 void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_msgs::Path& path)
 {
 	// If we've already sent markers, remove the last ones we've sent.
@@ -75,8 +76,15 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 	visualization_msgs::Marker m;
 	std_msgs::ColorRGBA color;
 				
-	precision_navigation_msgs::PathSegment seg;
+	precision_navigation_msgs::PathSegment seg, last_seg;
 	std::vector<geometry_msgs::PoseStamped> disc_seg;
+	
+	if( path.segs.size() > 0 ){
+		last_seg.header = path.segs.back().header;
+	}
+	else {
+		last_seg.header = path.header;
+	}
 	
 	for( int i=0; i<path.segs.size(); i++ )
 	{
@@ -84,8 +92,8 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 		disc_seg = interpSegment(seg, 0.01, pi/64);
 		
 		m = visualization_msgs::Marker();
-		m.header.frame_id = path.segs.back().header.frame_id;
-		m.header.stamp    = path.segs.back().header.stamp;
+		m.header.frame_id = last_seg.header.frame_id;
+		m.header.stamp    = last_seg.header.stamp;
 		m.ns              = name_;
 		m.action          = visualization_msgs::Marker::ADD;
 		m.points.clear();
