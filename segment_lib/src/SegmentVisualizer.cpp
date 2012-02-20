@@ -48,8 +48,8 @@ void SegmentVisualizer::publishPoseVisualization(const nav_msgs::Path& vis_path)
 	
 	if( vis_path.poses.size() > 0 )
 	{
-		poses.header.stamp    = vis_path.poses.at(0).header.stamp;
-		poses.header.frame_id = vis_path.poses.at(0).header.frame_id;
+		poses.header.stamp    = vis_path.poses.back().header.stamp;
+		poses.header.frame_id = vis_path.poses.back().header.frame_id;
 	}
 	
 	vis_posearray_pub_.publish(poses);
@@ -84,8 +84,8 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 		disc_seg = interpSegment(seg, 0.01, pi/64);
 		
 		m = visualization_msgs::Marker();
-		m.header.frame_id = seg.header.frame_id;
-		m.header.stamp    = seg.header.stamp;
+		m.header.frame_id = path.segs.back().header.frame_id;
+		m.header.stamp    = path.segs.back().header.stamp;
 		m.ns              = name_;
 		m.action          = visualization_msgs::Marker::ADD;
 		m.points.clear();
@@ -219,7 +219,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				//ROS_INFO("Arc segment");
 				
 				// Add a circle around the center
-				m.id              = ++marker_uid_;
+				/*m.id              = ++marker_uid_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = seg.ref_point.x;
 				m.pose.position.y = seg.ref_point.y;
@@ -233,7 +233,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				m.color.r = 0.0;
 				m.color.g = 0.0;
 				m.color.b = 1.0;
-				vis_markers_.markers.push_back(m);
+				vis_markers_.markers.push_back(m);*/
 			
 				// Add a label
 				m.id  = ++marker_uid_;

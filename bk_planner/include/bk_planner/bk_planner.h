@@ -46,9 +46,9 @@ namespace bk_planner {
 		private:
 			boost::shared_ptr<costmap_2d::Costmap2DROS>                      planner_costmap_;
 			boost::shared_ptr<bk_sbpl_lattice_planner::BKSBPLLatticePlanner> lattice_planner_;
-			boost::shared_ptr<segment_lib::SegmentVisualizer>                segment_visualizer_;
+			boost::shared_ptr<path_checker::PathChecker>                     path_checker_;
 			boost::shared_ptr<boost::thread> planning_thread_, feeder_thread_;
-
+			boost::recursive_mutex path_checker_mutex;
 			ros::NodeHandle  priv_nh_;
 			ros::Subscriber  goal_sub_;
 			tf::TransformListener& tf_;
@@ -58,6 +58,12 @@ namespace bk_planner {
 			double acc_lim_th_;
 			double acc_lim_x_;
 			double acc_lim_y_;
+			
+			// The distance of the commited path that the planner will try to maintain at all times (meters)
+			double commit_distance_;
+			
+			// Keep around this many already-completed segments for show
+			int    segs_to_trail_;
 			
 			void terminateThreads();
 
@@ -131,10 +137,10 @@ namespace bk_planner {
 						                const geometry_msgs::PoseStamped& goal,
 						                precision_navigation_msgs::Path&  segment_plan);
 			
-			precision_navigation_msgs::Path planner_path_;
-			
+			p_nav::Path planner_path_;
 			geometry_msgs::PoseStamped last_committed_pose_;
 			int                        last_committed_segnum_;
+			boost::shared_ptr<segment_lib::SegmentVisualizer> planner_visualizer_;
 			
 			/* Path feeder thread exclusive functions and data */
 			/*============================================================*/
@@ -155,13 +161,15 @@ namespace bk_planner {
 			void activeCb();
 			void feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback);
 			precision_navigation_msgs::ExecutePathFeedback latest_feedback_;
-			boost::mutex  feedback_mutex_;
+			boost::mutex            feedback_mutex_;
+			boost::recursive_mutex  feeder_lock_mutex;
 			
 			precision_navigation_msgs::Path               feeder_path_;
-			boost::shared_ptr<path_checker::PathChecker>  path_checker_;
 			bool feeder_path_has_changed_;
 			
+			boost::shared_ptr<segment_lib::SegmentVisualizer> feeder_visualizer_;
 			actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
+			bool client_has_goal_;
 			
 			//boost::recursive_mutex configuration_mutex_;
 			//dynamic_reconfigure::Server<bk_planner::BKPlannerConfig> *dsrv_;

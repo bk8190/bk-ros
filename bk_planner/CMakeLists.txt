@@ -23,15 +23,18 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_gensrv()
 
 rosbuild_add_library(path_checker    src/path_checker.cpp)
-rosbuild_add_library(planning_thread src/planning_thread.cpp)
 rosbuild_add_library(common_data     src/common_data.cpp)
 rosbuild_add_library(feeder_thread   src/feeder_thread.cpp)
+rosbuild_add_library(planning_thread src/planning_thread.cpp)
 
 rosbuild_add_executable(bk_planner src/bk_planner.cpp)
 
 target_link_libraries(bk_planner path_checker)
 target_link_libraries(bk_planner segment_lib)
 target_link_libraries(bk_planner SegmentVisualizer)
+
+target_link_libraries(planning_thread SegmentVisualizer)
+target_link_libraries(feeder_thread SegmentVisualizer)
 
 target_link_libraries(bk_planner planning_thread)
 target_link_libraries(bk_planner feeder_thread)

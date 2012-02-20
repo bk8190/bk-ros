@@ -14,9 +14,12 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	priv_nh_.param("speeds/acc_lim_th"        ,acc_lim_th_        ,0.0);
 	priv_nh_.param("speeds/acc_lim_x"         ,acc_lim_x_         ,0.0);
 	priv_nh_.param("speeds/acc_lim_y"         ,acc_lim_y_         ,0.0);
+	priv_nh_.param("planning/commit_distance" ,commit_distance_   ,1.1);
+	priv_nh_.param("planning/segs_to_trail"   ,segs_to_trail_     ,4);
 	
 	ROS_INFO("Max speeds: (x,theta)   = (%.2f,%.2f)"     , max_vel_x_, max_rotational_vel_);
 	ROS_INFO("Max accels: (x,theta,y) = (%.2f,%.2f,%.2f)", acc_lim_x_, acc_lim_th_, acc_lim_y_);
+	ROS_INFO("Commit distance %.2f", commit_distance_);
 
 	// This node subscribes to a goal pose.
 	goal_sub_     = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
@@ -29,26 +32,23 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	                 
 	path_checker_    = boost::shared_ptr<path_checker::PathChecker>
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
-	                 
-	segment_visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
-		(new segment_lib::SegmentVisualizer(std::string("segment_visualization")) );
 	
 //	dsrv_ = new dynamic_reconfigure::Server<move_base::MoveBaseConfig>(ros::NodeHandle("~"));
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
 //	dsrv_->setCallback(cb);	
 
-	// Get the robot's current pose and set a goal
+	// Get the robot's current pose and set a goal there
 	tf::Stamped<tf::Pose> robot_pose;
 	planner_costmap_->getRobotPose(robot_pose);
-	geometry_msgs::PoseStamped start;
-	tf::poseStampedTFToMsg(robot_pose, start);
-	setNewGoal(poseToGlobalFrame(start));
-
-
+	geometry_msgs::PoseStamped start_pose;
+	tf::poseStampedTFToMsg(robot_pose, start_pose);
+	start_pose = poseToGlobalFrame(start_pose);
+	setNewGoal(start_pose);
 
 	ROS_INFO("Waiting for action server...");
 	client_.waitForServer();
 	
+	// Initialize state variables
 	feeder_path_.segs.clear();
 	planner_path_.segs.clear();
 	
@@ -56,6 +56,10 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	last_committed_segnum_ = 0;
 	got_new_goal_          = false;
 	feeder_enabled_        = false;
+	client_has_goal_       = false;
+	last_committed_pose_   = start_pose;
+	latest_feedback_.current_segment.seg_number = 0;
+	latest_feedback_.seg_distance_done = 0;0;
 	
 	// Kick off the threads
 	planning_thread_    = boost::shared_ptr<boost::thread>
@@ -146,6 +150,7 @@ int main(int argc, char** argv)
 	}
 	
 	std::cout << "[bk_planner_node] Quitting" << std::endl;
+	ros::shutdown();
 	
   return(0);
 }

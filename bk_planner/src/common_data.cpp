@@ -20,6 +20,10 @@ BKPlanner::isFeederEnabled()
 void 
 BKPlanner::sendResetSignals()
 {
+	// Wait for the feeder to catch up and finish its main loop
+	boost::recursive_mutex::scoped_lock l(feeder_lock_mutex);
+	
+	// Disable the feeder
 	setFeederEnabled(false);
 }
 
@@ -37,28 +41,35 @@ BKPlanner::getFeederDistLeft()
 	
 	{
 		boost::recursive_mutex::scoped_lock l1(feeder_path_mutex_);
-		boost::mutex::scoped_lock           l2(feedback_mutex_);
 		p = feeder_path_;
+	}
+	
+	{
+		boost::mutex::scoped_lock           l2(feedback_mutex_);
+		
+		// Check to see if we checked the same feedback twice in a row
+		/*if( last_fb_checked_.seg_distance_done          == latest_feedback_.seg_distance_done
+		 && last_fb_checked_.current_segment.seg_number == latest_feedback_.current_segment.seg_number){
+		 
+		 	// Additional check: at the beginning of a path, the feedback is never stale
+		 	if(current_seg_complete = 0.0)
+		 		stale_fb = false;
+		 	else
+				stale_fb = true;
+		}*/
+		last_fb_checked_ = latest_feedback_;
 		
 		current_segnum       = latest_feedback_.current_segment.seg_number;
 		current_seg_complete = latest_feedback_.seg_distance_done;
-		
-		
-		if( last_fb_checked_.seg_distance_done          == latest_feedback_.seg_distance_done
-		 && last_fb_checked_.current_segment.seg_number == latest_feedback_.current_segment.seg_number){
-			stale_fb = false;
-		}
-		last_fb_checked_ = latest_feedback_;
-		
 	}
 	
 	
 	if( stale_fb ) {
-		return(1000.0);
+		return 1000.0;
 	}
 	
 	if( p.segs.size() == 0 ){
-		return(0.0);
+		return 0.0;
 	}
 	
 	int start_idx = segment_lib::segnumToIndex(p, current_segnum);

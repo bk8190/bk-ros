@@ -7,17 +7,20 @@ BKPlanner::runPlanningThread()
 {
 	long period_ms    = (double)1000 * 0.5; // 1/planner_frequency_;
 	long wait_time_ms = (double)1000 * 0.5;
-	bool made_one_plan = false;
-	ros::Rate r(1.0); // 10 hz
+	bool made_one_plan = false; // true if we made at least one plan
+	ros::Rate r(1.0); // hz
 	
 	ROS_INFO("[planning] bk_planner planning thread started, period is %ld, wait time %ld", period_ms, wait_time_ms);
 	
-	boost::shared_ptr<segment_lib::SegmentVisualizer> planner_visualizer_;
+		
+	// For visualizing the planning in progress
 	planner_visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
 		(new segment_lib::SegmentVisualizer(std::string("planning_visualization")) );
 		
-	while(true)
+	// Main loop
+	while(ros::ok())
 	{
+	
 		if( getPlannerState() == IN_RECOVERY )
 		{
 			ROS_INFO("[planning] In recovery");
@@ -26,13 +29,13 @@ BKPlanner::runPlanningThread()
 		else if( getPlannerState() == NEED_RECOVERY )
 		{
 			ROS_INFO("[planning] Starting recovery");
-			escalatePlannerState(IN_RECOVERY);
 			startRecovery();
+			escalatePlannerState(IN_RECOVERY);
 		}
 		else if( getPlannerState() == NEED_FULL_REPLAN )
 		{
 			ROS_INFO("[planning] Doing full replan");
-			sendResetSignals();
+			sendResetSignals(); // bring the system to a halt
 			
 			if( doFullReplan() ) {
 				setPlannerState(GOOD);
@@ -65,7 +68,7 @@ BKPlanner::runPlanningThread()
 		// publish visualization
 		planner_visualizer_->publishVisualization(planner_path_);
 		
-		boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+		boost::this_thread::interruption_point();
 		r.sleep();
 	}
 }
@@ -73,7 +76,7 @@ BKPlanner::runPlanningThread()
 void
 BKPlanner::startRecovery()
 {
-	return;
+	setPlannerState(NEED_FULL_REPLAN);
 }
 
 void
@@ -105,8 +108,10 @@ BKPlanner::doFullReplan()
 	// Plan to the goal
 	bool success = planPointToPoint(start, goal, planner_path_);
 	
-	// Reindex the path so that all previous segments are invalid
-	segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 5);
+	// Reindex the path so that all previously committed segments are invalid
+	segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 2);
+	
+	planner_path_.header.stamp = planner_path_.segs.back().header.stamp;
 	
 	return success;
 }
@@ -114,14 +119,10 @@ BKPlanner::doFullReplan()
 bool
 BKPlanner::doPartialReplan()
 {
-// return false; // h4x
-
-	// If there aren't outstanding, uncommitted segments, do a full replan instead.
-	if(planner_path_.segs.size() < 1){
-		ROS_INFO("[planning] No outstanding segments, doing full replan instead.");
+	// If the feeder doesn't have any distance left to travel, do a full replan instead.
+	if( getFeederDistLeft() < 0.01 ){
+		ROS_INFO("[planning] Feeder path empty, doing full replan instead.");
 		planner_path_.segs.clear();
-		
-		if( getFeederDistLeft < 
 	}
 		
 	// Clear all but the first uncommitted segment
@@ -129,28 +130,45 @@ BKPlanner::doPartialReplan()
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
 	}
 	
-	// TODO: If we're out of segments, but the feeder still has some distance left, replan from the last pose
-	
 	if( planner_path_.segs.size() > 1 ){
-		ROS_ERROR("DERPDEDERP");};
+		ROS_ERROR("DERPDEDERP");
+		return false;
+	}
 	
-	// Plan from the end of the first uncommitted segment to the goal
-  geometry_msgs::PoseStamped start = segment_lib::getEndPose(planner_path_.segs.front());
 	geometry_msgs::PoseStamped goal  = getLatestGoal();
+	geometry_msgs::PoseStamped start;
+	
+	bool replan_from_end_of_first_seg;
+		
+	// Plan from the end of the first uncommitted segment if possible, otherwise plan from the last committed pose
+	if( planner_path_.segs.size() == 1 ){
+		ROS_INFO("Replanning from first uncommitted segment");
+		start = segment_lib::getEndPose(planner_path_.segs.front());
+		replan_from_end_of_first_seg = true;
+	}
+	else
+	{
+		ROS_INFO("Replanning from last committed pose");
+		replan_from_end_of_first_seg = false;
+		start = last_committed_pose_;
+	}
 	
 	// Make the plan and append it
 	p_nav::Path splice;
 	bool success = planPointToPoint(start, goal, splice);
 	
 	if( success ){
-		planner_path_.segs.insert(planner_path_.segs.begin()+1, splice.segs.begin(), splice.segs.end() );
-		
-		// Resample the path
-		//planner_path_ = segment_lib::smoothPath(planner_path_);
+		if( replan_from_end_of_first_seg ){
+			planner_path_.segs.insert(planner_path_.segs.begin()+1, splice.segs.begin(), splice.segs.end() );
+		}else {
+			planner_path_ = splice;
+		}
 		
 		// Reindex the path to be continuous with the segments previously committed
 		segment_lib::reindexPath(planner_path_, last_committed_segnum_+1 );
 	
+		planner_path_.header.stamp = planner_path_.segs.back().header.stamp;
+		
 		return true;
 	}
 	return false;
@@ -179,9 +197,6 @@ BKPlanner::planPointToPoint(const geometry_msgs::PoseStamped& start,
 	
 	ROS_INFO("[planning] Point-point plan made in %.2f seconds. Plan has %lu segments.", t.toSec(), path.segs.size());
 	
-	path.header.stamp    = ros::Time::now();
-	path.header.frame_id = start.header.frame_id;
-	
 	return true;
 }
 
@@ -195,10 +210,10 @@ BKPlanner::commitPathSegments()
 	
 	p_nav::PathSegment seg_just_committed;
 	// Desired distance to add
-	double dist_to_add = 1.0 - dist_left;
+	double dist_to_add = commit_distance_ - dist_left;
 	double dist_just_committed;
 	
-	ROS_INFO("Feeder has %.2f left, committing %.2f", dist_left, dist_to_add);
+	//ROS_INFO("[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
 	
 	while( planner_path_.segs.size() > 0 && dist_to_add > 0 )
 	{
@@ -206,7 +221,7 @@ BKPlanner::commitPathSegments()
 		dist_just_committed = segment_lib::linDist(seg_just_committed);
 		dist_to_add -= dist_just_committed;
 	}
-	ROS_INFO("Done committing");
+	//ROS_INFO("Done committing");
 }
 
 // Check if we can commit another segment
@@ -227,12 +242,12 @@ BKPlanner::commitOneSegment()
 	planner_path_.segs.erase(planner_path_.segs.begin());
 	
 	// Remember our last committed pose
-	//last_committed_pose_   = segment_lib::getEndPose(seg);
+	last_committed_pose_   = segment_lib::getEndPose(seg);
 	last_committed_segnum_ = seg.seg_number;
 	
 	path_to_commit.segs.push_back(seg);
 	enqueueSegments(path_to_commit);
-	ROS_INFO("[planning] Planner committed segment %d", last_committed_segnum_);
+	//ROS_INFO("[planning] Planner committed segment %d", last_committed_segnum_);
 	return seg;
 }
 

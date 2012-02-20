@@ -16,8 +16,8 @@ interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta
 	
 	// Fill out the path's header
 	if( path.segs.size() > 0 ) {
-		interp_path.header.stamp    = path.segs.at(0).header.stamp;
-		interp_path.header.frame_id = path.segs.at(0).header.frame_id;
+		interp_path.header.stamp    = path.segs.back().header.stamp;
+		interp_path.header.frame_id = path.segs.back().header.frame_id;
 	}
 	
 	return interp_path;
@@ -71,7 +71,8 @@ interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx)
 		p.pose.position.y  = y0 + traversed_length*sin(tan_angle);
 		p.pose.position.z  = 0.0;
 		p.pose.orientation = seg.init_tan_angle;
-		p.header.frame_id = seg.header.frame_id;
+		p.header.frame_id  = seg.header.frame_id;
+		p.header.stamp     = seg.header.stamp;
 		points.push_back(p);
 		
 		traversed_length += dx;
@@ -83,6 +84,7 @@ interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx)
 	p.pose.position.z  = 0.0;
 	p.pose.orientation = seg.init_tan_angle;
 	p.header.frame_id  = seg.header.frame_id;
+	p.header.stamp     = seg.header.stamp;
 	points.push_back(p);
 	
 	return points;
@@ -138,6 +140,7 @@ interpArcSegment(const precision_navigation_msgs::PathSegment& seg, double dthet
 		p.pose.position.z  = 0.0;
 		p.pose.orientation = tf::createQuaternionMsgFromYaw(curr_tan_angle);
 		p.header.frame_id = seg.header.frame_id;
+		p.header.stamp    = seg.header.stamp;
 		points.push_back(p);
 		
 		/*ROS_INFO("Traversed %.2fpi rads.", traversed_angle/pi);
@@ -171,6 +174,7 @@ interpArcSegment(const precision_navigation_msgs::PathSegment& seg, double dthet
 	p.pose.position.z  = 0.0;
 	p.pose.orientation = tf::createQuaternionMsgFromYaw(curr_tan_angle);
 	p.header.frame_id = seg.header.frame_id;
+	p.header.stamp    = seg.header.stamp;
 	points.push_back(p);
 	
 	return points;
@@ -197,6 +201,7 @@ interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dthe
 		p.pose.position.z = 0.0;
 		p.pose.orientation = tf::createQuaternionMsgFromYaw(theta0 + traversed_angle);
 		p.header.frame_id = seg.header.frame_id;
+		p.header.stamp    = seg.header.stamp;
 		points.push_back(p);
 		
 		// Positive curvature -> CCW
@@ -225,6 +230,7 @@ interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dthe
 	p.pose.position.z = 0.0;
 	p.pose.orientation = tf::createQuaternionMsgFromYaw(theta0 + traversed_angle);
 	p.header.frame_id = seg.header.frame_id;
+	p.header.stamp    = seg.header.stamp;
 	points.push_back(p);
 	
 	return points;

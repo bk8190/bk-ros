@@ -5,4 +5,6 @@ speeds:
  acc_lim_x: 0.5
  acc_lim_y: 0.0
 
-test_param: 5.6
+planning:
+ commit_distance: 0.75
+ segs_to_trail: 5
