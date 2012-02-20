@@ -120,13 +120,16 @@ BKPlanner::doPartialReplan()
 	if(planner_path_.segs.size() < 1){
 		ROS_INFO("[planning] No outstanding segments, doing full replan instead.");
 		planner_path_.segs.clear();
-		return false;
+		
+		if( getFeederDistLeft < 
 	}
 		
 	// Clear all but the first uncommitted segment
 	if( planner_path_.segs.size() > 1 ) {
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
 	}
+	
+	// TODO: If we're out of segments, but the feeder still has some distance left, replan from the last pose
 	
 	if( planner_path_.segs.size() > 1 ){
 		ROS_ERROR("DERPDEDERP");};
