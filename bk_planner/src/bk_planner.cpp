@@ -37,6 +37,15 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 //	dynamic_reconfigure::Server<bk_planner::BKPlannerConfig>::CallbackType cb = boost::bind(&BKPlannerConfig::reconfigureCB, this, _1, _2);
 //	dsrv_->setCallback(cb);	
 
+	// Get the robot's current pose and set a goal
+	tf::Stamped<tf::Pose> robot_pose;
+	planner_costmap_->getRobotPose(robot_pose);
+	geometry_msgs::PoseStamped start;
+	tf::poseStampedTFToMsg(robot_pose, start);
+	setNewGoal(poseToGlobalFrame(start));
+
+
+
 	ROS_INFO("Waiting for action server...");
 	client_.waitForServer();
 	
@@ -45,8 +54,6 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	
 	planner_state_         = GOOD;
 	last_committed_segnum_ = 0;
-	first_valid_segnum_    = 0;
-	last_valid_segnum_     = 0;
 	got_new_goal_          = false;
 	feeder_enabled_        = false;
 	

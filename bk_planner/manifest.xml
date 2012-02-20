@@ -21,6 +21,7 @@
   <depend package="precision_navigation_msgs"/>
   <depend package="bk_sbpl_lattice_planner"/>
   <depend package="segment_lib"/>
+  <depend package="precision_steering"/>
   
 </package>
 

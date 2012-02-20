@@ -28,7 +28,8 @@ bool
 BKPlanner::segmentsAvailable()
 {
 	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
-	return (committed_path_.segs.size() > 0);
+	int num_available = committed_path_.segs.size();
+	return num_available > 0;
 }
 
 precision_navigation_msgs::Path

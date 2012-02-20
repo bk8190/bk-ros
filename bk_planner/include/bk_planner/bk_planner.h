@@ -127,8 +127,9 @@ namespace bk_planner {
 						                precision_navigation_msgs::Path&  segment_plan);
 			
 			precision_navigation_msgs::Path planner_path_;
-			int  last_committed_segnum_;
-			int  first_valid_segnum_, last_valid_segnum_;
+			
+			geometry_msgs::PoseStamped last_committed_pose_;
+			int                        last_committed_segnum_;
 			
 			/* Path feeder thread exclusive functions and data */
 			/*============================================================*/
@@ -149,7 +150,7 @@ namespace bk_planner {
 			void activeCb();
 			void feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback);
 			precision_navigation_msgs::ExecutePathFeedback latest_feedback_;
-			boost::recursive_mutex  feedback_mutex_;
+			boost::mutex  feedback_mutex_, feeder_path_mutex_;
 			
 			precision_navigation_msgs::Path               feeder_path_;
 			boost::shared_ptr<path_checker::PathChecker>  path_checker_;

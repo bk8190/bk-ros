@@ -10,7 +10,7 @@ SegmentVisualizer::SegmentVisualizer(std::string name):
 	marker_uid_ (0)
 {
 	vis_markers_pub_  = nh_.advertise<visualization_msgs::MarkerArray> ("markers", 0);
-	//vis_path_pub_     = nh_.advertise<nav_msgs::Path> ("path", 0);
+	vis_path_pub_     = nh_.advertise<nav_msgs::Path> ("path", 0);
 	vis_posearray_pub_= nh_.advertise<geometry_msgs::PoseArray> ("pose_array", 0);
 }
 
@@ -25,7 +25,7 @@ void SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Pa
 	
 	// Publish markers path, and pose array visualizations.
 	publishMarkerVisualization(path);
-	//publishPathVisualization(vis_path);
+	publishPathVisualization(vis_path);
 	publishPoseVisualization(vis_path);
 }
 
