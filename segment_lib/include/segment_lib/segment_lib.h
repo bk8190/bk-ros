@@ -27,48 +27,51 @@ namespace segment_lib {
 
 	double rect_angle(double t);
 
-	void printPathSegment(const precision_navigation_msgs::PathSegment& s);
+	void printPathSegment(const p_nav::PathSegment& s);
 	
 	// Reindexes the segment numbers, starting at start_seg_num.
-	void reindexPath(precision_navigation_msgs::Path& path, int start_seg_num);
+	void reindexPath(p_nav::Path& path, int start_seg_num);
 	
 	// Returns the index of seg_num within path.  -1 if DNE.
-	int segnumToIndex(const std::vector<precision_navigation_msgs::PathSegment>& segs, unsigned int seg_num);
-	int segnumToIndex(const precision_navigation_msgs::Path& path, unsigned int seg_num);
+	int segnumToIndex(const std::vector<p_nav::PathSegment>& segs, unsigned int seg_num);
+	int segnumToIndex(const p_nav::Path& path, unsigned int seg_num);
 	
-	int getFirstSegnum(const precision_navigation_msgs::Path& path);
-	int getLastSegnum(const precision_navigation_msgs::Path& path);
+	int getFirstSegnum(const p_nav::Path& path);
+	int getLastSegnum(const p_nav::Path& path);
+	
+	// Gets the frame of the last pose, sets it as the frame for every segment and the path as a whole.
+	void reFrame(p_nav::Path& path);
 	
 	double linDist(const p_nav::PathSegment& seg);
 /* Path segment creation (create_seg.cpp) */
 /*==============================================================================*/
-	precision_navigation_msgs::PathSegment
+	p_nav::PathSegment
 	makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2);
 	
-	precision_navigation_msgs::PathSegment makeUndirectedLineSegment(double x1, double y1, double x2, double y2);
+	p_nav::PathSegment makeUndirectedLineSegment(double x1, double y1, double x2, double y2);
 	// Makes a line segment respecting an initial angle (can handle backing up that way)
-	precision_navigation_msgs::PathSegment makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1);	
+	p_nav::PathSegment makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1);	
 	
-	precision_navigation_msgs::PathSegment makeTurnSegment(double x, double y, double t1, double t2);
-	precision_navigation_msgs::PathSegment makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2);
+	p_nav::PathSegment makeTurnSegment(double x, double y, double t1, double t2);
+	p_nav::PathSegment makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2);
 	
 	
 /* Path segment smoothing (smooth_path.cpp) */
 /*==============================================================================*/
 
 	// Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
-	precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path);
+	p_nav::Path combineSegments(const p_nav::Path& path);
 
-	precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs::Path& path);
-	precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_msgs::Path& path);
+	p_nav::Path replaceTurnArcs(const p_nav::Path& path);
+	p_nav::Path replaceMultipleTurns(const p_nav::Path& path);
 
 	// Resamples the path's poses
-	precision_navigation_msgs::Path
-	smoothPath(const precision_navigation_msgs::Path& path);
+	p_nav::Path
+	smoothPath(const p_nav::Path& path);
 	
 	// Resamples the path's poses
-	precision_navigation_msgs::Path
-	smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes);
+	p_nav::Path
+	smoothPathMultiple(const p_nav::Path& path, int passes);
 	
 	
 /* Path segment interpolation (interp_seg.cpp) */
@@ -76,29 +79,29 @@ namespace segment_lib {
 	
 	// Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating)
 	nav_msgs::Path
-	interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta);
+	interpPath(const p_nav::Path& path, double dx, double dtheta);
 
 	// Returns a vector of poses sampled from a segment: the beginning, the end, and regular samples along distance dx (line/arc) and dtheta (spin in place).
 	std::vector<geometry_msgs::PoseStamped>
-	interpSegment(const precision_navigation_msgs::PathSegment& seg, double dx, double dtheta);
+	interpSegment(const p_nav::PathSegment& seg, double dx, double dtheta);
 
 	std::vector<geometry_msgs::PoseStamped>
-	interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx);
+	interpLineSegment(const p_nav::PathSegment& seg, double dx);
 
 	std::vector<geometry_msgs::PoseStamped>
-	interpArcSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta);
+	interpArcSegment(const p_nav::PathSegment& seg, double dtheta);
 
 	std::vector<geometry_msgs::PoseStamped>
-	interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta);
+	interpSpinSegment(const p_nav::PathSegment& seg, double dtheta);
 	
 	geometry_msgs::PoseStamped
-	getEndPose(const precision_navigation_msgs::PathSegment& seg);
+	getEndPose(const p_nav::PathSegment& seg);
 	
 	geometry_msgs::PoseStamped
-	getStartPose(const precision_navigation_msgs::PathSegment& seg);
+	getStartPose(const p_nav::PathSegment& seg);
 	
 	// Returns whether or not seg specifies backward motion
-	bool isLineSegmentReversed(precision_navigation_msgs::PathSegment seg);
+	bool isLineSegmentReversed(p_nav::PathSegment seg);
 	
 };//namespace
 #endif

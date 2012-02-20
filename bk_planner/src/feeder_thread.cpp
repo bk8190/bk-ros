@@ -57,6 +57,11 @@ void BKPlanner::runFeederThread()
 			}
 		}
 		
+		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
+		if( feeder_path_.segs.size() > 0 ){
+			feeder_path_.segs.back().header.stamp = ros::Time::now();
+			segment_lib::reFrame(feeder_path_);
+		}
 		// Have the visualizer publish visualization
 		feeder_visualizer_->publishVisualization(feeder_path_);
 		
@@ -74,6 +79,7 @@ BKPlanner::sendHaltState()
 	{
 		client_.stopTrackingGoal();
 		client_.cancelGoal();
+		client_has_goal_ = false;
 	}
 }
 
@@ -177,7 +183,7 @@ BKPlanner::executePath()
 	}
 	else
 	{
-		ROS_INFO_THROTTLE(2,"[feeder] No path");
+		//ROS_INFO_THROTTLE(2,"[feeder] No path");
 	}
 }
 

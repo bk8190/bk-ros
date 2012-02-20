@@ -3,7 +3,7 @@ namespace segment_lib{
 	
 // Returns a path segment between two points (x,y,theta)
 // Note: initializes all speed/accel limits to 0
-precision_navigation_msgs::PathSegment
+p_nav::PathSegment
 makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2)
 {
 	
@@ -28,11 +28,11 @@ makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2
 		return makeArcSegment(x1, y1, x2, y2, t1, t2);
 	}
 	
-	return precision_navigation_msgs::PathSegment();
+	return p_nav::PathSegment();
 }
 
 // Returns a line between two points without any initial angle
-precision_navigation_msgs::PathSegment
+p_nav::PathSegment
 makeUndirectedLineSegment(double x1, double y1, double x2, double y2)
 {
 	double expected_angle = rect_angle(atan2(y2-y1,x2-x1));
@@ -40,10 +40,10 @@ makeUndirectedLineSegment(double x1, double y1, double x2, double y2)
 }
 
 // Makes a line segment respecting the general direction of an initial angle (can handle backing up that way)
-precision_navigation_msgs::PathSegment
+p_nav::PathSegment
 makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 {
-	precision_navigation_msgs::PathSegment seg;
+	p_nav::PathSegment seg;
 
 	// Initialize the segment, set all speeds/accels to 0
 	seg.max_speeds.linear.x  = 0.0;
@@ -57,7 +57,7 @@ makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 	double dy      = y2-y1;
 	double expected_angle = rect_angle(atan2(dy,dx));
 	
-	seg.seg_type       = precision_navigation_msgs::PathSegment::LINE;
+	seg.seg_type       = p_nav::PathSegment::LINE;
 	seg.seg_length     = sqrt(dx*dx + dy*dy);
 	seg.ref_point.x    = x1;
 	seg.ref_point.y    = y1;
@@ -95,10 +95,10 @@ makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1)
 	return seg;
 }
 
-precision_navigation_msgs::PathSegment
+p_nav::PathSegment
 makeTurnSegment(double x, double y, double t1, double t2)
 {
-	precision_navigation_msgs::PathSegment seg;
+	p_nav::PathSegment seg;
 	double dth = rect_angle(t2-t1);
 	
 	// Initialize the segment, set all speeds/accels to 0
@@ -109,7 +109,7 @@ makeTurnSegment(double x, double y, double t1, double t2)
 	seg.accel_limit          = 0.0;
 	seg.decel_limit          = 0.0;
 	
-	seg.seg_type       = precision_navigation_msgs::PathSegment::SPIN_IN_PLACE;
+	seg.seg_type       = p_nav::PathSegment::SPIN_IN_PLACE;
 	seg.seg_length     = fabs(dth);
 	seg.ref_point.x    = x;
 	seg.ref_point.y    = y;
@@ -126,10 +126,10 @@ makeTurnSegment(double x, double y, double t1, double t2)
 	return seg;
 }
 
-precision_navigation_msgs::PathSegment
+p_nav::PathSegment
 makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2)
 {
-	precision_navigation_msgs::PathSegment seg;
+	p_nav::PathSegment seg;
 	double dth          = rect_angle(t2-t1);
 	double dy           = y2-y1;
 	double dx           = x2-x1;
@@ -143,7 +143,7 @@ makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2)
 	seg.accel_limit          = 0.0;
 	seg.decel_limit          = 0.0;
 	
-	seg.seg_type       = precision_navigation_msgs::PathSegment::ARC;
+	seg.seg_type       = p_nav::PathSegment::ARC;
 	seg.init_tan_angle = tf::createQuaternionMsgFromYaw(t1);
 	
 	// Find the angle between the starting tangent and the chord

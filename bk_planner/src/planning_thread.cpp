@@ -65,6 +65,12 @@ BKPlanner::runPlanningThread()
 			setFeederEnabled(true);
 		}
 	
+		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
+		if( planner_path_.segs.size() > 0 ){
+			planner_path_.segs.back().header.stamp = ros::Time::now();
+			segment_lib::reFrame(planner_path_);
+		}
+		
 		// publish visualization
 		planner_visualizer_->publishVisualization(planner_path_);
 		
@@ -106,7 +112,9 @@ BKPlanner::doFullReplan()
 	planner_path_.segs.clear();
 	
 	// Plan to the goal
+	ROS_INFO("[planning] Full replan started...");
 	bool success = planPointToPoint(start, goal, planner_path_);
+	ROS_INFO("[planning] Done.");
 	
 	// Reindex the path so that all previously committed segments are invalid
 	segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 2);

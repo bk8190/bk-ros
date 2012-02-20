@@ -2,19 +2,19 @@
 namespace segment_lib{
 
 // Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
-precision_navigation_msgs::Path combineSegments(const precision_navigation_msgs::Path& path)
+p_nav::Path combineSegments(const p_nav::Path& path)
 {
-	precision_navigation_msgs::Path newpath;
+	p_nav::Path newpath;
 	newpath = replaceMultipleTurns(path);
 	//newpath = replaceTurnArcs(path);
 	return newpath;
 }
 
 // Performs multiple passes of resampling
-precision_navigation_msgs::Path
-smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes)
+p_nav::Path
+smoothPathMultiple(const p_nav::Path& path, int passes)
 {
-	precision_navigation_msgs::Path oldpath, newpath;
+	p_nav::Path oldpath, newpath;
 	newpath = path;
 	
 	for( int i=0; i<passes; i++ ){
@@ -26,11 +26,11 @@ smoothPathMultiple(const precision_navigation_msgs::Path& path, int passes)
 }
 	
 // Resamples the path's segments
-precision_navigation_msgs::Path
-smoothPath(const precision_navigation_msgs::Path& path)
+p_nav::Path
+smoothPath(const p_nav::Path& path)
 {
-	precision_navigation_msgs::Path         smoothpath;
-	precision_navigation_msgs::PathSegment  newseg, currentseg, nextseg;
+	p_nav::Path         smoothpath;
+	p_nav::PathSegment  newseg, currentseg, nextseg;
 	std::vector<geometry_msgs::PoseStamped> interp1, interp2;
 	geometry_msgs            ::Pose         start, end;
 
@@ -95,12 +95,12 @@ smoothPath(const precision_navigation_msgs::Path& path)
 
 
 // Combines some segments (ex. if there is a turn followed by an arc, replaces it by a single arc)
-precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs::Path& path)
+p_nav::Path replaceTurnArcs(const p_nav::Path& path)
 {
 	const double max_combine_angle = pi/4;
-	precision_navigation_msgs::PathSegment currentseg, nextseg, newseg;
+	p_nav::PathSegment currentseg, nextseg, newseg;
 	geometry_msgs::Pose                    start1, start2, end1, end2;
-	precision_navigation_msgs::Path        newpath;
+	p_nav::Path        newpath;
 	newpath.header = path.header;
 	double dtheta;
 	bool combined_segs; // whether or not we combined a segment on this loop
@@ -116,17 +116,17 @@ precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs:
 			nextseg    = path.segs.at(path_idx+1);
 		
 			// If current is arc and next is turn (or other way around)
-			if(((currentseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
-				  && (nextseg.seg_type == precision_navigation_msgs::PathSegment::ARC)) ||
-				 ((currentseg.seg_type == precision_navigation_msgs::PathSegment::ARC)
-				  && (nextseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)))
+			if(((currentseg.seg_type == p_nav::PathSegment::SPIN_IN_PLACE)
+				  && (nextseg.seg_type == p_nav::PathSegment::ARC)) ||
+				 ((currentseg.seg_type == p_nav::PathSegment::ARC)
+				  && (nextseg.seg_type == p_nav::PathSegment::SPIN_IN_PLACE)))
 			{
 				//ROS_INFO("Detected arc/turn or turn/arc");
 				// If both are moving in the same direction (curvature has same sign)
 				if( currentseg.curvature * nextseg.curvature > 0.0 )
 				{
 					
-					if( currentseg.seg_type == precision_navigation_msgs::PathSegment::ARC)
+					if( currentseg.seg_type == p_nav::PathSegment::ARC)
 						dtheta = currentseg.seg_length;
 					else
 						dtheta = nextseg.seg_length;
@@ -167,13 +167,13 @@ precision_navigation_msgs::Path replaceTurnArcs(const precision_navigation_msgs:
 	
 
 // Combines all consecutive turn-in-place segments
-precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_msgs::Path& path)
+p_nav::Path replaceMultipleTurns(const p_nav::Path& path)
 {
 
-	precision_navigation_msgs::PathSegment currentseg, nextseg, newseg;
+	p_nav::PathSegment currentseg, nextseg, newseg;
 	int end_idx;
 	geometry_msgs::Pose                    start, end;
-	precision_navigation_msgs::Path        newpath;
+	p_nav::Path        newpath;
 	newpath.header = path.header;
 	
 	for(unsigned int path_idx = 0; path_idx < path.segs.size(); path_idx++)
@@ -181,13 +181,13 @@ precision_navigation_msgs::Path replaceMultipleTurns(const precision_navigation_
 		currentseg = path.segs.at(path_idx);
 		
 		// If the current seg is a turn in place
-		if(currentseg.seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
+		if(currentseg.seg_type == p_nav::PathSegment::SPIN_IN_PLACE)
 		{
 			end_idx   = path_idx;
 			
 			// Look forward and find the last consecutive turn-in-place segs
 			while( end_idx+1 < path.segs.size() // the next seg is in range and the next seg is a spin
-			    && path.segs.at(end_idx+1).seg_type == precision_navigation_msgs::PathSegment::SPIN_IN_PLACE)
+			    && path.segs.at(end_idx+1).seg_type == p_nav::PathSegment::SPIN_IN_PLACE)
 			{
 				end_idx++;
 				//ROS_INFO("Combining seg %d with %d", path_idx, end_idx);

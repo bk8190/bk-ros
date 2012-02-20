@@ -3,7 +3,7 @@ namespace segment_lib{
 
 // Returns a vector of poses sampled from a segment path (same as calling interpSegment multiple times and concatenating the results)
 nav_msgs::Path
-interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta)
+interpPath(const p_nav::Path& path, double dx, double dtheta)
 {
 	nav_msgs::Path interp_path;
 	std::vector<geometry_msgs::PoseStamped> newpoints;
@@ -25,19 +25,19 @@ interpPath(const precision_navigation_msgs::Path& path, double dx, double dtheta
 
 
 // Returns a vector of poses from a segment: the beginning, the end, and regular samples along distance dx (line/arc) and dtheta (spin in place).
-std::vector<geometry_msgs::PoseStamped> interpSegment(const precision_navigation_msgs::PathSegment& seg, double dx, double dtheta)
+std::vector<geometry_msgs::PoseStamped> interpSegment(const p_nav::PathSegment& seg, double dx, double dtheta)
 {
 	switch(seg.seg_type)
 	{
-		case precision_navigation_msgs::PathSegment::LINE :
+		case p_nav::PathSegment::LINE :
 			return interpLineSegment(seg, dx);
 			break;
 		
-		case precision_navigation_msgs::PathSegment::ARC :
+		case p_nav::PathSegment::ARC :
 			return interpArcSegment(seg, dtheta);
 			break;
 			
-		case precision_navigation_msgs::PathSegment::SPIN_IN_PLACE :
+		case p_nav::PathSegment::SPIN_IN_PLACE :
 			return interpSpinSegment(seg, dtheta);
 			break;
 			
@@ -49,7 +49,7 @@ std::vector<geometry_msgs::PoseStamped> interpSegment(const precision_navigation
 }
 
 std::vector<geometry_msgs::PoseStamped>
-interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx)
+interpLineSegment(const p_nav::PathSegment& seg, double dx)
 {
 	std::vector<geometry_msgs::PoseStamped> points;
 	geometry_msgs::PoseStamped p;
@@ -91,7 +91,7 @@ interpLineSegment(const precision_navigation_msgs::PathSegment& seg, double dx)
 }
 
 std::vector<geometry_msgs::PoseStamped>
-interpArcSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta)
+interpArcSegment(const p_nav::PathSegment& seg, double dtheta)
 {
 	std::vector<geometry_msgs::PoseStamped> points;
 	geometry_msgs::PoseStamped p;
@@ -181,7 +181,7 @@ interpArcSegment(const precision_navigation_msgs::PathSegment& seg, double dthet
 }
 
 std::vector<geometry_msgs::PoseStamped>
-interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dtheta)
+interpSpinSegment(const p_nav::PathSegment& seg, double dtheta)
 {
 	std::vector<geometry_msgs::PoseStamped> points;
 	geometry_msgs::PoseStamped p;
@@ -237,20 +237,20 @@ interpSpinSegment(const precision_navigation_msgs::PathSegment& seg, double dthe
 }
 
 // Returns whether or not seg specifies backward motion
-bool isLineSegmentReversed(precision_navigation_msgs::PathSegment seg)
+bool isLineSegmentReversed(p_nav::PathSegment seg)
 {
 	return( seg.seg_length < 0 );
 }
 
 geometry_msgs::PoseStamped
-getEndPose(const precision_navigation_msgs::PathSegment& seg)
+getEndPose(const p_nav::PathSegment& seg)
 {
 	std::vector<geometry_msgs::PoseStamped> interp = interpSegment(seg, 1.0, 1.0);
 	return interp.back();
 }
 
 geometry_msgs::PoseStamped
-getStartPose(const precision_navigation_msgs::PathSegment& seg)
+getStartPose(const p_nav::PathSegment& seg)
 {
 	std::vector<geometry_msgs::PoseStamped> interp = interpSegment(seg, 1.0, 1.0);
 	return interp.front();
