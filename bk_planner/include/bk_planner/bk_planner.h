@@ -25,7 +25,10 @@
 namespace bk_planner {
 
 	// shorthand
-	namespace p_nav = precision_navigation_msgs;
+	namespace p_nav   = precision_navigation_msgs;
+	namespace bk_sbpl = bk_sbpl_lattice_planner;
+	using     geometry_msgs::PoseStamped;
+	
 
 	enum plannerState
 	{
@@ -44,20 +47,24 @@ namespace bk_planner {
 			ros::NodeHandle  nh_;
 
 		private:
-			boost::shared_ptr<costmap_2d::Costmap2DROS>                      planner_costmap_;
-			boost::shared_ptr<bk_sbpl_lattice_planner::BKSBPLLatticePlanner> lattice_planner_;
-			boost::shared_ptr<path_checker::PathChecker>                     path_checker_;
-			boost::shared_ptr<boost::thread> planning_thread_, feeder_thread_;
+			boost::shared_ptr<costmap_2d::Costmap2DROS>       planner_costmap_;
+			boost::shared_ptr<bk_sbpl::BKSBPLLatticePlanner>  lattice_planner_;
+			boost::shared_ptr<path_checker::PathChecker>      path_checker_;
+			boost::shared_ptr<boost::thread>                  planning_thread_, feeder_thread_;
+			
 			boost::recursive_mutex path_checker_mutex;
-			ros::NodeHandle  priv_nh_;
-			ros::Subscriber  goal_sub_;
+			ros::NodeHandle        priv_nh_;
+			ros::Subscriber        goal_sub_;
 			tf::TransformListener& tf_;
+			
+			void terminateThreads();
 
-			double max_vel_x_;
-			double max_rotational_vel_;
-			double acc_lim_th_;
-			double acc_lim_x_;
-			double acc_lim_y_;
+			// Main thread: goal callback
+			void goalCB(const PoseStamped::ConstPtr& goal);
+			PoseStamped poseToGlobalFrame(const PoseStamped& pose_msg);
+			
+			/* Configuration data */
+			/*============================================================*/
 			
 			// The distance of the commited path that the planner will try to maintain at all times (meters)
 			double commit_distance_;
@@ -65,11 +72,6 @@ namespace bk_planner {
 			// Keep around this many already-completed segments for show
 			int    segs_to_trail_;
 			
-			void terminateThreads();
-
-			// Main thread: goal callback
-			void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
-			geometry_msgs::PoseStamped poseToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);
 			
 			/* Common data and access functions for common data */
 			/*============================================================*/
@@ -97,13 +99,13 @@ namespace bk_planner {
 			
 			// Main thread sets the goal in a callback, planning thread checks it.
 			// These functions are thread-safe.
-      void setNewGoal(geometry_msgs::PoseStamped new_goal);
+      void setNewGoal(PoseStamped new_goal);
       bool gotNewGoal();
-      geometry_msgs::PoseStamped getLatestGoal();
+      PoseStamped getLatestGoal();
       
       // Do not directly access these variables, not thread-safe.
 			bool                       got_new_goal_;
-			geometry_msgs::PoseStamped latest_goal_;
+			PoseStamped latest_goal_;
 			boost::recursive_mutex     goal_mutex_;
 
 
@@ -130,15 +132,14 @@ namespace bk_planner {
       bool doPartialReplan();
       
       void commitPathSegments();
-      bool canCommitOneSegment();
 			p_nav::PathSegment commitOneSegment();
 
-			bool planPointToPoint(const geometry_msgs::PoseStamped& start,
-						                const geometry_msgs::PoseStamped& goal,
+			bool planPointToPoint(const PoseStamped& start,
+						                const PoseStamped& goal,
 						                precision_navigation_msgs::Path&  segment_plan);
 			
 			p_nav::Path planner_path_;
-			geometry_msgs::PoseStamped last_committed_pose_;
+			PoseStamped last_committed_pose_;
 			int                        last_committed_segnum_;
 			boost::shared_ptr<segment_lib::SegmentVisualizer> planner_visualizer_;
 			

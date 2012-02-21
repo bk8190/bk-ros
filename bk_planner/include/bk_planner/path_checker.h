@@ -10,6 +10,7 @@
 namespace path_checker{
 	
 	namespace p_nav = precision_navigation_msgs;
+	using geometry_msgs::PoseStamped;
 	
 	class PathChecker
 	{
@@ -23,7 +24,7 @@ namespace path_checker{
 			// Fills in a safe velocity to a segment based on nearby obstacles
 			void assignSegVelocity(p_nav::PathSegment& seg);
 
-			bool isPoseClear(const geometry_msgs::PoseStamped pose);
+			bool isPoseClear(const PoseStamped pose);
 
 			// Returns true if nothing is blocking the segment
 			bool isSegClear(const p_nav::PathSegment& seg);

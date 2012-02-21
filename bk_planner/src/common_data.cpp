@@ -143,7 +143,7 @@ BKPlanner::enqueueSegments(precision_navigation_msgs::Path new_segments)
 }
 
 void 
-BKPlanner::setNewGoal(geometry_msgs::PoseStamped new_goal)
+BKPlanner::setNewGoal(PoseStamped new_goal)
 {
 	boost::recursive_mutex::scoped_lock l(goal_mutex_);
 	got_new_goal_ = true;
@@ -157,7 +157,7 @@ BKPlanner::gotNewGoal()
 	return got_new_goal_;
 }
 
-geometry_msgs::PoseStamped 
+PoseStamped 
 BKPlanner::getLatestGoal()
 {
 	boost::recursive_mutex::scoped_lock l(goal_mutex_);

@@ -78,12 +78,14 @@ BKSBPLLatticePlanner::BKSBPLLatticePlanner()
 
 // Don't know why, but without this function I get linker errors.
 // Maybe because this class was initialized from a base class with virtual members.
-void initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
+void
+initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
 	while(ros::ok()){
 		ROS_FATAL("FAILFAILFAILFAILFAIL");
 	}
 }
-void BKSBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
+void
+BKSBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
 	while(ros::ok()){
 		ROS_FATAL("FAILFAILFAILFAILFAIL");
 	}
@@ -95,7 +97,8 @@ BKSBPLLatticePlanner::BKSBPLLatticePlanner(std::string name, boost::shared_ptr<c
   initialize(name, costmap_ros);
 }
 
-void BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros){
+void
+BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros){
   if(!initialized_){
     ros::NodeHandle private_nh("~/"+name);
     ros::NodeHandle nh(name);
@@ -194,7 +197,7 @@ void BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costma
 
     ROS_INFO("[sbpl_lattice_planner] Initialized successfully");
     //plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan_visualization", 1);
-    stats_publisher_ = private_nh.advertise<bk_sbpl_lattice_planner::SBPLLatticePlannerStats>("sbpl_lattice_planner_stats", 1);
+    stats_publisher_ = private_nh.advertise<bk_sbpl::SBPLLatticePlannerStats>("sbpl_lattice_planner_stats", 1);
     
     initialized_ = true;
   }
@@ -202,7 +205,8 @@ void BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costma
   
 //Taken from Sachin's sbpl_cart_planner
 //This rescales the costmap according to a rosparam which sets the obstacle cost
-unsigned char BKSBPLLatticePlanner::costMapCostToSBPLCost(unsigned char newcost){
+unsigned char
+BKSBPLLatticePlanner::costMapCostToSBPLCost(unsigned char newcost){
   if(newcost == costmap_2d::LETHAL_OBSTACLE)
     return lethal_obstacle_;
   else if(newcost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
@@ -213,11 +217,12 @@ unsigned char BKSBPLLatticePlanner::costMapCostToSBPLCost(unsigned char newcost)
     return (unsigned char) (newcost/sbpl_cost_multiplier_ + 0.5);
 }
 
-void BKSBPLLatticePlanner::publishStats(int solution_cost, int solution_size, 
+void
+BKSBPLLatticePlanner::publishStats(int solution_cost, int solution_size, 
                                       const geometry_msgs::PoseStamped& start, 
                                       const geometry_msgs::PoseStamped& goal){
   // Fill up statistics and publish
-  bk_sbpl_lattice_planner::SBPLLatticePlannerStats stats;
+  bk_sbpl::SBPLLatticePlannerStats stats;
   stats.initial_epsilon = initial_epsilon_;
   stats.plan_to_first_solution = false;
   stats.final_number_of_expands = planner_->get_n_expands();
@@ -399,7 +404,8 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
 }
 
 
-void BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, const vector<int>& stateIDPath, precision_navigation_msgs::Path& segmentPath, double dx, double dy)
+void
+BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, const vector<int>& stateIDPath, precision_navigation_msgs::Path& segmentPath, double dx, double dy)
 {
 	// Discrete state
 	int x1_c, y1_c, t1_c;

@@ -61,17 +61,17 @@ BKPlanner::runPlanningThread()
 		if( getPlannerState() == GOOD && made_one_plan )
 		{
 		
-			// Check if the path is clear
-			if( ! path_checker_->isPathClear(planner_path_) )
+			// Check if the path is clear.  If so, pass segments down to the feeder.
+			if( planner_path_.segs.size()>0 && path_checker_->isPathClear(planner_path_) )
 			{
-				ROS_INFO_THROTTLE(2, "[planning] Found obstacles.");
-				escalatePlannerState(NEED_PARTIAL_REPLAN);
+				ROS_INFO_THROTTLE(5, "[planning] Planner state good.");
+				commitPathSegments();
+				setFeederEnabled(true);
 			}
 			else
 			{
-				ROS_INFO_THROTTLE(2, "[planning] Planner state good.");
-				commitPathSegments();
-				setFeederEnabled(true);
+				ROS_INFO_THROTTLE(2, "[planning] Found obstacles.");
+				escalatePlannerState(NEED_PARTIAL_REPLAN);
 			}
 		}
 	
@@ -116,20 +116,20 @@ BKPlanner::doFullReplan()
 		ROS_ERROR("[planning] bk_planner cannot make a plan for you because it could not get the start pose of the robot");
 		return false;
 	}
-	geometry_msgs::PoseStamped start;
+	PoseStamped start;
 	tf::poseStampedTFToMsg(robot_pose, start);
 	
 	// Get the goal
-	geometry_msgs::PoseStamped goal = getLatestGoal();
+	PoseStamped goal = getLatestGoal();
 	
 	// Clear current path
 	dequeueSegments();
 	planner_path_.segs.clear();
 	
 	// Plan to the goal
-	ROS_INFO("[planning] Full replan started...");
+	//ROS_INFO("[planning] Full replan started...");
 	bool success = planPointToPoint(start, goal, planner_path_);
-	ROS_INFO("[planning] Done.");
+	//ROS_INFO("[planning] Done.");
 	
 	// Reindex the path so that all previously committed segments are invalid
 	segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 2);
@@ -144,10 +144,11 @@ BKPlanner::doPartialReplan()
 {
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
 	double dist_left = getFeederDistLeft();
-	ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
+	// ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
 	if( dist_left < 0.02 && planner_path_.segs.size() == 0){
-		ROS_INFO("[planning] Feeder path empty, nothing more to commit, doing full replan instead.");
+		ROS_INFO("[planning] Feeder path empty or nothing more to commit, doing full replan instead.");
 		planner_path_.segs.clear();
+		return false;
 	}
 		
 	// Clear all but the first uncommitted segment
@@ -155,20 +156,20 @@ BKPlanner::doPartialReplan()
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
 	}
 	
-	geometry_msgs::PoseStamped goal  = getLatestGoal();
-	geometry_msgs::PoseStamped start;
+	PoseStamped goal  = getLatestGoal();
+	PoseStamped start;
 	
 	bool replan_from_end_of_first_seg;
 		
 	// Plan from the end of the first uncommitted segment if possible, otherwise plan from the last committed pose
 	if( planner_path_.segs.size() == 1 ){
-		ROS_INFO("[planning] Replanning from first uncommitted segment");
+		//ROS_INFO("[planning] Replanning from first uncommitted segment");
 		start = segment_lib::getEndPose(planner_path_.segs.front());
 		replan_from_end_of_first_seg = true;
 	}
 	else
 	{
-		ROS_INFO("[planning] Replanning from last committed pose");
+		//ROS_INFO("[planning] Replanning from last committed pose");
 		replan_from_end_of_first_seg = false;
 		start = last_committed_pose_;
 	}
@@ -192,7 +193,7 @@ BKPlanner::doPartialReplan()
 		return true;
 	}
 	else{
-		ROS_INFO("[planning] Replan failed");
+		ROS_INFO("[planning] Partial replan failed");
 		return false;
 	}
 }
@@ -200,9 +201,9 @@ BKPlanner::doPartialReplan()
 
 // Point-to-point planner
 bool
-BKPlanner::planPointToPoint(const geometry_msgs::PoseStamped& start,
-                                 const geometry_msgs::PoseStamped& goal,
-                                 precision_navigation_msgs::Path&  path)
+BKPlanner::planPointToPoint(const PoseStamped& start,
+                            const PoseStamped& goal,
+                            p_nav::Path&       path)
 {
 	/*if( !start.header.frame_id.compare(goal.header.frame_id) ){
 		ROS_ERROR("Start and goal poses are in different frames.  What are you trying to pull here?");
@@ -225,14 +226,14 @@ BKPlanner::planPointToPoint(const geometry_msgs::PoseStamped& start,
    
   ros::Time t1 = ros::Time::now();
 	bool success = lattice_planner_->makeSegmentPlan(start, goal, path);
-
+	ros::Duration t = ros::Time::now() - t1;
+	
+	ROS_INFO("[planning] Point-point plan made in %.2f seconds. Plan has %lu segments.", t.toSec(), path.segs.size());
+	
 	if( success == false ){
 		ROS_ERROR("[planning] Planner failed!");
 		return false;
 	}
-	ros::Duration t = ros::Time::now() - t1;
-	
-	ROS_INFO("[planning] Point-point plan made in %.2f seconds. Plan has %lu segments.", t.toSec(), path.segs.size());
 	
 	return true;
 }
@@ -241,41 +242,33 @@ void
 BKPlanner::commitPathSegments()
 {
 	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
-	
-	// Get the current length of the feeder path
-	double dist_left = getFeederDistLeft();
-	
 	p_nav::PathSegment seg_just_committed;
-	// Desired distance to add
-	double dist_to_add = commit_distance_ - dist_left;
 	double dist_just_committed;
 	
-	//ROS_INFO("[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
+	// How much path the feeder has left
+	double dist_left = getFeederDistLeft();
 	
+	// Desired distance to add
+	double dist_to_add = commit_distance_ - dist_left;
+	
+	//ROS_INFO("[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
 	while( planner_path_.segs.size() > 0 && dist_to_add > 0 )
 	{
 		seg_just_committed  = commitOneSegment();
 		dist_just_committed = segment_lib::linDist(seg_just_committed);
-		dist_to_add -= dist_just_committed;
+		dist_to_add        -= dist_just_committed;
 	}
 	//ROS_INFO("Done committing");
-}
-
-// Check if we can commit another segment
-bool
-BKPlanner::canCommitOneSegment()
-{
-	return(false);
 }
 
 p_nav::PathSegment
 BKPlanner::commitOneSegment()
 {
-	precision_navigation_msgs::Path path_to_commit;
+	p_nav::Path path_to_commit;
 	path_to_commit.header = planner_path_.header;
 	
 	// Commit this segment and get rid of it
-	precision_navigation_msgs::PathSegment seg = planner_path_.segs.front();
+	p_nav::PathSegment seg = planner_path_.segs.front();
 	planner_path_.segs.erase(planner_path_.segs.begin());
 	
 	// Remember our last committed pose

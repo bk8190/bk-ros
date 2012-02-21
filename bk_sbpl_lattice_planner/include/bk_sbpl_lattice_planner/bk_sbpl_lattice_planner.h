@@ -27,6 +27,9 @@ using namespace std;
 
 namespace bk_sbpl_lattice_planner{
 
+// Shorthand
+namespace bk_sbpl = bk_sbpl_lattice_planner;
+
 class BKSBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
 public:
   

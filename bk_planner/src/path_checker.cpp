@@ -7,19 +7,22 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 	costmap_(costmap),
 	private_nh_("~/"+name)
 {
-	private_nh_.param("speed_lim/max_spd_x" , max_speed_.linear .x, 0.0);
-	private_nh_.param("speed_lim/max_spd_th", max_speed_.angular.z, 0.0);
+	private_nh_.param("speed_lim/max_spd_x" , max_speed_.linear .x, 0.1);
+	private_nh_.param("speed_lim/max_spd_th", max_speed_.angular.z, 0.1);
+	
 	private_nh_.param("accel_lim/max_acc_x" , max_accel_.linear .x, 0.0);
 	private_nh_.param("accel_lim/max_acc_y" , max_accel_.linear .y, 0.0);
 	private_nh_.param("accel_lim/max_acc_th", max_accel_.angular.z, 0.0);
 	
 	private_nh_.param("interpolation/dx"      , interp_dx_     , 0.01);
 	private_nh_.param("interpolation/dth"     , interp_dth_    , 3.141/32.0);
+	
 	private_nh_.param("planning/obstacle_cost", obstacle_cost_ , 150);
 	
 
 	ROS_INFO("Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
 	ROS_INFO("Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
+	ROS_INFO("dx= %.2f dth=%.2f obs cost=%d", interp_dx_, interp_dth_, obstacle_cost_);
 }
 
 
@@ -71,7 +74,7 @@ PathChecker::assignSegVelocity(p_nav::PathSegment& seg)
 
 
 bool
-PathChecker::isPoseClear(const geometry_msgs::PoseStamped pose)
+PathChecker::isPoseClear(const PoseStamped pose)
 {
 	double x = pose.pose.position.x;
 	double y = pose.pose.position.y;
@@ -106,7 +109,7 @@ PathChecker::isPoseClear(const geometry_msgs::PoseStamped pose)
 bool
 PathChecker::isSegClear(const p_nav::PathSegment& seg)
 {
-	std::vector<geometry_msgs::PoseStamped> interp;
+	std::vector<PoseStamped> interp;
 	interp = segment_lib::interpSegment(seg, interp_dx_, interp_dth_);
 	bool clear = true;
 	
@@ -159,7 +162,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
 	
-	std::vector<geometry_msgs::PoseStamped> interp;
+	std::vector<PoseStamped> interp;
 	geometry_msgs::Pose pose;
 	double x, y;
 	unsigned int x_c, y_c;

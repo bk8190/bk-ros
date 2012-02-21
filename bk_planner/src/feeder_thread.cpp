@@ -28,17 +28,20 @@ void BKPlanner::runFeederThread()
 				continue;
 			}
 		
+			// If we are not enabled, clear our path and send a halt to steering.
 			if( !isFeederEnabled() )
 			{
 				ROS_INFO_THROTTLE(5,"[feeder] Feeder disabled");
+				boost::this_thread::interruption_point();
 				feeder_path_.segs.clear();
 				sendHaltState();
 			}
 			else
 			{
-				// Get new segments from the planner
+				// Get new segments from the planner, and drop old, already-traveled segments
 				getNewSegments();
-		
+				discardOldSegs();
+				
 				// Find safe velocities
 				updatePathVelocities();
 			
@@ -50,19 +53,19 @@ void BKPlanner::runFeederThread()
 				else if(isStuckTimerFull())
 				{
 					ROS_INFO("[feeder] Stuck timer full, requesting replan.");
-					escalatePlannerState(NEED_PARTIAL_REPLAN);
+					escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			
-				discardOldSegs();
-		
 				// Check if the path is clear.  If so, send it to precision steering.
-				if( isPathClear() ) // >0 velocity
+				if( path_checker_->isPathClear(feeder_path_) )
 				{
+					ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
 					executePath();
 				}
 				else
 				{
 					ROS_INFO("[feeder] Path blocked, requesting replan.");
+					setFeederEnabled(false); // lololl i lock myself out
 					escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			}
@@ -78,6 +81,7 @@ void BKPlanner::runFeederThread()
 		
 		boost::this_thread::interruption_point();
 		r.sleep();
+		boost::this_thread::interruption_point();
 	}
 }
 
@@ -91,7 +95,7 @@ BKPlanner::sendHaltState()
 		if(!planner_costmap_->getRobotPose(robot_pose)){
 			ROS_ERROR("[feeder] Couldn't get robot pose to makehalt state");
 		}
-		geometry_msgs::PoseStamped pose;
+		PoseStamped pose;
 		tf::poseStampedTFToMsg(robot_pose, pose);
 			
 		// Make an arbitrary path segment with no speed
