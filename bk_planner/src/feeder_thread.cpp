@@ -22,6 +22,7 @@ void BKPlanner::runFeederThread()
 			if(!l){
 				boost::this_thread::interruption_point();
 				ROS_WARN("[feeder] Locked out!");
+				feeder_path_.segs.clear();
 				sendHaltState();
 				r.sleep();
 				continue;
@@ -84,13 +85,52 @@ void BKPlanner::runFeederThread()
 void
 BKPlanner::sendHaltState()
 {
+	if(client_has_goal_ == true)
+	{
+		tf::Stamped<tf::Pose> robot_pose;
+		if(!planner_costmap_->getRobotPose(robot_pose)){
+			ROS_ERROR("[feeder] Couldn't get robot pose to makehalt state");
+		}
+		geometry_msgs::PoseStamped pose;
+		tf::poseStampedTFToMsg(robot_pose, pose);
+			
+		// Make an arbitrary path segment with no speed
+		p_nav::PathSegment seg;
+		seg.header.frame_id      = "/odom";
+		seg.header.stamp         = ros::Time::now();
+		seg.seg_number           = 0;
+		seg.max_speeds.linear.x  = 0.0;
+		seg.max_speeds.angular.z = 0.0;
+		seg.min_speeds.linear.x  = 0.0;
+		seg.min_speeds.angular.z = 0.0;
+		seg.accel_limit          = 0.0;
+		seg.decel_limit          = 0.0;
+		seg.seg_type       = p_nav::PathSegment::LINE;
+		seg.seg_length     = 0.01;
+		seg.ref_point.x    = pose.pose.position.x;
+		seg.ref_point.y    = pose.pose.position.y;
+		seg.ref_point.z    = 0.0;
+		seg.init_tan_angle = pose.pose.orientation;
+	
+		precision_navigation_msgs::ExecutePathGoal action_goal;
+		action_goal.segments.clear();
+		action_goal.segments.push_back(seg);
+	
+		client_.sendGoal(action_goal,
+				boost::bind(&BKPlanner::doneCb    , this, _1, _2),
+				boost::bind(&BKPlanner::activeCb  , this        ),
+				boost::bind(&BKPlanner::feedbackCb, this, _1    ));
+		client_has_goal_ = false;
+	}
+	/*
 	// Cancel any active goal
 	if( (client_has_goal_ == true) && (client_.getState().isDone() == false) )
 	{
+		
 		client_.stopTrackingGoal();
 		client_.cancelGoal();
 		client_has_goal_ = false;
-	}
+	}*/
 }
 
 void

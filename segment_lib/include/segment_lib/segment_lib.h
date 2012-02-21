@@ -55,7 +55,6 @@ namespace segment_lib {
 	p_nav::PathSegment makeTurnSegment(double x, double y, double t1, double t2);
 	p_nav::PathSegment makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2);
 	
-	
 /* Path segment smoothing (smooth_path.cpp) */
 /*==============================================================================*/
 

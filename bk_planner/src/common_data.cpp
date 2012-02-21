@@ -20,20 +20,20 @@ BKPlanner::isFeederEnabled()
 void 
 BKPlanner::sendResetSignals()
 {
-	ROS_INFO("Resetting");
+//	ROS_INFO("Resetting");
 	// Wait for the feeder to catch up and finish its main loop
 	boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex);
 	
 	while( !l )
 	{
 		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex);
-		ROS_INFO("Resetting");
-		ros::Duration(.2).sleep();
+//		ROS_INFO("Resetting");
+		ros::Duration(.1).sleep();
 	}
 	
 	// Disable the feeder
 	setFeederEnabled(false);
-	ROS_INFO("Reset done");
+//	ROS_INFO("Reset done");
 }
 
 // Returns the a snapshot of linear distance left for the feeder
