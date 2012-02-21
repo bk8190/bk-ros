@@ -13,8 +13,10 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 	private_nh_.param("accel_lim/max_acc_y" , max_accel_.linear .y, 0.0);
 	private_nh_.param("accel_lim/max_acc_th", max_accel_.angular.z, 0.0);
 	
-	private_nh_.param("interpolation/dx"    , interp_dx_          , 0.01);
-	private_nh_.param("interpolation/dth"   , interp_dth_         , 3.141/32.0);
+	private_nh_.param("interpolation/dx"      , interp_dx_     , 0.01);
+	private_nh_.param("interpolation/dth"     , interp_dth_    , 3.141/32.0);
+	private_nh_.param("planning/obstacle_cost", obstacle_cost_ , 150);
+	
 
 	ROS_INFO("Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
 	ROS_INFO("Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
@@ -89,7 +91,7 @@ PathChecker::isPoseClear(const geometry_msgs::PoseStamped pose)
 	
 	unsigned char cost = map.getCost(x_c, y_c);
 	
-	if( cost < 30 )
+	if( cost < obstacle_cost_ )
 	{
 		return true;
 	}
@@ -186,7 +188,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 	
 				cost = map.getCost(x_c, y_c);
 	
-				if( cost > 30 )
+				if( cost > obstacle_cost_ )
 				{
 					ROS_INFO("Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
 					return false;

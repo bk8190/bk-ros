@@ -162,13 +162,13 @@ BKPlanner::doPartialReplan()
 		
 	// Plan from the end of the first uncommitted segment if possible, otherwise plan from the last committed pose
 	if( planner_path_.segs.size() == 1 ){
-		ROS_INFO("Replanning from first uncommitted segment");
+		ROS_INFO("[planning] Replanning from first uncommitted segment");
 		start = segment_lib::getEndPose(planner_path_.segs.front());
 		replan_from_end_of_first_seg = true;
 	}
 	else
 	{
-		ROS_INFO("Replanning from last committed pose");
+		ROS_INFO("[planning] Replanning from last committed pose");
 		replan_from_end_of_first_seg = false;
 		start = last_committed_pose_;
 	}
@@ -191,7 +191,10 @@ BKPlanner::doPartialReplan()
 		
 		return true;
 	}
-	return false;
+	else{
+		ROS_INFO("[planning] Replan failed");
+		return false;
+	}
 }
 
 

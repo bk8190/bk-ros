@@ -50,6 +50,7 @@ namespace path_checker{
 			geometry_msgs::Twist max_accel_;
 			
 			double interp_dx_, interp_dth_;
+			int obstacle_cost_;
 
 	};//class
 
