@@ -74,12 +74,12 @@ PathChecker::assignSegVelocity(p_nav::PathSegment& seg)
 
 
 bool
-PathChecker::isPoseClear(const PoseStamped pose)
+PathChecker::isPoseClear(const PoseStamped& pose)
 {
 	double x = pose.pose.position.x;
 	double y = pose.pose.position.y;
 	
-	
+	// Create a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
 
@@ -103,6 +103,38 @@ PathChecker::isPoseClear(const PoseStamped pose)
 		ROS_INFO("Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
 		return false;
 	}
+}
+
+vector<PoseStamped>
+PathChecker::getGoodPoses(const vector<PoseStamped>& poses)
+{
+	// Create a copy of the costmap
+	costmap_2d::Costmap2D map;
+	costmap_->getCostmapCopy(map);
+	
+	double       x,   y  ;
+	unsigned int x_c, y_c;
+	bool         inbounds;
+	
+	vector<PoseStamped> cleared;
+	
+	for( int ipose = 0; ipose<poses.size(); ipose++ )
+	{
+		x = poses.at(ipose).position.x;
+		y = poses.at(ipose).position.y;
+		
+		// Convert to cell coordinates, check if in bounds
+		inbounds = map.worldToMap(x,y, x_c,y_c);
+		
+		// Add this pose to the list of cleared poses if in-bounds and under the obstacle threshold
+		if( inbounds && (map.getCost(x_c,y_c) > obstacle_cost_) )
+		{
+			cleared.push_back(poses.at(ipose));
+		}
+	}
+	
+	ROS_INFO("[path checker] %d/%d poses cleared.", cleared.size(), poses.size());
+	return cleared;
 }
 
 // Returns true if nothing is blocking the segment
@@ -195,7 +227,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 	
 				if( cost > obstacle_cost_ )
 				{
-					ROS_INFO("Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
+					ROS_INFO("[path checker] Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
 					return false;
 				}
 		

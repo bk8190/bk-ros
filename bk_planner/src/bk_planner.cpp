@@ -18,6 +18,9 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	// This node subscribes to a goal pose.
 	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	
+	// The planner trys to get near the absolute goal, these are the candidate goals.
+	candidate_goal_pub_ = nh_.advertise<geometry_msgs::PoseArray>("candidate_poses", 1)
+	
 	planner_costmap_ = boost::shared_ptr<costmap_2d::Costmap2DROS>
 		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );
 	                 

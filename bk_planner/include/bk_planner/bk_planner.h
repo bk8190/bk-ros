@@ -27,7 +27,9 @@ namespace bk_planner {
 	// shorthand
 	namespace p_nav   = precision_navigation_msgs;
 	namespace bk_sbpl = bk_sbpl_lattice_planner;
+	
 	using     geometry_msgs::PoseStamped;
+	using     std::vector;
 	
 
 	enum plannerState
@@ -55,6 +57,7 @@ namespace bk_planner {
 			boost::recursive_mutex path_checker_mutex;
 			ros::NodeHandle        priv_nh_;
 			ros::Subscriber        goal_sub_;
+			ros::Publisher         candidate_goal_pub_;
 			tf::TransformListener& tf_;
 			
 			void terminateThreads();
@@ -134,10 +137,19 @@ namespace bk_planner {
       void commitPathSegments();
 			p_nav::PathSegment commitOneSegment();
 
+			// Makes a plan from start to goal
 			bool planPointToPoint(const PoseStamped& start,
 						                const PoseStamped& goal,
 						                precision_navigation_msgs::Path&  segment_plan);
 			
+			// Makes a plan from start to as near as possible to goal
+			bool planApproximateToGoal(const PoseStamped& start,
+			                           const PoseStamped& goal,
+			                           p_nav::Path&       path)
+                                 
+			// Generates candidate goals centered on the true goal
+			vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal);
+
 			p_nav::Path planner_path_;
 			PoseStamped last_committed_pose_;
 			int                        last_committed_segnum_;

@@ -22,7 +22,6 @@ void BKPlanner::runFeederThread()
 			if(!l){
 				boost::this_thread::interruption_point();
 				ROS_WARN("[feeder] Locked out!");
-				feeder_path_.segs.clear();
 				sendHaltState();
 				r.sleep();
 				continue;
@@ -89,6 +88,15 @@ void BKPlanner::runFeederThread()
 void
 BKPlanner::sendHaltState()
 {
+	// Clear our path			
+	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	feeder_path_.segs.clear();
+			
+	// If we've given steering a goal, clear it and send it a new trivial goal (holding position)	
 	if(client_has_goal_ == true)
 	{
 		tf::Stamped<tf::Pose> robot_pose;

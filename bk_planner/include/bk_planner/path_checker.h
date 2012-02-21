@@ -24,7 +24,10 @@ namespace path_checker{
 			// Fills in a safe velocity to a segment based on nearby obstacles
 			void assignSegVelocity(p_nav::PathSegment& seg);
 
-			bool isPoseClear(const PoseStamped pose);
+			bool isPoseClear(const PoseStamped& pose);
+
+			// Returns only the poses not in collision
+			vector<PoseStamped> getGoodPoses(const vector<PoseStamped>& poses);
 
 			// Returns true if nothing is blocking the segment
 			bool isSegClear(const p_nav::PathSegment& seg);
@@ -41,7 +44,10 @@ namespace path_checker{
 			// Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
 			// Checks the entire robot footprint
 			bool isPathClear2(const p_nav::Path path);
-
+			
+			// Searches around the goal point for a valid pose
+			bool getNearestClearGoal(const PoseStamped& start, const PoseStamped& oldgoal, PoseStamped& newgoal);
+			
 			// Returns the lowest allowed velocity contained in the path
 			// Equivalent to min{ all_segs.max_vel }
 			double getMinVelocity(const p_nav::Path path);
