@@ -17,7 +17,7 @@ void BKPlanner::runFeederThread()
 	{
 		{
 			// Wait until we are allowed to run the feeder
-			boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex);
+			boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
 		
 			if(!l){
 				boost::this_thread::interruption_point();
@@ -140,8 +140,17 @@ BKPlanner::sendHaltState()
 void
 BKPlanner::getNewSegments()
 {
-	boost::recursive_mutex::scoped_lock l1(committed_path_mutex_);
-	boost::recursive_mutex::scoped_lock l2(feeder_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l1(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
+	
+	while(!l1){
+		l1 = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	while(!l2){
+		l2 = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	
 	if( segmentsAvailable() )
 	{
@@ -183,7 +192,11 @@ BKPlanner::getNewSegments()
 void
 BKPlanner::updatePathVelocities()
 {
-	boost::recursive_mutex::scoped_lock l(feeder_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	// Get safe velocities for the segments
 	path_checker_->assignPathVelocity(feeder_path_);
 }
@@ -215,7 +228,11 @@ BKPlanner::isPathClear()
 void
 BKPlanner::executePath()
 {
-	boost::recursive_mutex::scoped_lock l(feeder_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	
 	// If we have a plan to execute, and it has changed since we last sent an execute request to steering
 	if( feeder_path_.segs.size() > 0 && feeder_path_has_changed_)
@@ -274,8 +291,16 @@ void
 BKPlanner::discardOldSegs()
 {
 	// We don't want new feedback to arrive while we are in the middle of using it
-	boost::mutex::scoped_lock           l1(feedback_mutex_);
-	boost::recursive_mutex::scoped_lock l2(feeder_path_mutex_);
+	boost::mutex::scoped_try_lock           l1(feedback_mutex_);
+	boost::recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
+	while(!l1){
+		l1 = boost::mutex::scoped_try_lock(feedback_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	while(!l2){
+		l2 = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	
 	int curr_seg_number = latest_feedback_.current_segment.seg_number;
 	

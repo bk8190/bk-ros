@@ -241,7 +241,12 @@ BKPlanner::planPointToPoint(const PoseStamped& start,
 void
 BKPlanner::commitPathSegments()
 {
-	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	p_nav::PathSegment seg_just_committed;
 	double dist_just_committed;
 	

@@ -58,7 +58,7 @@ namespace bk_planner {
 			tf::TransformListener& tf_;
 			
 			void terminateThreads();
-
+			
 			// Main thread: goal callback
 			void goalCB(const PoseStamped::ConstPtr& goal);
 			PoseStamped poseToGlobalFrame(const PoseStamped& pose_msg);
@@ -163,7 +163,7 @@ namespace bk_planner {
 			void feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback);
 			precision_navigation_msgs::ExecutePathFeedback latest_feedback_;
 			boost::mutex            feedback_mutex_;
-			boost::recursive_mutex  feeder_lock_mutex;
+			boost::recursive_mutex  feeder_lock_mutex_;
 			
 			precision_navigation_msgs::Path               feeder_path_;
 			bool feeder_path_has_changed_;

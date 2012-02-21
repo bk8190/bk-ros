@@ -6,34 +6,39 @@ namespace bk_planner {
 void
 BKPlanner::setFeederEnabled(bool state)
 {
-	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	feeder_enabled_ = state;
 }
 
 bool
 BKPlanner::isFeederEnabled()
 {
-	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	return feeder_enabled_;
 }
 
 void 
 BKPlanner::sendResetSignals()
 {
-//	ROS_INFO("Resetting");
 	// Wait for the feeder to catch up and finish its main loop
-	boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex);
-	
-	while( !l )
-	{
-		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex);
-//		ROS_INFO("Resetting");
-		ros::Duration(.1).sleep();
+	boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
 	// Disable the feeder
 	setFeederEnabled(false);
-//	ROS_INFO("Reset done");
 }
 
 // Returns the a snapshot of linear distance left for the feeder
@@ -49,13 +54,21 @@ BKPlanner::getFeederDistLeft()
 	double d = 0.0;
 	
 	{
-		boost::recursive_mutex::scoped_lock l1(feeder_path_mutex_);
+		boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+		while(!l){
+			l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+		}
+		
 		p = feeder_path_;
 	}
 	
 	{
-		boost::mutex::scoped_lock           l2(feedback_mutex_);
-		
+		boost::mutex::scoped_try_lock l(feedback_mutex_);
+		while(!l){
+			l = boost::mutex::scoped_try_lock(feedback_mutex_);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+		}
 		// Check to see if we checked the same feedback twice in a row
 		/*if( last_fb_checked_.seg_distance_done          == latest_feedback_.seg_distance_done
 		 && last_fb_checked_.current_segment.seg_number == latest_feedback_.current_segment.seg_number){
@@ -91,7 +104,7 @@ BKPlanner::getFeederDistLeft()
 	if( p.segs.size() > 1)
 	{
 		// Length of the rest
-		for( int i = start_idx + 1; i < p.segs.size(); i++ )
+		for( unsigned int i = start_idx + 1; i < p.segs.size(); i++ )
 		{
 			d += segment_lib::linDist(p.segs.at(i));
 		}
@@ -103,7 +116,12 @@ BKPlanner::getFeederDistLeft()
 bool
 BKPlanner::segmentsAvailable()
 {
-	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+		
 	int num_available = committed_path_.segs.size();
 	return num_available > 0;
 }
@@ -111,7 +129,11 @@ BKPlanner::segmentsAvailable()
 precision_navigation_msgs::Path
 BKPlanner::dequeueSegments()
 {
-	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	
 	// Return the current committed path, and clear it.
 	precision_navigation_msgs::Path segs_to_return = committed_path_;
@@ -123,7 +145,11 @@ BKPlanner::dequeueSegments()
 void
 BKPlanner::enqueueSegments(precision_navigation_msgs::Path new_segments)
 {
-	boost::recursive_mutex::scoped_lock l(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	
 	// No path exists - commit the new one
 	if( committed_path_.segs.size() == 0 ) {
@@ -145,7 +171,12 @@ BKPlanner::enqueueSegments(precision_navigation_msgs::Path new_segments)
 void 
 BKPlanner::setNewGoal(PoseStamped new_goal)
 {
-	boost::recursive_mutex::scoped_lock l(goal_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(goal_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	got_new_goal_ = true;
 	latest_goal_  = new_goal;
 }
@@ -153,14 +184,23 @@ BKPlanner::setNewGoal(PoseStamped new_goal)
 bool 
 BKPlanner::gotNewGoal()
 {
-	boost::recursive_mutex::scoped_lock l(goal_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(goal_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	return got_new_goal_;
 }
 
 PoseStamped 
 BKPlanner::getLatestGoal()
 {
-	boost::recursive_mutex::scoped_lock l(goal_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(goal_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
 	got_new_goal_ = false;
 	return latest_goal_;
 }
@@ -168,7 +208,12 @@ BKPlanner::getLatestGoal()
 void 
 BKPlanner::escalatePlannerState(plannerState newstate)
 {
-	boost::recursive_mutex::scoped_lock l(planner_state_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(planner_state_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(planner_state_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	if( newstate > planner_state_ )
 		planner_state_ = newstate;
 }
@@ -176,14 +221,24 @@ BKPlanner::escalatePlannerState(plannerState newstate)
 void 
 BKPlanner::setPlannerState(plannerState newstate)
 {
-	boost::recursive_mutex::scoped_lock l(planner_state_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(planner_state_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(planner_state_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	planner_state_ = newstate;
 }
 
 plannerState 
 BKPlanner::getPlannerState()
 {
-	boost::recursive_mutex::scoped_lock l(planner_state_mutex_);
+	boost::recursive_mutex::scoped_try_lock l(planner_state_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(planner_state_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
 	return planner_state_;
 }
 
