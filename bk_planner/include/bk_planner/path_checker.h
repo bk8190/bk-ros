@@ -38,6 +38,10 @@ namespace path_checker{
 			// Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
 			bool isPathClear(const p_nav::Path path);
 			
+			// Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
+			// Checks the entire robot footprint
+			bool isPathClear2(const p_nav::Path path);
+
 			// Returns the lowest allowed velocity contained in the path
 			// Equivalent to min{ all_segs.max_vel }
 			double getMinVelocity(const p_nav::Path path);
@@ -51,7 +55,7 @@ namespace path_checker{
 			geometry_msgs::Twist max_accel_;
 			
 			double interp_dx_, interp_dth_;
-			int obstacle_cost_;
+			int obstacle_cost_, lethal_cost_;
 
 	};//class
 

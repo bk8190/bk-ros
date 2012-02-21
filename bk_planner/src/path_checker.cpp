@@ -18,11 +18,11 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 	private_nh_.param("interpolation/dth"     , interp_dth_    , 3.141/32.0);
 	
 	private_nh_.param("planning/obstacle_cost", obstacle_cost_ , 150);
-	
+	private_nh_.param("planning/lethal_cost"  , lethal_cost_   , 254);
 
 	ROS_INFO("Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
 	ROS_INFO("Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
-	ROS_INFO("dx= %.2f dth=%.2f obs cost=%d", interp_dx_, interp_dth_, obstacle_cost_);
+	ROS_INFO("dx= %.2f dth=%.2f obs cost=%d, lethal cost=%d", interp_dx_, interp_dth_, obstacle_cost_, lethal_cost_);
 }
 
 
@@ -158,6 +158,8 @@ PathChecker::getBlockedSegs(p_nav::Path& path)
 bool
 PathChecker::isPathClear(const p_nav::Path path)
 {
+	//return isPathClear2(path);
+	
 	// Get a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
@@ -203,6 +205,70 @@ PathChecker::isPathClear(const p_nav::Path path)
 	return true;
 }
 
+
+// Checks through the costmap, makes sure it doesn't run into any obstacle cells
+// Checks the entire robot footprint
+bool
+PathChecker::isPathClear2(const p_nav::Path path)
+{
+	ros::Time t1 = ros::Time::now();
+	ros::Duration t;
+	
+	// Get a copy of the costmap
+	costmap_2d::Costmap2D map;
+	costmap_->getCostmapCopy(map);
+	
+	std::vector<PoseStamped> interp;
+	std::vector<geometry_msgs::Point> footprint;
+	geometry_msgs::Pose pose;
+	double x, y;
+	unsigned int x_c, y_c;
+	bool inbounds;
+	unsigned char cost;
+	
+	// Iterate over all segments
+	for( int iseg=0; iseg<path.segs.size(); iseg++ )
+	{
+		interp = segment_lib::interpSegment(path.segs.at(iseg), interp_dx_, interp_dth_);
+		
+		// Iterate over all interpolated poses
+		for( int ipose=0; ipose<interp.size(); ipose++ )
+		{
+			pose = interp.at(ipose).pose;
+			costmap_->getOrientedFootprint (pose.position.x, pose.position.y, tf::getYaw(pose.orientation), footprint);
+			
+			for( int ipoint = 0; ipoint<footprint.size(); ipoint++ )
+			{
+				x = footprint.at(ipoint).x;
+				y = footprint.at(ipoint).y;
+		
+				// Coordinates in cells
+				inbounds = map.worldToMap(x, y, x_c, y_c);
+
+				if( !inbounds ) {
+					t = ros::Time::now() - t1;
+					ROS_INFO("Cleared robot footprint in %.6f seconds", t.toSec());
+					ROS_INFO("OOB point found at (%.2f,%.2f)", x, y);
+					return false;
+				}
+
+				cost = map.getCost(x_c, y_c);
+
+				if( cost > lethal_cost_ )
+				{
+					t = ros::Time::now() - t1;
+					ROS_INFO("Cleared robot footprint in %.6f seconds", t.toSec());
+					ROS_INFO("Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
+					return false;
+				}
+			}//footprint
+		}//pose
+	}//segment
+	
+	t = ros::Time::now() - t1;
+	ROS_INFO("Cleared robot footprint in %.6f seconds", t.toSec());
+	return true;
+}
 // Returns the lowest allowed velocity contained in the path
 // Equivalent to min{ all_segs.max_vel }
 double
