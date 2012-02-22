@@ -9,8 +9,9 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	client_  ("execute_path", true)
 	
 {
-	priv_nh_.param("planning/commit_distance" ,commit_distance_   ,1.1);
-	priv_nh_.param("planning/segs_to_trail"   ,segs_to_trail_     ,4);
+	priv_nh_.param("planning/commit_distance" ,commit_distance_     ,1.1);
+	priv_nh_.param("planning/standoff_distance" ,standoff_distance_ ,1.1);
+	priv_nh_.param("planning/segs_to_trail"   ,segs_to_trail_       ,4  );
 	
 	ROS_INFO("Commit distance %.2f", commit_distance_);
 	ROS_INFO("Trailing segs:  %d"  , segs_to_trail_);
@@ -19,7 +20,7 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	
 	// The planner trys to get near the absolute goal, these are the candidate goals.
-	candidate_goal_pub_ = nh_.advertise<geometry_msgs::PoseArray>("candidate_poses", 1)
+	candidate_goal_pub_ = nh_.advertise<geometry_msgs::PoseArray>("candidate_poses", 1);
 	
 	planner_costmap_ = boost::shared_ptr<costmap_2d::Costmap2DROS>
 		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );

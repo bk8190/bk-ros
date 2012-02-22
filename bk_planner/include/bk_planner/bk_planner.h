@@ -57,7 +57,6 @@ namespace bk_planner {
 			boost::recursive_mutex path_checker_mutex;
 			ros::NodeHandle        priv_nh_;
 			ros::Subscriber        goal_sub_;
-			ros::Publisher         candidate_goal_pub_;
 			tf::TransformListener& tf_;
 			
 			void terminateThreads();
@@ -74,6 +73,9 @@ namespace bk_planner {
 			
 			// Keep around this many already-completed segments for show
 			int    segs_to_trail_;
+			
+			// If planner can not get exactly to the target, it will try to get this far away
+			double standoff_distance_;
 			
 			
 			/* Common data and access functions for common data */
@@ -145,11 +147,18 @@ namespace bk_planner {
 			// Makes a plan from start to as near as possible to goal
 			bool planApproximateToGoal(const PoseStamped& start,
 			                           const PoseStamped& goal,
-			                           p_nav::Path&       path)
+			                           p_nav::Path&       path);
                                  
+                                 
+			PoseStamped getPoseOffset(const PoseStamped& pose, double dtheta, double dx);
+
 			// Generates candidate goals centered on the true goal
 			vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal);
 
+			// Copy is saved for visualization
+			ros::Publisher candidate_goal_pub_;
+			geometry_msgs::PoseArray pub_goals_;
+			
 			p_nav::Path planner_path_;
 			PoseStamped last_committed_pose_;
 			int                        last_committed_segnum_;

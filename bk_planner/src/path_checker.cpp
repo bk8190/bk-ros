@@ -120,14 +120,14 @@ PathChecker::getGoodPoses(const vector<PoseStamped>& poses)
 	
 	for( int ipose = 0; ipose<poses.size(); ipose++ )
 	{
-		x = poses.at(ipose).position.x;
-		y = poses.at(ipose).position.y;
+		x = poses.at(ipose).pose.position.x;
+		y = poses.at(ipose).pose.position.y;
 		
 		// Convert to cell coordinates, check if in bounds
 		inbounds = map.worldToMap(x,y, x_c,y_c);
 		
 		// Add this pose to the list of cleared poses if in-bounds and under the obstacle threshold
-		if( inbounds && (map.getCost(x_c,y_c) > obstacle_cost_) )
+		if( inbounds && (map.getCost(x_c,y_c) < obstacle_cost_) )
 		{
 			cleared.push_back(poses.at(ipose));
 		}
@@ -243,6 +243,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 bool
 PathChecker::isPathClear2(const p_nav::Path path)
 {
+	ROS_WARN("This function is screwy");
 	ros::Time t1 = ros::Time::now();
 	ros::Duration t;
 	

@@ -11,6 +11,7 @@ namespace path_checker{
 	
 	namespace p_nav = precision_navigation_msgs;
 	using geometry_msgs::PoseStamped;
+	using std::vector;
 	
 	class PathChecker
 	{

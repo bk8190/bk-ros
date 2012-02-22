@@ -5,12 +5,10 @@ namespace bk_planner {
 void
 BKPlanner::runPlanningThread()
 {
-	long period_ms    = (double)1000 * 0.5; // 1/planner_frequency_;
-	long wait_time_ms = (double)1000 * 0.5;
 	bool made_one_plan = false; // true if we made at least one plan
 	ros::Rate r(1.0); // hz
 	
-	ROS_INFO("[planning] bk_planner planning thread started, period is %ld, wait time %ld", period_ms, wait_time_ms);
+	ROS_INFO("[planning] bk_planner planning thread started");
 	
 		
 	// For visualizing the planning in progress
@@ -78,6 +76,10 @@ BKPlanner::runPlanningThread()
 		if( planner_path_.segs.size() > 0 ){
 			planner_path_.segs.back().header.stamp = ros::Time::now();
 			segment_lib::reFrame(planner_path_);
+			
+			// Also reframe the candidate goals for visualization
+			pub_goals_.header.stamp = planner_path_.header.stamp;
+			pub_goals_.header.frame_id = planner_path_.header.frame_id;
 		}
 		else{
 			planner_path_.header.stamp = ros::Time::now();
@@ -85,9 +87,12 @@ BKPlanner::runPlanningThread()
 		
 		// publish visualization
 		planner_visualizer_->publishVisualization(planner_path_);
+		candidate_goal_pub_.publish(pub_goals_);
+		
 		
 		boost::this_thread::interruption_point();
 		r.sleep();
+		boost::this_thread::interruption_point();
 	}
 }
 
@@ -130,20 +135,21 @@ BKPlanner::doFullReplan()
 	planner_path_.segs.clear();
 	
 	// Plan to the goal
-	//ROS_INFO("[planning] Full replan started...");
 	bool success = planApproximateToGoal(start, goal, planner_path_);
-	//ROS_INFO("[planning] Done.");
 	
-	// Reindex the path so that all previously committed segments are invalid
-	segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 2);
+	if( success )
+	{
+		// Reindex the path so that all previously committed segments are invalid
+		segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 2);
 	
-	planner_path_.header.stamp = planner_path_.segs.back().header.stamp;
-	
-	if( !success ){
-		ROS_INFO("[planning] Full replan failed");
+		planner_path_.header.stamp = planner_path_.segs.back().header.stamp;
+		return true;
 	}
-	
-	return success;
+	else
+	{
+		ROS_INFO("[planning] Full replan failed");
+		return false;
+	}
 }
 
 bool
@@ -250,7 +256,7 @@ BKPlanner::planApproximateToGoal(const PoseStamped& start,
 {
 	// Make a vector of poses (true goal included)
 	// Put the most likely ones in front
-	vector<PoseStamped> potential_goals = generatePotentialGoals(goal);
+	vector<PoseStamped> cleared_goals = generatePotentialGoals(goal);
 	
 	
   if( cleared_goals.size() == 0 ) {
@@ -278,7 +284,7 @@ BKPlanner::planApproximateToGoal(const PoseStamped& start,
 	}
 	
 	// Failure
-	path = p_nav::Path;
+	path = p_nav::Path();
 	ROS_INFO("[planning] Searched through %d candidate poses, did not find a path to goal", cleared_goals.size());
 	return false;
 }
@@ -331,55 +337,61 @@ BKPlanner::commitOneSegment()
 	return seg;
 }
 
-PoseStamped getPoseOffset(const PoseStamped& pose, double dtheta, double dx)
+PoseStamped
+BKPlanner::getPoseOffset(const PoseStamped& pose, double dtheta, double dx)
 {
 	PoseStamped newpose;
-	newpose.header     = pose.header;
-	newpose.position.x = pose.position.x + cos(theta)*dx;
-	newpose.position.y = pose.position.y + sin(theta)*dx;
-	newpose.position.z = pose.position.z;
-	newpose.orientation = tf::createQuaternionMsgFromYaw(  tf::getYaw(pose.orientation) + dtheta );
+	newpose.header          = pose.header;
+	double new_angle = tf::getYaw(pose.pose.orientation) + dtheta;
+	newpose.pose.position.x = pose.pose.position.x + cos(new_angle)*dx;
+	newpose.pose.position.y = pose.pose.position.y + sin(new_angle)*dx;
+	newpose.pose.position.z = pose.pose.position.z;
+	newpose.pose.orientation = tf::createQuaternionMsgFromYaw(new_angle);
 
 	return newpose;
 }
 
 // Generates candidate goals centered on the true goal
-vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal)
+vector<PoseStamped>
+BKPlanner::generatePotentialGoals(const PoseStamped& true_goal)
 {
 	vector<PoseStamped> potential_goals;
 	PoseStamped         new_goal;
-	double standoff_distance_ = 0.5;
+	//double standoff_distance_ = 0.5;
+	
+	
+	double x0 = true_goal.pose.position.x;
+	double y0 = true_goal.pose.position.y;
+	double t0 = tf::getYaw(true_goal.pose.orientation);
 	
 	// First of all, add the true goal.
-	goals.push_back(true_goal);
-	
-	double x0 = true_goal.position.x;
-	double y0 = true_goal.position.y;
-	double t0 = tf::getYaw(true_goal.orientation);
-	double theta;
+	potential_goals.push_back(true_goal);
 	
 	// Add a goal in behind the true goal
 	new_goal = getPoseOffset(true_goal, 0, -1.0 * standoff_distance_);
 	potential_goals.push_back(new_goal);
 	
-	// Add a goal to the left of the true goal, facing inward
-	new_goal = getPoseOffset(true_goal, segment_lib::pi/2.0, -1.0 * standoff_distance_);
+	// Add two goals behind the true goal, offset by +-45 degrees
+	new_goal = getPoseOffset(true_goal, segment_lib::pi/4.0, -1.0 * standoff_distance_);
+	potential_goals.push_back(new_goal);
+	new_goal = getPoseOffset(true_goal, -1.0*segment_lib::pi/4.0, -1.0 * standoff_distance_);
 	potential_goals.push_back(new_goal);
 	
-	// Add a goal to the right of the true goal, facing inward
+	// Add two goals behind the true goal, offset by +-90 degrees
+	new_goal = getPoseOffset(true_goal, segment_lib::pi/2.0, -1.0 * standoff_distance_);
+	potential_goals.push_back(new_goal);
 	new_goal = getPoseOffset(true_goal, -1.0*segment_lib::pi/2.0, -1.0 * standoff_distance_);
 	potential_goals.push_back(new_goal);
 	
-	// Eliminate those in collision
+	// Eliminate goals in collision
 	vector<PoseStamped> cleared_goals = path_checker_->getGoodPoses(potential_goals);
 	
-	// Publish the candidate goals
-	geometry_msgs::PoseArray pub_goals;
-	pub_goals.header = true_goal.header;
+	// Store the candidate goals for visualization
+	pub_goals_.poses.clear();
+	pub_goals_.header = true_goal.header;
 	for(int i=0; i<cleared_goals.size(); i++){
-		pub_goals.poses.push_back(cleared_goals.at(i).pose);
+		pub_goals_.poses.push_back(cleared_goals.at(i).pose);
 	}
-	candidate_goal_pub_.publish(pub_goals);
 	
 	return cleared_goals;
 }
