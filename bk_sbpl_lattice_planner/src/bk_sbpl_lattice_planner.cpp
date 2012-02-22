@@ -244,7 +244,9 @@ bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped&     start,
                                  const geometry_msgs::PoseStamped&        goal,
                                  std::vector<geometry_msgs::PoseStamped>& plan)
 {
-	ROS_FATAL("Herp de derp this function doesn't actually exist");
+	while(true){
+		ROS_FATAL("Herp de derp this function doesn't actually exist");
+	}
 	return false;
 }
                                  
@@ -381,6 +383,15 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
   vector<EnvNAVXYTHETALAT3Dpt_t>  sbpl_path;   // Plan of points for visualization
   try{
     env_->ConvertStateIDPathintoXYThetaPath(&solution_stateIDs, &sbpl_path);
+    
+    const double pi = 3.1415926;
+    ROS_INFO("[sbpl] Angles corrected from (%.3fpi->%.3fpi) to (%.3fpi->%.3fpi)", sbpl_path.front().theta/pi, sbpl_path.back().theta/pi, tf::getYaw(start.pose.orientation)/pi, tf::getYaw( goal.pose.orientation)/pi);
+    // Correct discretization error: make the first and last points in the path have the same angles as the start/goal points
+    sbpl_path.front().theta = tf::getYaw(start.pose.orientation);
+    sbpl_path.back ().theta = tf::getYaw(goal.pose.orientation);
+    sbpl_path.back ().x = goal.pose.position.x;
+    sbpl_path.back ().y = goal.pose.position.y;
+    
     
     // Added: convert the state ID path into path segments
     segmentPlan.header.frame_id = costmap_ros_->getGlobalFrameID();
