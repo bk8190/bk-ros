@@ -18,6 +18,7 @@ BKPlanner::runPlanningThread()
 	// Main loop
 	while(ros::ok())
 	{
+		boost::this_thread::interruption_point();
 	
 		if( getPlannerState() == IN_RECOVERY )
 		{
@@ -41,7 +42,6 @@ BKPlanner::runPlanningThread()
 		}
 		else if( getPlannerState() == NEED_PARTIAL_REPLAN )
 		{
-			
 			if( doPartialReplan() ){
 				setPlannerState(GOOD);
 				made_one_plan = true;
@@ -92,7 +92,6 @@ BKPlanner::runPlanningThread()
 		
 		boost::this_thread::interruption_point();
 		r.sleep();
-		boost::this_thread::interruption_point();
 	}
 }
 
@@ -121,7 +120,7 @@ BKPlanner::doFullReplan()
 	// Get the robot's current pose
 	tf::Stamped<tf::Pose> robot_pose;
 	if(!planner_costmap_->getRobotPose(robot_pose)){
-		ROS_ERROR("[planning] bk_planner cannot make a plan for you because it could not get the start pose of the robot");
+		ROS_ERROR("[planning] Full replan failed (could not get robot's current pose)");
 		return false;
 	}
 	PoseStamped start;
@@ -130,7 +129,7 @@ BKPlanner::doFullReplan()
 	// Get the goal
 	PoseStamped goal = getLatestGoal();
 	
-	// Clear current path
+	// Clear any remnants of the current path
 	dequeueSegments();
 	planner_path_.segs.clear();
 	
@@ -214,7 +213,7 @@ BKPlanner::doPartialReplan()
 }
 
 
-// Point-to-point planner
+// Dumb point-to-point planner
 bool
 BKPlanner::planPointToPoint(const PoseStamped& start,
                             const PoseStamped& goal,
@@ -239,12 +238,13 @@ BKPlanner::planPointToPoint(const PoseStamped& start,
 	bool success = lattice_planner_->makeSegmentPlan(start, goal, path);
 	ros::Duration t = ros::Time::now() - t1;
 	
-	ROS_INFO("[planning] Point-point plan made in %.2f seconds. Plan has %lu segments.", t.toSec(), path.segs.size());
 	
 	if( success == false ){
-		ROS_ERROR("[planning] Point-point plan failed!");
+		ROS_INFO("[planning] Point-point plan failed! (took %.2f seconds)",t.toSec());
 		return false;
 	}
+	
+	ROS_INFO("[planning] Point-point plan made in %.2f seconds. Plan has %lu segments.", t.toSec(), path.segs.size());
 	
 	return true;
 }
@@ -254,10 +254,14 @@ BKPlanner::planApproximateToGoal(const PoseStamped& start,
                                  const PoseStamped& goal,
                                  p_nav::Path&       path)
 {
-	// Make a vector of poses (true goal included)
-	// Put the most likely ones in front
-	vector<PoseStamped> cleared_goals = generatePotentialGoals(goal);
+	// Modify the goal's angle
+	double dx = goal.pose.position.x - start.pose.position.x;
+	double dy = goal.pose.position.y - start.pose.position.y;
+	PoseStamped newgoal = goal;
+	newgoal.pose.orientation = tf::createQuaternionMsgFromYaw(atan2(dy,dx));
 	
+	// Generate potential goal poses
+	vector<PoseStamped> cleared_goals = generatePotentialGoals(newgoal);
 	
   if( cleared_goals.size() == 0 ) {
   	ROS_INFO("[planning] All potential goal poses blocked!");
@@ -265,29 +269,43 @@ BKPlanner::planApproximateToGoal(const PoseStamped& start,
   } 
 	
 	bool found_goal = false;
-	p_nav::Path our_path;
-	
 	for( int igoal=0; igoal<cleared_goals.size(); igoal++ )
 	{
-		found_goal = planPointToPoint(start, cleared_goals.at(igoal), our_path);
+		found_goal = planPointToPoint(start, cleared_goals.at(igoal), path);
 		
-		// Take the first found goal
+		// Take the first valid path
 		if( found_goal ){
-			break;
+			return true;
 		}
-	}
-	
-	// Success
-	if( found_goal ){
-		path = our_path;
-		return true;
 	}
 	
 	// Failure
 	path = p_nav::Path();
-	ROS_INFO("[planning] Searched through %d candidate poses, did not find a path to goal", cleared_goals.size());
+	ROS_INFO("[planning] Searched through %d candidate goals, no clear path.", cleared_goals.size());
 	return false;
 }
+
+// Looks through path.  If a segment crosses a special boundary, adds a special segment, and replans from the special segment's start and endpoint.
+/*p_nav::Path
+BKPlanner::replaceSpecialSegments(const p_nav::Path& path)
+{
+	if(path.segs.size() == 0)
+		return path;
+
+	p_nav::Path newpath;
+	newpath.header = path.header;
+	
+	PoseStamped last_endpoint = getStartPose(path.segs.front());
+	PoseStamped goal          = getEndPose(path.segs.back());
+	
+	// Start at the beginning of the path
+	// From last_endpoint, copy segments to temp until you find a special segment
+	// If you encounter a special segment, replan from last_endpoint to start of special segs
+	// insert special segs
+	// set last_endpoint to end of special_segs
+	// replan from last_endpoint to goal
+	// From last_endpoint,
+}*/
 
 void
 BKPlanner::commitPathSegments()
@@ -337,6 +355,8 @@ BKPlanner::commitOneSegment()
 	return seg;
 }
 
+// Returns a pose offset from an original.
+// Rotates in place by dtheta degrees and then moves dx meters foward.
 PoseStamped
 BKPlanner::getPoseOffset(const PoseStamped& pose, double dtheta, double dx)
 {
@@ -356,32 +376,28 @@ vector<PoseStamped>
 BKPlanner::generatePotentialGoals(const PoseStamped& true_goal)
 {
 	vector<PoseStamped> potential_goals;
-	PoseStamped         new_goal;
-	//double standoff_distance_ = 0.5;
-	
-	
-	double x0 = true_goal.pose.position.x;
-	double y0 = true_goal.pose.position.y;
-	double t0 = tf::getYaw(true_goal.pose.orientation);
+	double ds = -1.0*standoff_distance_;
 	
 	// First of all, add the true goal.
-	potential_goals.push_back(true_goal);
+	//potential_goals.push_back(true_goal);
 	
-	// Add a goal in behind the true goal
-	new_goal = getPoseOffset(true_goal, 0, -1.0 * standoff_distance_);
-	potential_goals.push_back(new_goal);
+	// Add a goal in between the robot and the true goal
+	potential_goals.push_back(getPoseOffset(true_goal,  0.00  , ds));
 	
 	// Add two goals behind the true goal, offset by +-45 degrees
-	new_goal = getPoseOffset(true_goal, segment_lib::pi/4.0, -1.0 * standoff_distance_);
-	potential_goals.push_back(new_goal);
-	new_goal = getPoseOffset(true_goal, -1.0*segment_lib::pi/4.0, -1.0 * standoff_distance_);
-	potential_goals.push_back(new_goal);
+	potential_goals.push_back(getPoseOffset(true_goal,  .25*pi, ds));
+	potential_goals.push_back(getPoseOffset(true_goal, -.25*pi, ds));
 	
 	// Add two goals behind the true goal, offset by +-90 degrees
-	new_goal = getPoseOffset(true_goal, segment_lib::pi/2.0, -1.0 * standoff_distance_);
-	potential_goals.push_back(new_goal);
-	new_goal = getPoseOffset(true_goal, -1.0*segment_lib::pi/2.0, -1.0 * standoff_distance_);
-	potential_goals.push_back(new_goal);
+	potential_goals.push_back(getPoseOffset(true_goal,  .50*pi, ds));
+	potential_goals.push_back(getPoseOffset(true_goal, -.50*pi, ds));
+	
+	// Add two goals behind the true goal, offset by +-135 degrees
+	potential_goals.push_back(getPoseOffset(true_goal,  .75*pi, ds));
+	potential_goals.push_back(getPoseOffset(true_goal, -.75*pi, ds));
+	
+	// Add a goal 180 degrees offset
+	potential_goals.push_back(getPoseOffset(true_goal, 1.00*pi, ds));
 	
 	// Eliminate goals in collision
 	vector<PoseStamped> cleared_goals = path_checker_->getGoodPoses(potential_goals);

@@ -22,18 +22,23 @@ namespace segment_lib {
 	// Shorthand
 	namespace p_nav = precision_navigation_msgs;
 	
+	using     geometry_msgs::PoseStamped;
+	using     p_nav        ::PathSegment;
+	using     geometry_msgs::Point;
+	using     std          ::vector;
+	
 	const double pi  = 3.1415926;
 	const double eps = .0001;    // Precision for floating point comparison
 
 	double rect_angle(double t);
 
-	void printPathSegment(const p_nav::PathSegment& s);
+	void printPathSegment(const PathSegment& s);
 	
 	// Reindexes the segment numbers, starting at start_seg_num.
 	void reindexPath(p_nav::Path& path, int start_seg_num);
 	
 	// Returns the index of seg_num within path.  -1 if DNE.
-	int segnumToIndex(const std::vector<p_nav::PathSegment>& segs, unsigned int seg_num);
+	int segnumToIndex(const vector<PathSegment>& segs, unsigned int seg_num);
 	int segnumToIndex(const p_nav::Path& path, unsigned int seg_num);
 	
 	int getFirstSegnum(const p_nav::Path& path);
@@ -42,18 +47,35 @@ namespace segment_lib {
 	// Gets the frame of the last pose, sets it as the frame for every segment and the path as a whole.
 	void reFrame(p_nav::Path& path);
 	
-	double linDist(const p_nav::PathSegment& seg);
+	double linDist(const PathSegment& seg);
+	
+	//  public domain function by Darel Rex Finley, 2006
+	//  Determines the intersection point of the line segment defined by points A and B
+	//  with the line segment defined by points C and D.
+	bool lineSegmentIntersection(
+		double Ax, double Ay,
+		double Bx, double By,
+		double Cx, double Cy,
+		double Dx, double Dy,
+		double *X, double *Y);
+		
+	// True if the segment crosses the line defined by (p1, p2).
+	// Stores the location of the intersection (if it exists) in "intersection"
+	// This function approximates arcs by straight lines
+	bool segIntersectLine(const PathSegment& seg, const Point& p1, const Point& p2, Point& intersection);
+	
+	
 /* Path segment creation (create_seg.cpp) */
 /*==============================================================================*/
-	p_nav::PathSegment
+	PathSegment
 	makePathSegment(double x1, double y1, double t1, double x2, double y2, double t2);
 	
-	p_nav::PathSegment makeUndirectedLineSegment(double x1, double y1, double x2, double y2);
+	PathSegment makeUndirectedLineSegment(double x1, double y1, double x2, double y2);
 	// Makes a line segment respecting an initial angle (can handle backing up that way)
-	p_nav::PathSegment makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1);	
+	PathSegment makeDirectedLineSegment(double x1, double y1, double x2, double y2, double t1);	
 	
-	p_nav::PathSegment makeTurnSegment(double x, double y, double t1, double t2);
-	p_nav::PathSegment makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2);
+	PathSegment makeTurnSegment(double x, double y, double t1, double t2);
+	PathSegment makeArcSegment(double x1, double y1, double x2, double y2, double t1, double t2);
 	
 /* Path segment smoothing (smooth_path.cpp) */
 /*==============================================================================*/
@@ -81,26 +103,16 @@ namespace segment_lib {
 	interpPath(const p_nav::Path& path, double dx, double dtheta);
 
 	// Returns a vector of poses sampled from a segment: the beginning, the end, and regular samples along distance dx (line/arc) and dtheta (spin in place).
-	std::vector<geometry_msgs::PoseStamped>
-	interpSegment(const p_nav::PathSegment& seg, double dx, double dtheta);
-
-	std::vector<geometry_msgs::PoseStamped>
-	interpLineSegment(const p_nav::PathSegment& seg, double dx);
-
-	std::vector<geometry_msgs::PoseStamped>
-	interpArcSegment(const p_nav::PathSegment& seg, double dtheta);
-
-	std::vector<geometry_msgs::PoseStamped>
-	interpSpinSegment(const p_nav::PathSegment& seg, double dtheta);
+	vector<PoseStamped> interpSegment(const PathSegment& seg, double dx, double dtheta);
+	vector<PoseStamped> interpLineSegment(const PathSegment& seg, double dx);
+	vector<PoseStamped> interpArcSegment(const PathSegment& seg, double dtheta);
+	vector<PoseStamped> interpSpinSegment(const PathSegment& seg, double dtheta);
 	
-	geometry_msgs::PoseStamped
-	getEndPose(const p_nav::PathSegment& seg);
-	
-	geometry_msgs::PoseStamped
-	getStartPose(const p_nav::PathSegment& seg);
+	PoseStamped getEndPose(const PathSegment& seg);
+	PoseStamped getStartPose(const PathSegment& seg);
 	
 	// Returns whether or not seg specifies backward motion
-	bool isLineSegmentReversed(p_nav::PathSegment seg);
+	bool isLineSegmentReversed(PathSegment seg);
 	
 };//namespace
 #endif

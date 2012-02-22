@@ -26,7 +26,7 @@ interpPath(const p_nav::Path& path, double dx, double dtheta)
 	return interp_path;
 }
 
-
+	
 // Returns a vector of poses from a segment: the beginning, the end, and regular samples along distance dx (line/arc) and dtheta (spin in place).
 std::vector<geometry_msgs::PoseStamped> interpSegment(const p_nav::PathSegment& seg, double dx, double dtheta)
 {

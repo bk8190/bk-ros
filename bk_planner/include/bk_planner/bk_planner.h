@@ -30,6 +30,7 @@ namespace bk_planner {
 	
 	using     geometry_msgs::PoseStamped;
 	using     std::vector;
+	using     segment_lib::pi;
 	
 
 	enum plannerState
