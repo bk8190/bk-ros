@@ -248,7 +248,7 @@ BKPlanner::planPointToPoint(const PoseStamped& start,
 	
 	return true;
 }
-
+ 
 bool
 BKPlanner::planApproximateToGoal(const PoseStamped& start,
                                  const PoseStamped& goal,
