@@ -5,7 +5,6 @@ namespace bk_planner {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	nh_          (),
 	priv_nh_     ("~"),
-	this_shared_ (this),
 	tf_          (tf)
 {
 	// This node subscribes to a goal pose.
@@ -30,9 +29,9 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	
 	// Create the planner and feeder threads
 	planner_ = shared_ptr<BKPlanningThread>
-		(new BKPlanningThread(this_shared_) );		
+		(new BKPlanningThread(this) );		
 	feeder_   = shared_ptr<BKFeederThread>
-		(new BKFeederThread  (this_shared_) );
+		(new BKFeederThread  (this) );
 	
 	// Set their references to each other
 	planner_->setFeeder (feeder_);
@@ -57,10 +56,9 @@ void
 BKPlanner::terminateThreads()
 {
 	planning_thread_->interrupt();
+	feeder_thread_  ->interrupt();
 	planning_thread_->join();
-
-	feeder_thread_->interrupt();
-	feeder_thread_->join();
+	feeder_thread_  ->join();
 }
 
 void
@@ -152,10 +150,11 @@ main(int argc, char** argv)
 		}
 	}
 	// The planner will go out of scope here and call its destructor.
-	// It throws a lock error, possibly because terminate() is called on the threads.
+	// It might throw a lock error because of interraction between the threads and mutexes
 	catch(boost::lock_error e) {
-		cout << "Boost threw a lock error but Honey Badger don't care, Honey Badger don't give a &$%#\n";
+		cout << "Boost threw a lock error (" << e.what() << ")\n";
+		cout << "Honey Badger don't care, Honey Badger don't give a &$%#\n\n";
 	}
 	
-  return(0);
+	return(0);
 }

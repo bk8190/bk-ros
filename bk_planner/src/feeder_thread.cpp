@@ -2,14 +2,12 @@
 
 namespace bk_planner {
 
-BKFeederThread::BKFeederThread(boost::weak_ptr<BKPlanner> parent):
-	client_       ("execute_path", true),
-	parent_weak_  (parent)
+BKFeederThread::BKFeederThread(BKPlanner* parent):
+	client_ ("execute_path", true),
+	parent_ (parent)
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
-
 	parent_->priv_nh_.param("planning/segs_to_trail", segs_to_trail_, 4);
-	ROS_INFO("Trailing segs:  %d", segs_to_trail_);
+	ROS_INFO("[feeder] Trailing segs:  %d", segs_to_trail_);
 	
 	visualizer_ = shared_ptr<segment_lib::SegmentVisualizer>
 		(new segment_lib::SegmentVisualizer(std::string("feeder_visualization")) );
@@ -29,7 +27,7 @@ BKFeederThread::BKFeederThread(boost::weak_ptr<BKPlanner> parent):
 void
 BKFeederThread::setPlanner(boost::weak_ptr<BKPlanningThread> planner)
 {
-	planner_weak_ = planner;
+	planner_ = planner;
 }
 
 void
@@ -77,12 +75,11 @@ BKFeederThread::run()
 				else if(isStuckTimerFull())
 				{
 					ROS_INFO("[feeder] Stuck timer full, requesting replan.");
-					shared_ptr<BKPlanningThread> planner_(planner_weak_);
-					planner_->escalatePlannerState(NEED_FULL_REPLAN);
+					PlanThreadPtr(planner_)->escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			
 				// Check if the path is clear.  If so, send it to precision steering.
-				if( shared_ptr<BKPlanner>(parent_weak_)->path_checker_->isPathClear(feeder_path_) )
+				if( parent_->path_checker_->isPathClear(feeder_path_) )
 				{
 					ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
 					executePath();
@@ -91,8 +88,7 @@ BKFeederThread::run()
 				{
 					ROS_INFO("[feeder] Path blocked, requesting replan.");
 					setFeederEnabled(false); // lololl i lock myself out
-					shared_ptr<BKPlanningThread> planner_(planner_weak_);
-					planner_->escalatePlannerState(NEED_FULL_REPLAN);
+					PlanThreadPtr(planner_)->escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			}
 		
@@ -115,9 +111,6 @@ BKFeederThread::run()
 void
 BKFeederThread::sendHaltState()
 {
-	shared_ptr<BKPlanningThread> planner_(planner_weak_);
-	shared_ptr<BKPlanner> parent_(parent_weak_);
-	
 	// Clear our path			
 	recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	while(!l){
@@ -154,7 +147,7 @@ BKFeederThread::sendHaltState()
 		seg.ref_point.z    = 0.0;
 		seg.init_tan_angle = pose.pose.orientation;
 	
-		precision_navigation_msgs::ExecutePathGoal action_goal;
+		p_nav::ExecutePathGoal action_goal;
 		action_goal.segments.clear();
 		action_goal.segments.push_back(seg);
 	
@@ -178,12 +171,11 @@ BKFeederThread::sendHaltState()
 void
 BKFeederThread::getNewSegments()
 {
-	shared_ptr<BKPlanningThread> planner_(planner_weak_);
-	recursive_mutex::scoped_try_lock l1(planner_->committed_path_mutex_);
+	recursive_mutex::scoped_try_lock l1(PlanThreadPtr(planner_)->committed_path_mutex_);
 	recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
 	
 	while(!l1){
-		l1 = recursive_mutex::scoped_try_lock(planner_->committed_path_mutex_);
+		l1 = recursive_mutex::scoped_try_lock(PlanThreadPtr(planner_)->committed_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(!l2){
@@ -191,9 +183,9 @@ BKFeederThread::getNewSegments()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
-	if( planner_->segmentsAvailable() )
+	if( PlanThreadPtr(planner_)->segmentsAvailable() )
 	{
-		precision_navigation_msgs::Path new_segs = planner_->dequeueSegments();
+		p_nav::Path new_segs = PlanThreadPtr(planner_)->dequeueSegments();
 	
 		// Make sure we actually got segments
 		if(new_segs.segs.size() == 0){
@@ -231,7 +223,6 @@ BKFeederThread::getNewSegments()
 void
 BKFeederThread::updatePathVelocities()
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
 	recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	
 	while(!l){
@@ -263,7 +254,6 @@ BKFeederThread::isStuckTimerFull()
 bool
 BKFeederThread::isPathClear()
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
 	return parent_->path_checker_->isPathClear(feeder_path_);
 }
 
@@ -286,7 +276,7 @@ BKFeederThread::executePath()
 		
 		// Format the plan into a goal message and send it to the server.
 		client_.waitForServer();
-		precision_navigation_msgs::ExecutePathGoal action_goal;
+		p_nav::ExecutePathGoal action_goal;
 		action_goal.segments = feeder_path_.segs;
 		client_.sendGoal(action_goal,
 				boost::bind(&BKFeederThread::doneCb    , this, _1, _2),
@@ -303,7 +293,7 @@ BKFeederThread::executePath()
 // Called once when the goal completes
 void
 BKFeederThread::doneCb(const actionlib::SimpleClientGoalState& state,
-                  const precision_navigation_msgs::ExecutePathResultConstPtr& result)
+                  const p_nav::ExecutePathResultConstPtr& result)
 {
   ROS_INFO("[feeder] Steering finished in state [%s]", state.toString().c_str());
 }
@@ -317,7 +307,7 @@ BKFeederThread::activeCb()
 
 // Called every time feedback is received for the goal
 void
-BKFeederThread::feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback)
+BKFeederThread::feedbackCb(const p_nav::ExecutePathFeedbackConstPtr& feedback)
 {
   //ROS_INFO("Got Feedback. Seg number %u, current seg %u, dist done %.2f", feedback->seg_number, feedback->current_segment.seg_number, feedback->seg_distance_done);
 

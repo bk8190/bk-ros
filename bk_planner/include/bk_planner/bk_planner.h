@@ -39,12 +39,16 @@ namespace bk_planner {
 	class BKFeederThread;
 	class BKPlanningThread;
 	
+	typedef shared_ptr<BKFeederThread>   FeedThreadPtr;
+	typedef shared_ptr<BKPlanningThread> PlanThreadPtr;
+	
 	// Main class that handles a goal callbacks as well as managing a planning thread and a path feeder thread
 	class BKPlanner
 	{
 	public:
 		BKPlanner(std::string name, tf::TransformListener& tf);
 		~BKPlanner();
+		
 		ros::NodeHandle  nh_;
 		ros::NodeHandle  priv_nh_;
 		
@@ -57,7 +61,6 @@ namespace bk_planner {
 		recursive_mutex                       path_checker_mutex;
 		
 	private:
-		shared_ptr<BKPlanner>        this_shared_;
     shared_ptr<BKPlanningThread> planner_;
     shared_ptr<BKFeederThread>   feeder_;
 		shared_ptr<boost::thread>    planning_thread_, feeder_thread_;
@@ -93,7 +96,7 @@ namespace bk_planner {
 	class BKPlanningThread
 	{
 	public:
-		BKPlanningThread(boost::weak_ptr<BKPlanner> parent);
+		BKPlanningThread(BKPlanner* parent);
 		void setFeeder(boost::weak_ptr<BKFeederThread> feeder);
 		
 		void run();
@@ -112,9 +115,9 @@ namespace bk_planner {
 	private:
 		// Non-owning references to the other threads
 		// Whenever we want to dereference these we need to take ownership
-		// ex: shared_ptr<BKPlanner> parent_(parent_weak_);
-		boost::weak_ptr<BKPlanner>      parent_weak_;
-		boost::weak_ptr<BKFeederThread> feeder_weak_;
+		// ex: BKPlannerPtr(parent_weak_)->someFunction();
+		BKPlanner* parent_;
+		boost::weak_ptr<BKFeederThread> feeder_;
 
 		// The distance of the commited path that the planner will try to maintain at all times (meters)
 		double commit_distance_;
@@ -169,7 +172,7 @@ namespace bk_planner {
 	class BKFeederThread
 	{
 	public:	
-		BKFeederThread(boost::weak_ptr<BKPlanner> parent);
+		BKFeederThread(BKPlanner* parent);
 		void setPlanner(boost::weak_ptr<BKPlanningThread> planner);
 		void run();
 	
@@ -183,8 +186,10 @@ namespace bk_planner {
 		
 	private:
 		// Non-owning references to the other threads
-		boost::weak_ptr<BKPlanner>        parent_weak_;
-		boost::weak_ptr<BKPlanningThread> planner_weak_;
+		// Whenever we want to dereference these we need to take ownership
+		// ex: BKPlannerPtr(parent_weak_)->someFunction();
+		BKPlanner* parent_;
+		boost::weak_ptr<BKPlanningThread> planner_;
 		
 		bool isFeederEnabled();
 		void sendHaltState();
@@ -208,9 +213,9 @@ namespace bk_planner {
 		int    segs_to_trail_;
 		
 		p_nav::ExecutePathFeedback latest_feedback_; // Feedback from action server
-		boost::mutex                                   feedback_mutex_;
-		p_nav::Path                feeder_path_;
-		bool                                           feeder_path_has_changed_; // Has our path been updated?
+		boost::mutex feedback_mutex_;
+		p_nav::Path  feeder_path_;
+		bool         feeder_path_has_changed_; // Has our path been updated?
 		
 		shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
 		actionlib::SimpleActionClient<p_nav::ExecutePathAction> client_;
@@ -220,5 +225,8 @@ namespace bk_planner {
 		bool feeder_enabled_;
 		recursive_mutex feeder_enabled_mutex_, feeder_path_mutex_;
 	};//BKFeederThread
+	
+	
+	
 };//namespace
 #endif

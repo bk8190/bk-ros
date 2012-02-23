@@ -20,9 +20,9 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 	private_nh_.param("planning/obstacle_cost", obstacle_cost_ , 150);
 	private_nh_.param("planning/lethal_cost"  , lethal_cost_   , 254);
 
-	ROS_INFO("Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
-	ROS_INFO("Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
-	ROS_INFO("dx= %.2f dth=%.2f obs cost=%d, lethal cost=%d", interp_dx_, interp_dth_, obstacle_cost_, lethal_cost_);
+	ROS_INFO("[path checker] Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
+	ROS_INFO("[path checker] Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
+	ROS_INFO("[path checker] dx= %.2f dth=%.2f obs cost=%d, lethal cost=%d", interp_dx_, interp_dth_, obstacle_cost_, lethal_cost_);
 }
 
 

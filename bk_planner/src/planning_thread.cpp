@@ -2,10 +2,10 @@
 
 namespace bk_planner {
 
-BKPlanningThread::BKPlanningThread(boost::weak_ptr<BKPlanner> parent):
-	parent_weak_  (parent)
+BKPlanningThread::BKPlanningThread(BKPlanner* parent):
+	parent_  (parent)
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
+	;
 	candidate_goal_pub_ = parent_->nh_.advertise<geometry_msgs::PoseArray>("candidate_poses", 1);
 
 	// For visualizing the planning in progress
@@ -17,8 +17,8 @@ BKPlanningThread::BKPlanningThread(boost::weak_ptr<BKPlanner> parent):
 	
 	parent_->priv_nh_.param("planning/commit_distance" ,commit_distance_     ,1.1);
 	parent_->priv_nh_.param("planning/standoff_distance" ,standoff_distance_ ,1.1);
-	ROS_INFO("Commit   distance %.2f", commit_distance_);
-	ROS_INFO("Standoff distance %.2f", standoff_distance_);
+	ROS_INFO("[planning] Commit   distance %.2f", commit_distance_);
+	ROS_INFO("[planning] Standoff distance %.2f", standoff_distance_);
 	
 	planner_path_.segs.clear();
 	planner_state_         = GOOD;
@@ -32,7 +32,7 @@ BKPlanningThread::BKPlanningThread(boost::weak_ptr<BKPlanner> parent):
 void
 BKPlanningThread::setFeeder(boost::weak_ptr<BKFeederThread> feeder)
 {
-	feeder_weak_ = feeder;
+	feeder_ = feeder;
 }
 
 void
@@ -44,7 +44,6 @@ BKPlanningThread::run()
 		
 	while(ros::ok()) // Main loop
 	{
-		shared_ptr<BKFeederThread> feeder_(feeder_weak_);
 		boost::this_thread::interruption_point();
 	
 		plannerState s = getPlannerState();
@@ -60,7 +59,7 @@ BKPlanningThread::run()
 				break;
 			
 			case NEED_FULL_REPLAN:
-				feeder_->sendResetSignals(); // bring the system to a halt
+				FeedThreadPtr(feeder_)->sendResetSignals(); // bring the system to a halt
 			
 				if( doFullReplan() ) {
 					setPlannerState(GOOD);
@@ -82,7 +81,6 @@ BKPlanningThread::run()
 			case GOOD:
 				if( made_one_plan )
 				{
-					shared_ptr<BKPlanner> parent_(parent_weak_);
 					bool path_clear = parent_->path_checker_->isPathClear(planner_path_);
 					bool segs_left  = planner_path_.segs.size()>0;
 			
@@ -91,7 +89,7 @@ BKPlanningThread::run()
 					{
 						ROS_INFO_THROTTLE(5, "[planning] Planner state good.");
 						commitPathSegments();
-						feeder_->setFeederEnabled(true);
+						FeedThreadPtr(feeder_)->setFeederEnabled(true);
 					}
 					else if(segs_left)
 					{
@@ -142,7 +140,6 @@ BKPlanningThread::startRecovery()
 void
 BKPlanningThread::doRecovery()
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
 	ROS_INFO("[planning] In recovery");
 	
 	// Temporary: just wait for a new goal
@@ -154,7 +151,6 @@ BKPlanningThread::doRecovery()
 bool
 BKPlanningThread::doFullReplan()
 {	
-	shared_ptr<BKPlanner> parent_(parent_weak_);
 	ROS_INFO("[planning] Doing full replan");
 			
 	// Get the robot's current pose
@@ -194,13 +190,11 @@ BKPlanningThread::doFullReplan()
 bool
 BKPlanningThread::doPartialReplan()
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
-	shared_ptr<BKFeederThread> feeder_(feeder_weak_);
 	
 	ROS_INFO("[planning] Doing partial replan");
 			
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
-	double dist_left = feeder_->getFeederDistLeft();
+	double dist_left = FeedThreadPtr(feeder_)->getFeederDistLeft();
 	// ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
 	if( dist_left < 0.1 && planner_path_.segs.size() == 0){
 		ROS_INFO("[planning] Feeder path empty and nothing more to commit, doing full replan instead.");
@@ -262,7 +256,6 @@ BKPlanningThread::planPointToPoint(const PoseStamped& start,
                             const PoseStamped& goal,
                             p_nav::Path&       path)
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
   // Make sure the goal is clear
   if( !parent_->path_checker_->isPoseClear(start) )
   {
@@ -354,8 +347,6 @@ BKPlanner::replaceSpecialSegments(const p_nav::Path& path)
 void
 BKPlanningThread::commitPathSegments()
 {
-	shared_ptr<BKFeederThread> feeder_(feeder_weak_);
-				
 	recursive_mutex::scoped_try_lock l(committed_path_mutex_);
 	while(!l){
 		l = recursive_mutex::scoped_try_lock(committed_path_mutex_);
@@ -366,7 +357,7 @@ BKPlanningThread::commitPathSegments()
 	double dist_just_committed;
 	
 	// How much path the feeder has left
-	double dist_left = feeder_->getFeederDistLeft();
+	double dist_left = FeedThreadPtr(feeder_)->getFeederDistLeft();
 	
 	// Desired distance to add
 	double dist_to_add = commit_distance_ - dist_left;
@@ -421,7 +412,6 @@ BKPlanningThread::getPoseOffset(const PoseStamped& pose, double dtheta, double d
 vector<PoseStamped>
 BKPlanningThread::generatePotentialGoals(const PoseStamped& true_goal)
 {
-	shared_ptr<BKPlanner> parent_(parent_weak_);
 	vector<PoseStamped> potential_goals;
 	double ds = -1.0*standoff_distance_;
 	
@@ -472,7 +462,7 @@ BKPlanningThread::segmentsAvailable()
 	return num_available > 0;
 }
 
-precision_navigation_msgs::Path
+p_nav::Path
 BKPlanningThread::dequeueSegments()
 {
 	recursive_mutex::scoped_try_lock l(committed_path_mutex_);
@@ -482,14 +472,14 @@ BKPlanningThread::dequeueSegments()
 	}
 	
 	// Return the current committed path, and clear it.
-	precision_navigation_msgs::Path segs_to_return = committed_path_;
+	p_nav::Path segs_to_return = committed_path_;
 	committed_path_.segs.clear();
 	
 	return segs_to_return;
 }
 
 void
-BKPlanningThread::enqueueSegments(precision_navigation_msgs::Path new_segments)
+BKPlanningThread::enqueueSegments(p_nav::Path new_segments)
 {
 	recursive_mutex::scoped_try_lock l(committed_path_mutex_);
 	while(!l){
