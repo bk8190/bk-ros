@@ -33,6 +33,9 @@ class SegmentVisualizer
 		void publishMarkerVisualization(const precision_navigation_msgs::Path& path);
 		void publishPoseVisualization  (const nav_msgs::Path& vis_path);
 		void publishPathVisualization  (const nav_msgs::Path& vis_path);
+		
+		// Sends a message to remove markers previously published
+		void removePreviousMarkers();
 };
 
 };//namespace

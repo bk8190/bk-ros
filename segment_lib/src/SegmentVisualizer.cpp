@@ -2,7 +2,6 @@
 
 namespace segment_lib {
 
-
 SegmentVisualizer::SegmentVisualizer(std::string name):
 	nh_         ( "/"+name),
 	private_nh_ ("~/"+name),
@@ -16,6 +15,12 @@ SegmentVisualizer::SegmentVisualizer(std::string name):
 
 SegmentVisualizer::~SegmentVisualizer()
 {
+	// Remove previous markers
+	removePreviousMarkers();
+	
+	// Publish an empty path to clear current visualization
+	publishPoseVisualization(nav_msgs::Path());
+	publishPathVisualization(nav_msgs::Path());
 }
 
 void SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Path& path)
@@ -55,8 +60,8 @@ void SegmentVisualizer::publishPoseVisualization(const nav_msgs::Path& vis_path)
 	vis_posearray_pub_.publish(poses);
 }
 
-
-void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_msgs::Path& path)
+void
+SegmentVisualizer::removePreviousMarkers()
 {
 	// If we've already sent markers, remove the last ones we've sent.
 	// Do this by changing the command to "DELETE" and republishing.
@@ -69,6 +74,12 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 		
 		vis_markers_pub_.publish(vis_markers_);
 	}
+}
+
+
+void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_msgs::Path& path)
+{
+	removePreviousMarkers();
 
 	char buffer[100];
 	double perp_angle;
