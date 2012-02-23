@@ -3,21 +3,21 @@
 namespace bk_planner {
 
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
-	nh_      (),
-	priv_nh_ ("~"),
-	tf_      (tf)
+	nh_          (),
+	priv_nh_     ("~"),
+	this_shared_ (this),
+	tf_          (tf)
 {
 	// This node subscribes to a goal pose.
 	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	
-
-	
 	// Initialize state variables
 	got_new_goal_          = false;
 	
-	planner_costmap_ = boost::shared_ptr<costmap_2d::Costmap2DROS>
+	// Initialize data
+	planner_costmap_ = shared_ptr<costmap_2d::Costmap2DROS>
 		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );	          
-	path_checker_    = boost::shared_ptr<path_checker::PathChecker>
+	path_checker_    = shared_ptr<path_checker::PathChecker>
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
 	
 	// Get the robot's current pose and set a goal there
@@ -29,15 +29,19 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	setNewGoal(start_pose);
 	
 	// Create the planner and feeder threads
-	planner_ = boost::shared_ptr<BKPlanningThread>
-		(new BKPlanningThread(this));		
-	feeder_   = boost::shared_ptr<BKFeederThread>
-		(new BKFeederThread(this));
-		
+	planner_ = shared_ptr<BKPlanningThread>
+		(new BKPlanningThread(this_shared_) );		
+	feeder_   = shared_ptr<BKFeederThread>
+		(new BKFeederThread  (this_shared_) );
+	
+	// Set their references to each other
+	planner_->setFeeder (feeder_);
+	feeder_ ->setPlanner(planner_);
+	
 	// Kick off the threads
-	planning_thread_ = boost::shared_ptr<boost::thread>
+	planning_thread_ = shared_ptr<boost::thread>
 		(new boost::thread(boost::bind(&BKPlanningThread::run, planner_)) );
-	feeder_thread_   = boost::shared_ptr<boost::thread>
+	feeder_thread_   = shared_ptr<boost::thread>
 		(new boost::thread(boost::bind(&BKFeederThread::run  , feeder_ )) );
 
 	ROS_INFO("BKPlanner constructor finished");
@@ -130,7 +134,6 @@ BKPlanner::getLatestGoal()
 	got_new_goal_ = false;
 	return latest_goal_;
 }
-
 
 };// namespace
 

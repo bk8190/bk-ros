@@ -2,14 +2,16 @@
 
 namespace bk_planner {
 
-BKFeederThread::BKFeederThread(BKPlanner* parent):
-	client_  ("execute_path", true),
-	parent_  (parent)
+BKFeederThread::BKFeederThread(boost::weak_ptr<BKPlanner> parent):
+	client_       ("execute_path", true),
+	parent_weak_  (parent)
 {
-	parent->priv_nh_.param("planning/segs_to_trail"   ,segs_to_trail_       ,4  );
+	shared_ptr<BKPlanner> parent_(parent_weak_);
+
+	parent_->priv_nh_.param("planning/segs_to_trail", segs_to_trail_, 4);
 	ROS_INFO("Trailing segs:  %d", segs_to_trail_);
 	
-	visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
+	visualizer_ = shared_ptr<segment_lib::SegmentVisualizer>
 		(new segment_lib::SegmentVisualizer(std::string("feeder_visualization")) );
 
 	feeder_path_.segs.clear();
@@ -25,6 +27,12 @@ BKFeederThread::BKFeederThread(BKPlanner* parent):
 }
 
 void
+BKFeederThread::setPlanner(boost::weak_ptr<BKPlanningThread> planner)
+{
+	planner_weak_ = planner;
+}
+
+void
 BKFeederThread::run()
 {	
 	ROS_INFO("[feeder] Main thread started");
@@ -34,7 +42,7 @@ BKFeederThread::run()
 	{
 		{
 			// Wait until we are allowed to run the feeder
-			boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
+			recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
 		
 			if(!l){
 				boost::this_thread::interruption_point();
@@ -69,11 +77,12 @@ BKFeederThread::run()
 				else if(isStuckTimerFull())
 				{
 					ROS_INFO("[feeder] Stuck timer full, requesting replan.");
-					parent_->planner_->escalatePlannerState(NEED_FULL_REPLAN);
+					shared_ptr<BKPlanningThread> planner_(planner_weak_);
+					planner_->escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			
 				// Check if the path is clear.  If so, send it to precision steering.
-				if( parent_->path_checker_->isPathClear(feeder_path_) )
+				if( shared_ptr<BKPlanner>(parent_weak_)->path_checker_->isPathClear(feeder_path_) )
 				{
 					ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
 					executePath();
@@ -82,7 +91,8 @@ BKFeederThread::run()
 				{
 					ROS_INFO("[feeder] Path blocked, requesting replan.");
 					setFeederEnabled(false); // lololl i lock myself out
-					parent_->planner_->escalatePlannerState(NEED_FULL_REPLAN);
+					shared_ptr<BKPlanningThread> planner_(planner_weak_);
+					planner_->escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			}
 		
@@ -105,10 +115,13 @@ BKFeederThread::run()
 void
 BKFeederThread::sendHaltState()
 {
+	shared_ptr<BKPlanningThread> planner_(planner_weak_);
+	shared_ptr<BKPlanner> parent_(parent_weak_);
+	
 	// Clear our path			
-	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	while(!l){
-		l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		l = recursive_mutex::scoped_try_lock(feeder_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	feeder_path_.segs.clear();
@@ -165,21 +178,22 @@ BKFeederThread::sendHaltState()
 void
 BKFeederThread::getNewSegments()
 {
-	boost::recursive_mutex::scoped_try_lock l1(parent_->planner_->committed_path_mutex_);
-	boost::recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
+	shared_ptr<BKPlanningThread> planner_(planner_weak_);
+	recursive_mutex::scoped_try_lock l1(planner_->committed_path_mutex_);
+	recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
 	
 	while(!l1){
-		l1 = boost::recursive_mutex::scoped_try_lock(parent_->planner_->committed_path_mutex_);
+		l1 = recursive_mutex::scoped_try_lock(planner_->committed_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(!l2){
-		l2 = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		l2 = recursive_mutex::scoped_try_lock(feeder_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
-	if( parent_->planner_->segmentsAvailable() )
+	if( planner_->segmentsAvailable() )
 	{
-		precision_navigation_msgs::Path new_segs = parent_->planner_->dequeueSegments();
+		precision_navigation_msgs::Path new_segs = planner_->dequeueSegments();
 	
 		// Make sure we actually got segments
 		if(new_segs.segs.size() == 0){
@@ -217,9 +231,11 @@ BKFeederThread::getNewSegments()
 void
 BKFeederThread::updatePathVelocities()
 {
-	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	shared_ptr<BKPlanner> parent_(parent_weak_);
+	recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	
 	while(!l){
-		l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		l = recursive_mutex::scoped_try_lock(feeder_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	// Get safe velocities for the segments
@@ -247,15 +263,16 @@ BKFeederThread::isStuckTimerFull()
 bool
 BKFeederThread::isPathClear()
 {
+	shared_ptr<BKPlanner> parent_(parent_weak_);
 	return parent_->path_checker_->isPathClear(feeder_path_);
 }
 
 void
 BKFeederThread::executePath()
 {
-	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+	recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	while(!l){
-		l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		l = recursive_mutex::scoped_try_lock(feeder_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
@@ -306,7 +323,7 @@ BKFeederThread::feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackC
 
 	// Try to get an exclusive lock on the feedback object.
 	// Feedback arrives rapidly, so don't worry if we miss one every so often (hence the try lock)
-	boost::mutex::scoped_try_lock l(feedback_mutex_);
+	mutex::scoped_try_lock l(feedback_mutex_);
 	if( l ){
 	  latest_feedback_ = *feedback;
 	}
@@ -316,14 +333,14 @@ void
 BKFeederThread::discardOldSegs()
 {
 	// We don't want new feedback to arrive while we are in the middle of using it
-	boost::mutex::scoped_try_lock           l1(feedback_mutex_);
-	boost::recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
+	mutex::scoped_try_lock           l1(feedback_mutex_);
+	recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
 	while(!l1){
-		l1 = boost::mutex::scoped_try_lock(feedback_mutex_);
+		l1 = mutex::scoped_try_lock(feedback_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(!l2){
-		l2 = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+		l2 = recursive_mutex::scoped_try_lock(feeder_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
@@ -349,9 +366,9 @@ BKFeederThread::discardOldSegs()
 void
 BKFeederThread::setFeederEnabled(bool state)
 {
-	boost::recursive_mutex::scoped_try_lock l(feeder_enabled_mutex_);
+	recursive_mutex::scoped_try_lock l(feeder_enabled_mutex_);
 	while(!l){
-		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
+		l = recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
@@ -361,9 +378,9 @@ BKFeederThread::setFeederEnabled(bool state)
 bool
 BKFeederThread::isFeederEnabled()
 {
-	boost::recursive_mutex::scoped_try_lock l(feeder_enabled_mutex_);
+	recursive_mutex::scoped_try_lock l(feeder_enabled_mutex_);
 	while(!l){
-		l = boost::recursive_mutex::scoped_try_lock(feeder_enabled_mutex_);
+		l = recursive_mutex::scoped_try_lock(feeder_enabled_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
@@ -374,9 +391,9 @@ void
 BKFeederThread::sendResetSignals()
 {
 	// Wait for the feeder to catch up and finish its main loop
-	boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
+	recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
 	while(!l){
-		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
+		l = recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
@@ -385,7 +402,6 @@ BKFeederThread::sendResetSignals()
 }
 
 // Returns the a snapshot of linear distance left for the feeder
-precision_navigation_msgs::ExecutePathFeedback last_fb_checked_;
 double
 BKFeederThread::getFeederDistLeft()
 {
@@ -395,9 +411,9 @@ BKFeederThread::getFeederDistLeft()
 	double d = 0.0;
 	
 	{
-		boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+		recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 		while(!l){
-			l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+			l = recursive_mutex::scoped_try_lock(feeder_path_mutex_);
 			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 		}
 		
@@ -405,22 +421,11 @@ BKFeederThread::getFeederDistLeft()
 	}
 	
 	{
-		boost::mutex::scoped_try_lock l(feedback_mutex_);
+		mutex::scoped_try_lock l(feedback_mutex_);
 		while(!l){
-			l = boost::mutex::scoped_try_lock(feedback_mutex_);
+			l = mutex::scoped_try_lock(feedback_mutex_);
 			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 		}
-		// Check to see if we checked the same feedback twice in a row
-		/*if( last_fb_checked_.seg_distance_done          == latest_feedback_.seg_distance_done
-		 && last_fb_checked_.current_segment.seg_number == latest_feedback_.current_segment.seg_number){
-		 
-		 	// Additional check: at the beginning of a path, the feedback is never stale
-		 	if(current_seg_complete = 0.0)
-		 		stale_fb = false;
-		 	else
-				stale_fb = true;
-		}*/
-		last_fb_checked_ = latest_feedback_;
 		
 		current_segnum       = latest_feedback_.current_segment.seg_number;
 		current_seg_complete = latest_feedback_.seg_distance_done;
@@ -433,7 +438,7 @@ BKFeederThread::getFeederDistLeft()
 	int start_idx = segment_lib::segnumToIndex(p, current_segnum);
 	
 	// Length of first segment
-	d = segment_lib::linDist(p.segs.front());
+	d = segment_lib::linDist(p.segs.at(start_idx));
 	d = max(0.0, d-current_seg_complete);
 	
 	// Length of the rest

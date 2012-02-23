@@ -28,14 +28,18 @@ namespace bk_planner {
 	namespace p_nav   = precision_navigation_msgs;
 	namespace bk_sbpl = bk_sbpl_lattice_planner;
 	
-	using     geometry_msgs::PoseStamped;
-	using     std::vector;
-	using     segment_lib::pi;
+	using geometry_msgs::PoseStamped;
+	using std::vector;
+	using segment_lib::pi;
+	using boost::shared_ptr;
+	using boost::recursive_mutex;
+	using boost::mutex;
 	
-	// Declare these classes so we can use their names in BKPlanner
+	// Declare these classes so we can use their names in BKPlanner, precious
 	class BKFeederThread;
 	class BKPlanningThread;
 	
+	// Main class that handles a goal callbacks as well as managing a planning thread and a path feeder thread
 	class BKPlanner
 	{
 	public:
@@ -48,15 +52,15 @@ namespace bk_planner {
 		bool gotNewGoal();
     PoseStamped getLatestGoal();
     
-		boost::shared_ptr<costmap_2d::Costmap2DROS>  planner_costmap_;
-		boost::shared_ptr<path_checker::PathChecker> path_checker_;
-		boost::recursive_mutex                       path_checker_mutex;
+		shared_ptr<costmap_2d::Costmap2DROS>  planner_costmap_;
+		shared_ptr<path_checker::PathChecker> path_checker_;
+		recursive_mutex                       path_checker_mutex;
 		
-    boost::shared_ptr<BKPlanningThread> planner_;
-    boost::shared_ptr<BKFeederThread>   feeder_;
-    
 	private:
-		boost::shared_ptr<boost::thread> planning_thread_, feeder_thread_;
+		shared_ptr<BKPlanner>        this_shared_;
+    shared_ptr<BKPlanningThread> planner_;
+    shared_ptr<BKFeederThread>   feeder_;
+		shared_ptr<boost::thread>    planning_thread_, feeder_thread_;
 		void terminateThreads();
 		
 		ros::Subscriber        goal_sub_;
@@ -73,7 +77,7 @@ namespace bk_planner {
     // Do not directly access these variables, not thread-safe.
 		bool                       got_new_goal_;
 		PoseStamped latest_goal_;
-		boost::recursive_mutex     goal_mutex_;
+		recursive_mutex     goal_mutex_;
 	};//BKPlanner
 	
 	enum plannerState
@@ -85,11 +89,13 @@ namespace bk_planner {
 		IN_RECOVERY          = 4
 	};
 	
+	// Class encapsulates a thread that does planning work
 	class BKPlanningThread
 	{
 	public:
-		BKPlanningThread(BKPlanner* parent);
-	
+		BKPlanningThread(boost::weak_ptr<BKPlanner> parent);
+		void setFeeder(boost::weak_ptr<BKFeederThread> feeder);
+		
 		void run();
 		
 		// Escalates to a higher need of replanning/recovery
@@ -97,14 +103,18 @@ namespace bk_planner {
 		void setPlannerState(plannerState newstate);
 		plannerState getPlannerState();
 		
-		// Retrieve the path segments that the planning thread has committed to steering
+		// Retrieve the path segments that the planning thread has committed
 		bool segmentsAvailable();
-		precision_navigation_msgs::Path dequeueSegments();
-		// You can grab the mutex if you are making multiple calls
-		boost::recursive_mutex          committed_path_mutex_;
+		p_nav::Path dequeueSegments();
+		// You can grab the mutex if you need to make multiple calls to these functions
+		recursive_mutex          committed_path_mutex_;
 	
 	private:
-		BKPlanner* parent_;
+		// Non-owning references to the other threads
+		// Whenever we want to dereference these we need to take ownership
+		// ex: shared_ptr<BKPlanner> parent_(parent_weak_);
+		boost::weak_ptr<BKPlanner>      parent_weak_;
+		boost::weak_ptr<BKFeederThread> feeder_weak_;
 
 		// The distance of the commited path that the planner will try to maintain at all times (meters)
 		double commit_distance_;
@@ -117,13 +127,13 @@ namespace bk_planner {
     bool doFullReplan();
     bool doPartialReplan();
     void commitPathSegments();
-		void enqueueSegments(precision_navigation_msgs::Path new_segments);
+		void enqueueSegments(p_nav::Path new_segments);
 		p_nav::PathSegment commitOneSegment();
 		
 		// Makes a plan from start to goal
 		bool planPointToPoint(const PoseStamped& start,
 					                const PoseStamped& goal,
-					                precision_navigation_msgs::Path&  segment_plan);
+					                p_nav::Path&  segment_plan);
 		
 		// Makes a plan from start to as near as possible to goal
 		bool planApproximateToGoal(const PoseStamped& start,
@@ -136,12 +146,13 @@ namespace bk_planner {
 		// Generates candidate goals centered on the true goal
 		vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal);
 		
+		
+		shared_ptr<bk_sbpl::BKSBPLLatticePlanner>  lattice_planner_;
+		shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
+		
 		p_nav::Path planner_path_;
 		PoseStamped last_committed_pose_;
 		int         last_committed_segnum_;
-		
-		boost::shared_ptr<bk_sbpl::BKSBPLLatticePlanner>  lattice_planner_;
-		boost::shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
 
 		// Save a copy of the goals for visualization
 		ros::Publisher candidate_goal_pub_;
@@ -149,15 +160,17 @@ namespace bk_planner {
 		
     // Do not directly access these variables, not thread-safe.
 		plannerState                    planner_state_;
-		boost::recursive_mutex          planner_state_mutex_;
-		precision_navigation_msgs::Path committed_path_;
+		recursive_mutex          planner_state_mutex_;
+		p_nav::Path committed_path_;
 	};//BKPlanningThread
 	
+	
+	// Class encapsulates a thread that takes path segments from the planner and passes them to steering
 	class BKFeederThread
 	{
 	public:	
-		BKFeederThread(BKPlanner* parent);
-	
+		BKFeederThread(boost::weak_ptr<BKPlanner> parent);
+		void setPlanner(boost::weak_ptr<BKPlanningThread> planner);
 		void run();
 	
 		// Thread-safe functions for managing the state of the feeder
@@ -165,14 +178,13 @@ namespace bk_planner {
 		void   sendResetSignals();
 		double getFeederDistLeft();
 		
-		// A lock on this will prevent the feeder from running its main loop
-		boost::recursive_mutex  feeder_lock_mutex_;
+		// A lock on this mutex will prevent the feeder from running its main loop and cause a reset/halt
+		recursive_mutex  feeder_lock_mutex_;
 		
 	private:
-		BKPlanner* parent_;
-		
-		// Keep around this many already-completed segments for show
-		int    segs_to_trail_;
+		// Non-owning references to the other threads
+		boost::weak_ptr<BKPlanner>        parent_weak_;
+		boost::weak_ptr<BKPlanningThread> planner_weak_;
 		
 		bool isFeederEnabled();
 		void sendHaltState();
@@ -186,23 +198,27 @@ namespace bk_planner {
 		void executePath();
 		void discardOldSegs();
 		
+		// Callbacks for action server
 		void doneCb(const actionlib::SimpleClientGoalState& state,
-                const precision_navigation_msgs::ExecutePathResultConstPtr& result);
+                const p_nav::ExecutePathResultConstPtr& result);
 		void activeCb();
-		void feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback);
+		void feedbackCb(const p_nav::ExecutePathFeedbackConstPtr& feedback);
 		
-		precision_navigation_msgs::ExecutePathFeedback latest_feedback_;
+		// Keep around this many already-completed segments for show
+		int    segs_to_trail_;
+		
+		p_nav::ExecutePathFeedback latest_feedback_; // Feedback from action server
 		boost::mutex                                   feedback_mutex_;
-		precision_navigation_msgs::Path                feeder_path_;
-		bool                                           feeder_path_has_changed_;
+		p_nav::Path                feeder_path_;
+		bool                                           feeder_path_has_changed_; // Has our path been updated?
 		
-		boost::shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
-		actionlib::SimpleActionClient<precision_navigation_msgs::ExecutePathAction> client_;
+		shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
+		actionlib::SimpleActionClient<p_nav::ExecutePathAction> client_;
 		bool client_has_goal_;
 		
 		// Do not directly access these variables, not thread-safe.
 		bool feeder_enabled_;
-		boost::recursive_mutex feeder_enabled_mutex_, feeder_path_mutex_;
+		recursive_mutex feeder_enabled_mutex_, feeder_path_mutex_;
 	};//BKFeederThread
 };//namespace
 #endif
