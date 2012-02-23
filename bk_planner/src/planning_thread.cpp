@@ -2,74 +2,103 @@
 
 namespace bk_planner {
 
-void
-BKPlanner::runPlanningThread()
+BKPlanningThread::BKPlanningThread(BKPlanner *parent):
+	parent_  (parent)
 {
-	bool made_one_plan = false; // true if we made at least one plan
-	ros::Rate r(1.0); // hz
-	
-	ROS_INFO("[planning] bk_planner planning thread started");
-	
-		
+	candidate_goal_pub_ = parent_->nh_.advertise<geometry_msgs::PoseArray>("candidate_poses", 1);
+
 	// For visualizing the planning in progress
-	planner_visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
+	visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
 		(new segment_lib::SegmentVisualizer(std::string("planning_visualization")) );
 		
-	// Main loop
-	while(ros::ok())
+	lattice_planner_ = boost::shared_ptr<bk_sbpl::BKSBPLLatticePlanner>
+		(new bk_sbpl::BKSBPLLatticePlanner("lattice_planner", parent_->planner_costmap_) );
+	
+	parent_->priv_nh_.param("planning/commit_distance" ,commit_distance_     ,1.1);
+	parent_->priv_nh_.param("planning/standoff_distance" ,standoff_distance_ ,1.1);
+	ROS_INFO("Commit   distance %.2f", commit_distance_);
+	ROS_INFO("Standoff distance %.2f", standoff_distance_);
+	
+	planner_path_.segs.clear();
+	planner_state_         = GOOD;
+	last_committed_segnum_ = 0;
+	last_committed_pose_   = parent_->getLatestGoal();
+	
+	ROS_INFO("[planning] Constructor finished");
+}
+	
+void
+BKPlanningThread::run()
+{
+	ROS_INFO("[planning] Main thread started");
+	bool made_one_plan = false; // true if we made at least one plan
+	ros::Rate r(1.0); // hz
+		
+	while(ros::ok()) // Main loop
 	{
 		boost::this_thread::interruption_point();
 	
-		if( getPlannerState() == IN_RECOVERY )
+		plannerState s = getPlannerState();
+		switch(s)
 		{
-			doRecovery();
-		}
-		else if( getPlannerState() == NEED_RECOVERY )
-		{
-			startRecovery();
-			escalatePlannerState(IN_RECOVERY);
-		}
-		else if( getPlannerState() == NEED_FULL_REPLAN )
-		{
-			sendResetSignals(); // bring the system to a halt
+			case IN_RECOVERY:
+				doRecovery();
+				break;
+				
+			case NEED_RECOVERY:
+				startRecovery();
+				escalatePlannerState(IN_RECOVERY);
+				break;
 			
-			if( doFullReplan() ) {
-				setPlannerState(GOOD);
-				made_one_plan = true;
-			}else {
-				escalatePlannerState(NEED_RECOVERY);
-			}
-		}
-		else if( getPlannerState() == NEED_PARTIAL_REPLAN )
-		{
-			if( doPartialReplan() ){
-				setPlannerState(GOOD);
-				made_one_plan = true;
-			}else {
-				escalatePlannerState(NEED_FULL_REPLAN);
-			}
-		}
-		
-		if( getPlannerState() == GOOD && made_one_plan )
-		{
-			bool path_clear = path_checker_->isPathClear(planner_path_);
-			bool segs_left  = planner_path_.segs.size()>0;
-			// Check if the path is clear.  If so, pass segments down to the feeder.
-			if( path_clear && segs_left )
-			{
-				ROS_INFO_THROTTLE(5, "[planning] Planner state good.");
-				commitPathSegments();
-				setFeederEnabled(true);
-			}
-			else if(segs_left)
-			{
-				ROS_INFO_THROTTLE(2, "[planning] Found obstacles.");
-				escalatePlannerState(NEED_PARTIAL_REPLAN);
-			}
-			else
-			{
-				ROS_INFO_THROTTLE(5, "[planning] Nothing more to pass down.");
-			}
+			case NEED_FULL_REPLAN:
+				parent_->feeder_->sendResetSignals(); // bring the system to a halt
+			
+				if( doFullReplan() ) {
+					setPlannerState(GOOD);
+					made_one_plan = true;
+				}else {
+					escalatePlannerState(NEED_RECOVERY);
+				}
+				break;
+				
+			case NEED_PARTIAL_REPLAN:
+				if( doPartialReplan() ){
+					setPlannerState(GOOD);
+					made_one_plan = true;
+				}else {
+					escalatePlannerState(NEED_FULL_REPLAN);
+				}
+				break;
+				
+			case GOOD:
+				if( made_one_plan )
+				{
+					bool path_clear = parent_->path_checker_->isPathClear(planner_path_);
+					bool segs_left  = planner_path_.segs.size()>0;
+			
+					// Commit path segments if the path is clear and we have a good plan
+					if( path_clear && segs_left )
+					{
+						ROS_INFO_THROTTLE(5, "[planning] Planner state good.");
+						commitPathSegments();
+						parent_->feeder_->setFeederEnabled(true);
+					}
+					else if(segs_left)
+					{
+						// We found obstacles, signla a replan
+						ROS_INFO_THROTTLE(2, "[planning] Found obstacles.");
+						escalatePlannerState(NEED_PARTIAL_REPLAN);
+					}
+					else
+					{
+						ROS_INFO_THROTTLE(5, "[planning] Nothing more to pass down.");
+					}
+				}
+				break;	
+			
+			default:
+				ROS_ERROR("[planning] Planning is in a bad state right now... State = %d",s);
+				break;
 		}
 	
 		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
@@ -86,9 +115,8 @@ BKPlanner::runPlanningThread()
 		}
 		
 		// publish visualization
-		planner_visualizer_->publishVisualization(planner_path_);
+		visualizer_->publishVisualization(planner_path_);
 		candidate_goal_pub_.publish(pub_goals_);
-		
 		
 		boost::this_thread::interruption_point();
 		r.sleep();
@@ -96,30 +124,30 @@ BKPlanner::runPlanningThread()
 }
 
 void
-BKPlanner::startRecovery()
+BKPlanningThread::startRecovery()
 {
 	ROS_INFO("[planning] Starting recovery");
 }
 
 void
-BKPlanner::doRecovery()
+BKPlanningThread::doRecovery()
 {
 	ROS_INFO("[planning] In recovery");
 	
 	// Temporary: just wait for a new goal
-	if(got_new_goal_) {
+	if(parent_->gotNewGoal()) {
 		setPlannerState(NEED_FULL_REPLAN);
 	}
 }
 
 bool
-BKPlanner::doFullReplan()
+BKPlanningThread::doFullReplan()
 {	
 	ROS_INFO("[planning] Doing full replan");
 			
 	// Get the robot's current pose
 	tf::Stamped<tf::Pose> robot_pose;
-	if(!planner_costmap_->getRobotPose(robot_pose)){
+	if(!parent_->planner_costmap_->getRobotPose(robot_pose)){
 		ROS_ERROR("[planning] Full replan failed (could not get robot's current pose)");
 		return false;
 	}
@@ -127,7 +155,7 @@ BKPlanner::doFullReplan()
 	tf::poseStampedTFToMsg(robot_pose, start);
 	
 	// Get the goal
-	PoseStamped goal = getLatestGoal();
+	PoseStamped goal = parent_->getLatestGoal();
 	
 	// Clear any remnants of the current path
 	dequeueSegments();
@@ -152,12 +180,12 @@ BKPlanner::doFullReplan()
 }
 
 bool
-BKPlanner::doPartialReplan()
+BKPlanningThread::doPartialReplan()
 {
 	ROS_INFO("[planning] Doing partial replan");
 			
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
-	double dist_left = getFeederDistLeft();
+	double dist_left = parent_->feeder_->getFeederDistLeft();
 	// ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
 	if( dist_left < 0.1 && planner_path_.segs.size() == 0){
 		ROS_INFO("[planning] Feeder path empty and nothing more to commit, doing full replan instead.");
@@ -170,7 +198,7 @@ BKPlanner::doPartialReplan()
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
 	}
 	
-	PoseStamped goal  = getLatestGoal();
+	PoseStamped goal  = parent_->getLatestGoal();
 	PoseStamped start;
 	
 	bool replan_from_end_of_first_seg;
@@ -215,12 +243,12 @@ BKPlanner::doPartialReplan()
 
 // Dumb point-to-point planner
 bool
-BKPlanner::planPointToPoint(const PoseStamped& start,
+BKPlanningThread::planPointToPoint(const PoseStamped& start,
                             const PoseStamped& goal,
                             p_nav::Path&       path)
 {
   // Make sure the goal is clear
-  if( !path_checker_->isPoseClear(start) )
+  if( !parent_->path_checker_->isPoseClear(start) )
   {
   	ROS_INFO("[planning] Start pose blocked!");
   	//bool success = getNearestClearGoal(start, goal);
@@ -228,7 +256,7 @@ BKPlanner::planPointToPoint(const PoseStamped& start,
   } 
   
   // Make sure the goal is in bounds
-  if( !path_checker_->isPoseClear(goal) )
+  if( !parent_->path_checker_->isPoseClear(goal) )
   {
   	ROS_INFO("[planning] Goal pose blocked!");
   	return false;
@@ -250,7 +278,7 @@ BKPlanner::planPointToPoint(const PoseStamped& start,
 }
  
 bool
-BKPlanner::planApproximateToGoal(const PoseStamped& start,
+BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
                                  const PoseStamped& goal,
                                  p_nav::Path&       path)
 {
@@ -308,7 +336,7 @@ BKPlanner::replaceSpecialSegments(const p_nav::Path& path)
 }*/
 
 void
-BKPlanner::commitPathSegments()
+BKPlanningThread::commitPathSegments()
 {
 	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
 	while(!l){
@@ -320,7 +348,7 @@ BKPlanner::commitPathSegments()
 	double dist_just_committed;
 	
 	// How much path the feeder has left
-	double dist_left = getFeederDistLeft();
+	double dist_left = parent_->feeder_->getFeederDistLeft();
 	
 	// Desired distance to add
 	double dist_to_add = commit_distance_ - dist_left;
@@ -336,7 +364,7 @@ BKPlanner::commitPathSegments()
 }
 
 p_nav::PathSegment
-BKPlanner::commitOneSegment()
+BKPlanningThread::commitOneSegment()
 {
 	p_nav::Path path_to_commit;
 	path_to_commit.header = planner_path_.header;
@@ -358,7 +386,7 @@ BKPlanner::commitOneSegment()
 // Returns a pose offset from an original.
 // Rotates in place by dtheta degrees and then moves dx meters foward.
 PoseStamped
-BKPlanner::getPoseOffset(const PoseStamped& pose, double dtheta, double dx)
+BKPlanningThread::getPoseOffset(const PoseStamped& pose, double dtheta, double dx)
 {
 	PoseStamped newpose;
 	newpose.header          = pose.header;
@@ -373,7 +401,7 @@ BKPlanner::getPoseOffset(const PoseStamped& pose, double dtheta, double dx)
 
 // Generates candidate goals centered on the true goal
 vector<PoseStamped>
-BKPlanner::generatePotentialGoals(const PoseStamped& true_goal)
+BKPlanningThread::generatePotentialGoals(const PoseStamped& true_goal)
 {
 	vector<PoseStamped> potential_goals;
 	double ds = -1.0*standoff_distance_;
@@ -400,7 +428,7 @@ BKPlanner::generatePotentialGoals(const PoseStamped& true_goal)
 	potential_goals.push_back(getPoseOffset(true_goal, 1.00*pi, ds));
 	
 	// Eliminate goals in collision
-	vector<PoseStamped> cleared_goals = path_checker_->getGoodPoses(potential_goals);
+	vector<PoseStamped> cleared_goals = parent_->path_checker_->getGoodPoses(potential_goals);
 	
 	// Store the candidate goals for visualization
 	pub_goals_.poses.clear();
@@ -411,5 +439,96 @@ BKPlanner::generatePotentialGoals(const PoseStamped& true_goal)
 	
 	return cleared_goals;
 }
-			
+
+bool
+BKPlanningThread::segmentsAvailable()
+{
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+		
+	int num_available = committed_path_.segs.size();
+	return num_available > 0;
+}
+
+precision_navigation_msgs::Path
+BKPlanningThread::dequeueSegments()
+{
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	// Return the current committed path, and clear it.
+	precision_navigation_msgs::Path segs_to_return = committed_path_;
+	committed_path_.segs.clear();
+	
+	return segs_to_return;
+}
+
+void
+BKPlanningThread::enqueueSegments(precision_navigation_msgs::Path new_segments)
+{
+	boost::recursive_mutex::scoped_try_lock l(committed_path_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	// No path exists - commit the new one
+	if( committed_path_.segs.size() == 0 ) {
+		committed_path_ = new_segments;
+		return;
+	}
+	
+	// A path already exists.  Make sure the segment numbers are continuous
+	if(committed_path_.segs.back().seg_number+1 != new_segments.segs.front().seg_number){
+		ROS_ERROR("Tried to commit discontinuous segments");
+		return;
+	}
+	
+	// Append new segments to current ones
+	committed_path_.segs.insert(committed_path_.segs.end(),
+	                            new_segments.segs.begin(), new_segments.segs.end() );
+}
+
+void 
+BKPlanningThread::escalatePlannerState(plannerState newstate)
+{
+	boost::recursive_mutex::scoped_try_lock l(planner_state_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(planner_state_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	if( newstate > planner_state_ )
+		planner_state_ = newstate;
+}
+
+void 
+BKPlanningThread::setPlannerState(plannerState newstate)
+{
+	boost::recursive_mutex::scoped_try_lock l(planner_state_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(planner_state_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	planner_state_ = newstate;
+}
+
+plannerState 
+BKPlanningThread::getPlannerState()
+{
+	boost::recursive_mutex::scoped_try_lock l(planner_state_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(planner_state_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	return planner_state_;
+}
 };//namespace

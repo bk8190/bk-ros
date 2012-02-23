@@ -5,29 +5,18 @@ namespace bk_planner {
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	nh_      (),
 	priv_nh_ ("~"),
-	tf_      (tf),
-	client_  ("execute_path", true)
-	
+	tf_      (tf)
 {
-	priv_nh_.param("planning/commit_distance" ,commit_distance_     ,1.1);
-	priv_nh_.param("planning/standoff_distance" ,standoff_distance_ ,1.1);
-	priv_nh_.param("planning/segs_to_trail"   ,segs_to_trail_       ,4  );
-	
-	ROS_INFO("Commit distance %.2f", commit_distance_);
-	ROS_INFO("Trailing segs:  %d"  , segs_to_trail_);
-
 	// This node subscribes to a goal pose.
 	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
 	
-	// The planner trys to get near the absolute goal, these are the candidate goals.
-	candidate_goal_pub_ = nh_.advertise<geometry_msgs::PoseArray>("candidate_poses", 1);
+
+	
+	// Initialize state variables
+	got_new_goal_          = false;
 	
 	planner_costmap_ = boost::shared_ptr<costmap_2d::Costmap2DROS>
-		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );
-	                 
-	lattice_planner_ = boost::shared_ptr<bk_sbpl::BKSBPLLatticePlanner>
-		(new bk_sbpl::BKSBPLLatticePlanner("lattice_planner", planner_costmap_) );
-	                 
+		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );	          
 	path_checker_    = boost::shared_ptr<path_checker::PathChecker>
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
 	
@@ -38,29 +27,18 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	tf::poseStampedTFToMsg(robot_pose, start_pose);
 	start_pose = poseToGlobalFrame(start_pose);
 	setNewGoal(start_pose);
-
-	ROS_INFO("Waiting for action server...");
-	client_.waitForServer();
 	
-	// Initialize state variables
-	feeder_path_.segs.clear();
-	planner_path_.segs.clear();
-	
-	planner_state_         = GOOD;
-	last_committed_segnum_ = 0;
-	got_new_goal_          = false;
-	feeder_enabled_        = false;
-	client_has_goal_       = false;
-	last_committed_pose_   = start_pose;
-	latest_feedback_.current_segment.seg_number = 0;
-	latest_feedback_.seg_distance_done = 0;0;
-	
+	// Create the planner and feeder threads
+	planner_ = boost::shared_ptr<BKPlanningThread>
+		(new BKPlanningThread(this));		
+	feeder_   = boost::shared_ptr<BKFeederThread>
+		(new BKFeederThread(this));
+		
 	// Kick off the threads
-	planning_thread_    = boost::shared_ptr<boost::thread>
-		(new boost::thread(boost::bind(&BKPlanner::runPlanningThread, this)) );
-	
-	feeder_thread_ = boost::shared_ptr<boost::thread>
-		(new boost::thread(boost::bind(&BKPlanner::runFeederThread  , this)) );
+	planning_thread_ = boost::shared_ptr<boost::thread>
+		(new boost::thread(boost::bind(&BKPlanningThread::run, planner_)) );
+	feeder_thread_   = boost::shared_ptr<boost::thread>
+		(new boost::thread(boost::bind(&BKFeederThread::run  , feeder_ )) );
 
 	ROS_INFO("BKPlanner constructor finished");
 	return;
@@ -89,7 +67,7 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str());
 	
 	setNewGoal(poseToGlobalFrame(goal));
-	escalatePlannerState(NEED_PARTIAL_REPLAN);
+	planner_->escalatePlannerState(NEED_PARTIAL_REPLAN);
 }
 
 PoseStamped
@@ -115,6 +93,44 @@ BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg)
 	tf::poseStampedTFToMsg(global_pose, global_pose_msg);
 	return global_pose_msg;
 }
+
+void 
+BKPlanner::setNewGoal(PoseStamped new_goal)
+{
+	boost::recursive_mutex::scoped_try_lock l(goal_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	got_new_goal_ = true;
+	latest_goal_  = new_goal;
+}
+
+bool 
+BKPlanner::gotNewGoal()
+{
+	boost::recursive_mutex::scoped_try_lock l(goal_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	return got_new_goal_;
+}
+
+PoseStamped 
+BKPlanner::getLatestGoal()
+{
+	boost::recursive_mutex::scoped_try_lock l(goal_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	got_new_goal_ = false;
+	return latest_goal_;
+}
+
 
 };// namespace
 

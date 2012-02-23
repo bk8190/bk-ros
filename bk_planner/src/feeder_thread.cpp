@@ -2,16 +2,33 @@
 
 namespace bk_planner {
 
-void BKPlanner::runFeederThread()
+BKFeederThread::BKFeederThread(BKPlanner* parent):
+	client_  ("execute_path", true),
+	parent_  (parent)
 {
-	long period_ms = (double)200 * 0.5; // 1/path_feeder_frequency_;
-	ros::Rate r(5.0); // hz
+	parent->priv_nh_.param("planning/segs_to_trail"   ,segs_to_trail_       ,4  );
+	ROS_INFO("Trailing segs:  %d", segs_to_trail_);
 	
-	
-	ROS_INFO("bk_planner path feeder thread started, period %ld", period_ms);
-	
-	feeder_visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
+	visualizer_ = boost::shared_ptr<segment_lib::SegmentVisualizer>
 		(new segment_lib::SegmentVisualizer(std::string("feeder_visualization")) );
+
+	feeder_path_.segs.clear();
+	feeder_enabled_        = false;
+	client_has_goal_       = false;
+	latest_feedback_.current_segment.seg_number = 0;
+	latest_feedback_.seg_distance_done = 0;0;
+	
+	ROS_INFO("Waiting for action server...");
+	client_.waitForServer();
+	
+	ROS_INFO("[feeder] Constructor finished");
+}
+
+void
+BKFeederThread::run()
+{	
+	ROS_INFO("[feeder] Main thread started");
+	ros::Rate r(5.0); // hz
 	
 	while(ros::ok())
 	{
@@ -52,11 +69,11 @@ void BKPlanner::runFeederThread()
 				else if(isStuckTimerFull())
 				{
 					ROS_INFO("[feeder] Stuck timer full, requesting replan.");
-					escalatePlannerState(NEED_FULL_REPLAN);
+					parent_->planner_->escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			
 				// Check if the path is clear.  If so, send it to precision steering.
-				if( path_checker_->isPathClear(feeder_path_) )
+				if( parent_->path_checker_->isPathClear(feeder_path_) )
 				{
 					ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
 					executePath();
@@ -65,7 +82,7 @@ void BKPlanner::runFeederThread()
 				{
 					ROS_INFO("[feeder] Path blocked, requesting replan.");
 					setFeederEnabled(false); // lololl i lock myself out
-					escalatePlannerState(NEED_FULL_REPLAN);
+					parent_->planner_->escalatePlannerState(NEED_FULL_REPLAN);
 				}
 			}
 		
@@ -75,7 +92,7 @@ void BKPlanner::runFeederThread()
 				segment_lib::reFrame(feeder_path_);
 			}
 			// Have the visualizer publish visualization
-			feeder_visualizer_->publishVisualization(feeder_path_);
+			visualizer_->publishVisualization(feeder_path_);
 		}
 		
 		boost::this_thread::interruption_point();
@@ -86,7 +103,7 @@ void BKPlanner::runFeederThread()
 
 // Cancel any goal in progress
 void
-BKPlanner::sendHaltState()
+BKFeederThread::sendHaltState()
 {
 	// Clear our path			
 	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
@@ -100,8 +117,8 @@ BKPlanner::sendHaltState()
 	if(client_has_goal_ == true)
 	{
 		tf::Stamped<tf::Pose> robot_pose;
-		if(!planner_costmap_->getRobotPose(robot_pose)){
-			ROS_ERROR("[feeder] Couldn't get robot pose to makehalt state");
+		if(!parent_->planner_costmap_->getRobotPose(robot_pose)){
+			ROS_ERROR("[feeder] Couldn't get robot pose to make halt state");
 		}
 		PoseStamped pose;
 		tf::poseStampedTFToMsg(robot_pose, pose);
@@ -129,9 +146,9 @@ BKPlanner::sendHaltState()
 		action_goal.segments.push_back(seg);
 	
 		client_.sendGoal(action_goal,
-				boost::bind(&BKPlanner::doneCb    , this, _1, _2),
-				boost::bind(&BKPlanner::activeCb  , this        ),
-				boost::bind(&BKPlanner::feedbackCb, this, _1    ));
+				boost::bind(&BKFeederThread::doneCb    , this, _1, _2),
+				boost::bind(&BKFeederThread::activeCb  , this        ),
+				boost::bind(&BKFeederThread::feedbackCb, this, _1    ));
 		client_has_goal_ = false;
 	}
 	/*
@@ -146,13 +163,13 @@ BKPlanner::sendHaltState()
 }
 
 void
-BKPlanner::getNewSegments()
+BKFeederThread::getNewSegments()
 {
-	boost::recursive_mutex::scoped_try_lock l1(committed_path_mutex_);
+	boost::recursive_mutex::scoped_try_lock l1(parent_->planner_->committed_path_mutex_);
 	boost::recursive_mutex::scoped_try_lock l2(feeder_path_mutex_);
 	
 	while(!l1){
-		l1 = boost::recursive_mutex::scoped_try_lock(committed_path_mutex_);
+		l1 = boost::recursive_mutex::scoped_try_lock(parent_->planner_->committed_path_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	while(!l2){
@@ -160,9 +177,9 @@ BKPlanner::getNewSegments()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
-	if( segmentsAvailable() )
+	if( parent_->planner_->segmentsAvailable() )
 	{
-		precision_navigation_msgs::Path new_segs = dequeueSegments();
+		precision_navigation_msgs::Path new_segs = parent_->planner_->dequeueSegments();
 	
 		// Make sure we actually got segments
 		if(new_segs.segs.size() == 0){
@@ -198,7 +215,7 @@ BKPlanner::getNewSegments()
 }
 
 void
-BKPlanner::updatePathVelocities()
+BKFeederThread::updatePathVelocities()
 {
 	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	while(!l){
@@ -206,35 +223,35 @@ BKPlanner::updatePathVelocities()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	// Get safe velocities for the segments
-	path_checker_->assignPathVelocity(feeder_path_);
+	parent_->path_checker_->assignPathVelocity(feeder_path_);
 }
 
 bool
-BKPlanner::hasProgressBeenMade()
+BKFeederThread::hasProgressBeenMade()
 {
 	return true;
 }
 
 void
-BKPlanner::resetStuckTimer()
+BKFeederThread::resetStuckTimer()
 {
 	return;
 }
 
 bool
-BKPlanner::isStuckTimerFull()
+BKFeederThread::isStuckTimerFull()
 {
 	return false;
 }
 
 bool
-BKPlanner::isPathClear()
+BKFeederThread::isPathClear()
 {
-	return( path_checker_->isPathClear(feeder_path_) );
+	return parent_->path_checker_->isPathClear(feeder_path_);
 }
 
 void
-BKPlanner::executePath()
+BKFeederThread::executePath()
 {
 	boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	while(!l){
@@ -255,9 +272,9 @@ BKPlanner::executePath()
 		precision_navigation_msgs::ExecutePathGoal action_goal;
 		action_goal.segments = feeder_path_.segs;
 		client_.sendGoal(action_goal,
-				boost::bind(&BKPlanner::doneCb    , this, _1, _2),
-				boost::bind(&BKPlanner::activeCb  , this        ),
-				boost::bind(&BKPlanner::feedbackCb, this, _1    ));
+				boost::bind(&BKFeederThread::doneCb    , this, _1, _2),
+				boost::bind(&BKFeederThread::activeCb  , this        ),
+				boost::bind(&BKFeederThread::feedbackCb, this, _1    ));
 		client_has_goal_ = true;
 	}
 	else
@@ -268,7 +285,7 @@ BKPlanner::executePath()
 
 // Called once when the goal completes
 void
-BKPlanner::doneCb(const actionlib::SimpleClientGoalState& state,
+BKFeederThread::doneCb(const actionlib::SimpleClientGoalState& state,
                   const precision_navigation_msgs::ExecutePathResultConstPtr& result)
 {
   ROS_INFO("[feeder] Steering finished in state [%s]", state.toString().c_str());
@@ -276,14 +293,14 @@ BKPlanner::doneCb(const actionlib::SimpleClientGoalState& state,
 
 // Called once when the goal becomes active
 void
-BKPlanner::activeCb()
+BKFeederThread::activeCb()
 {
   //ROS_INFO("Goal just went active");
 }
 
 // Called every time feedback is received for the goal
 void
-BKPlanner::feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback)
+BKFeederThread::feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstPtr& feedback)
 {
   //ROS_INFO("Got Feedback. Seg number %u, current seg %u, dist done %.2f", feedback->seg_number, feedback->current_segment.seg_number, feedback->seg_distance_done);
 
@@ -296,7 +313,7 @@ BKPlanner::feedbackCb(const precision_navigation_msgs::ExecutePathFeedbackConstP
 }
 
 void
-BKPlanner::discardOldSegs()
+BKFeederThread::discardOldSegs()
 {
 	// We don't want new feedback to arrive while we are in the middle of using it
 	boost::mutex::scoped_try_lock           l1(feedback_mutex_);
@@ -327,4 +344,108 @@ BKPlanner::discardOldSegs()
 		}
 	}
 }
+
+
+void
+BKFeederThread::setFeederEnabled(bool state)
+{
+	boost::recursive_mutex::scoped_try_lock l(feeder_enabled_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	feeder_enabled_ = state;
+}
+
+bool
+BKFeederThread::isFeederEnabled()
+{
+	boost::recursive_mutex::scoped_try_lock l(feeder_enabled_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_enabled_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	return feeder_enabled_;
+}
+
+void 
+BKFeederThread::sendResetSignals()
+{
+	// Wait for the feeder to catch up and finish its main loop
+	boost::recursive_mutex::scoped_try_lock l(feeder_lock_mutex_);
+	while(!l){
+		l = boost::recursive_mutex::scoped_try_lock(feeder_lock_mutex_);
+		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+	}
+	
+	// Disable the feeder
+	setFeederEnabled(false);
+}
+
+// Returns the a snapshot of linear distance left for the feeder
+precision_navigation_msgs::ExecutePathFeedback last_fb_checked_;
+double
+BKFeederThread::getFeederDistLeft()
+{
+	p_nav::Path p;
+	int current_segnum;
+	double current_seg_complete = 0.0;
+	double d = 0.0;
+	
+	{
+		boost::recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
+		while(!l){
+			l = boost::recursive_mutex::scoped_try_lock(feeder_path_mutex_);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+		}
+		
+		p = feeder_path_;
+	}
+	
+	{
+		boost::mutex::scoped_try_lock l(feedback_mutex_);
+		while(!l){
+			l = boost::mutex::scoped_try_lock(feedback_mutex_);
+			boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+		}
+		// Check to see if we checked the same feedback twice in a row
+		/*if( last_fb_checked_.seg_distance_done          == latest_feedback_.seg_distance_done
+		 && last_fb_checked_.current_segment.seg_number == latest_feedback_.current_segment.seg_number){
+		 
+		 	// Additional check: at the beginning of a path, the feedback is never stale
+		 	if(current_seg_complete = 0.0)
+		 		stale_fb = false;
+		 	else
+				stale_fb = true;
+		}*/
+		last_fb_checked_ = latest_feedback_;
+		
+		current_segnum       = latest_feedback_.current_segment.seg_number;
+		current_seg_complete = latest_feedback_.seg_distance_done;
+	}
+	
+	if( p.segs.size() == 0 ){
+		return 0.0;
+	}
+	
+	int start_idx = segment_lib::segnumToIndex(p, current_segnum);
+	
+	// Length of first segment
+	d = segment_lib::linDist(p.segs.front());
+	d = max(0.0, d-current_seg_complete);
+	
+	// Length of the rest
+	if( p.segs.size() > 1)
+	{
+		for( unsigned int i = start_idx + 1; i < p.segs.size(); i++ )
+		{
+			d += segment_lib::linDist(p.segs.at(i));
+		}
+	}
+	
+	return d;
+}
+
 };//namespace
