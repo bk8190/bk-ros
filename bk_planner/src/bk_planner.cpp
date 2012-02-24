@@ -3,17 +3,12 @@
 namespace bk_planner {
 
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
-	nh_          (),
-	priv_nh_     ("~"),
-	tf_          (tf)
+	nh_           (),
+	priv_nh_      ("~"),
+	tf_           (tf),
+	got_new_goal_ (false)
 {
-	// This node subscribes to a goal pose.
-	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
-	
-	// Initialize state variables
-	got_new_goal_          = false;
-	
-	// Initialize data
+	// Initialize the cost map and path checker
 	planner_costmap_ = shared_ptr<costmap_2d::Costmap2DROS>
 		(new costmap_2d::Costmap2DROS("local_costmap", tf_) );	          
 	path_checker_    = shared_ptr<path_checker::PathChecker>
@@ -43,7 +38,10 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	feeder_thread_   = shared_ptr<boost::thread>
 		(new boost::thread(boost::bind(&BKFeederThread::run  , feeder_ )) );
 
-	ROS_INFO("BKPlanner constructor finished");
+	// This node subscribes to a goal pose.
+	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
+	
+	// ROS_INFO("BKPlanner constructor finished");
 	return;
 }
 

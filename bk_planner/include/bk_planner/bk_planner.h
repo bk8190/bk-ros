@@ -133,22 +133,6 @@ namespace bk_planner {
 		void enqueueSegments(p_nav::Path new_segments);
 		p_nav::PathSegment commitOneSegment();
 		
-		// Makes a plan from start to goal
-		bool planPointToPoint(const PoseStamped& start,
-					                const PoseStamped& goal,
-					                p_nav::Path&  segment_plan);
-		
-		// Makes a plan from start to as near as possible to goal
-		bool planApproximateToGoal(const PoseStamped& start,
-		                           const PoseStamped& goal,
-		                           p_nav::Path&       path);
-                               
-                               
-		PoseStamped getPoseOffset(const PoseStamped& pose, double dtheta, double dx);
-
-		// Generates candidate goals centered on the true goal
-		vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal);
-		
 		
 		shared_ptr<bk_sbpl::BKSBPLLatticePlanner>  lattice_planner_;
 		shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
@@ -165,6 +149,28 @@ namespace bk_planner {
 		plannerState                    planner_state_;
 		recursive_mutex          planner_state_mutex_;
 		p_nav::Path committed_path_;
+		
+		/* Planning functions in planning_lib.cpp */
+		// Makes a plan from start to goal
+		bool planPointToPoint(const PoseStamped& start,
+					                const PoseStamped& goal,
+					                p_nav::Path&  segment_plan,
+		                      shared_ptr<path_checker::PathChecker>     path_checker,
+                          shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner );
+		
+		// Makes a plan from start to as near as possible to goal
+		bool planApproximateToGoal(const PoseStamped& start,
+		                           const PoseStamped& goal,
+		                           p_nav::Path&       path,
+		                           shared_ptr<path_checker::PathChecker>     path_checker,
+                               shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner );
+                               
+		PoseStamped getPoseOffset(const PoseStamped& pose, double dtheta, double dx);
+
+		// Generates candidate goals centered on the true goal
+		vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal,
+                                        shared_ptr<path_checker::PathChecker> path_checker);
+		
 	};//BKPlanningThread
 	
 	

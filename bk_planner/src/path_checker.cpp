@@ -133,7 +133,7 @@ PathChecker::getGoodPoses(const vector<PoseStamped>& poses)
 		}
 	}
 	
-	ROS_INFO("[path checker] %d/%d poses cleared.", cleared.size(), poses.size());
+	//ROS_INFO("[path checker] %d/%d poses cleared.", cleared.size(), poses.size());
 	return cleared;
 }
 
