@@ -1,14 +1,14 @@
 accel_lim:
- max_acc_x: 0.05
+ max_acc_x: 0.010
  max_acc_y: 0.0
- max_acc_th: 0.1
+ max_acc_th: 0.010
 
 speed_lim:
- max_spd_x: 0.4
- max_spd_th: 0.5
+ max_spd_x: 0.3
+ max_spd_th: 0.15
 
 planning:
- obstacle_cost: 200
+ obstacle_cost: 190
  lethal_cost: 253
 
 interpolation:

@@ -137,7 +137,27 @@ int
 main(int argc, char** argv)
 {
 	ros::init(argc, argv, "bk_planner_node");
+	ros::NodeHandle nh;
+	ros::Duration(3.0).sleep();
 	tf::TransformListener tf(ros::Duration(10));
+	
+	bool found = false;
+	while( !found ){
+		try{
+			ROS_INFO("[planner] Getting transforms");
+			found = true;
+			tf::StampedTransform transform;
+			tf.waitForTransform("odom", "map"      , ros::Time::now(), ros::Duration(1));
+			tf.lookupTransform ("odom", "map"      , ros::Time::now(), transform);
+			tf.waitForTransform("odom", "base_link", ros::Time::now(), ros::Duration(1));
+			tf.lookupTransform ("odom", "base_link", ros::Time::now(), transform);
+		}
+		catch(tf::TransformException& ex){
+			ROS_INFO("[planner] Failed to get transforms %s", ex.what());
+			found = false;
+		}
+	}
+	ROS_INFO("[planner] Got transforms");
 
 	try	{
 		bk_planner::BKPlanner bkp("bk_planner", tf);
