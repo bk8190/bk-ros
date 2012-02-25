@@ -29,7 +29,7 @@
 function[] = genmprim_unicycle_gentileturns(outfilename)
 
 if ~exist('outfilename','var')
-    outfilename = 'derp.mprim'
+    outfilename = 'unicycle_gentleturns.mprim'
 end
 
 %

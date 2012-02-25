@@ -28,6 +28,10 @@
 %  */
 function[] = genmprim_unicycle(outfilename)
 
+if ~exist('outfilename','var')
+    outfilename = 'unicycle_unicycle.mprim'
+end
+
 %
 %generates motion primitives and saves them into file
 %
@@ -43,7 +47,7 @@ UNICYCLE_MPRIM_16DEGS = 1;
 if UNICYCLE_MPRIM_16DEGS == 1
     resolution = 0.025;
     numberofangles = 16; %preferably a power of 2, definitely multiple of 8
-    numberofprimsperangle = 5;
+    numberofprimsperangle = 7;
 
     %multipliers (multiplier is used as costmult*cost)
     forwardcostmult = 1;
@@ -66,8 +70,8 @@ if UNICYCLE_MPRIM_16DEGS == 1
     basemprimendpts0_c(4,:) = [8 1 1 forwardandturncostmult];
     basemprimendpts0_c(5,:) = [8 -1 -1 forwardandturncostmult];
     %turn in place
-    %basemprimendpts0_c(6,:) = [0 0 1 turninplacecostmult];
-    %basemprimendpts0_c(7,:) = [0 0 -1 turninplacecostmult];
+    basemprimendpts0_c(6,:) = [0 0 1 turninplacecostmult];
+    basemprimendpts0_c(7,:) = [0 0 -1 turninplacecostmult];
     
     %45 degrees
     basemprimendpts45_c = zeros(numberofprimsperangle, 4); %x,y,theta,costmult (multiplier is used as costmult*cost)
@@ -81,8 +85,8 @@ if UNICYCLE_MPRIM_16DEGS == 1
     basemprimendpts45_c(4,:) = [5 7 1 forwardandturncostmult];
     basemprimendpts45_c(5,:) = [7 5 -1 forwardandturncostmult];    
     %turn in place
-    %basemprimendpts45_c(6,:) = [0 0 1 turninplacecostmult];
-    %basemprimendpts45_c(7,:) = [0 0 -1 turninplacecostmult];
+    basemprimendpts45_c(6,:) = [0 0 1 turninplacecostmult];
+    basemprimendpts45_c(7,:) = [0 0 -1 turninplacecostmult];
     
     %22.5 degrees
     basemprimendpts22p5_c = zeros(numberofprimsperangle, 4); %x,y,theta,costmult (multiplier is used as costmult*cost)
@@ -96,8 +100,8 @@ if UNICYCLE_MPRIM_16DEGS == 1
     basemprimendpts22p5_c(4,:) = [5 4 1 forwardandturncostmult];
     basemprimendpts22p5_c(5,:) = [7 2 -1 forwardandturncostmult];    
     %turn in place
-    %basemprimendpts22p5_c(6,:) = [0 0 1 turninplacecostmult];
-    %basemprimendpts22p5_c(7,:) = [0 0 -1 turninplacecostmult];
+    basemprimendpts22p5_c(6,:) = [0 0 1 turninplacecostmult];
+    basemprimendpts22p5_c(7,:) = [0 0 -1 turninplacecostmult];
         
 else
     fprintf(1, 'ERROR: undefined mprims type\n');
