@@ -129,7 +129,7 @@ BKPlanningThread::planPointToPoint(const PoseStamped& start,
 	ros::Duration t = ros::Time::now() - t1;
 	
 	if( success == false ){
-		ROS_INFO("[planning] Point-point plan failed! (took %.2f seconds)",t.toSec());
+		ROS_WARN("[planning] Point-point plan failed! (took %.2f seconds)",t.toSec());
 		return false;
 	}
 	

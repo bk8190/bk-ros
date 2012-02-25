@@ -51,7 +51,7 @@ if UNICYCLE_MPRIM_16DEGS == 1
     
     %multipliers (multiplier is used as costmult*cost)
     forwardcostmult = 2;
-    backwardcostmult = 14;
+    backwardcostmult = 10;
     forwardandturncostmult = 4;
     shallowturncostmult = 2;
     turninplacecostmult = 10;

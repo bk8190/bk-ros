@@ -1,6 +1,13 @@
 <!-- Brings up the planner -->
 <launch>
-	<node pkg="bk_planner" type="bk_planner" respawn="false" name="bk_planner" output="screen">
+
+	<!-- Setup the debugging prefix -->
+	<arg name="debug" default="true"/>
+	<arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/>
+	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
+
+	<node pkg="bk_planner" type="bk_planner" respawn="false" name="bk_planner"
+		output="screen" launch-prefix="$(arg launch_prefix)">
 		
 		<!-- Common costmap parameters (both global and local) -->
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_common_params.yaml"
@@ -17,8 +24,8 @@
 		<!-- Lattice planner parameters -->
 		<rosparam file="$(find bk_configs)/common/nav/sbpl_global_params.yaml"
 			command="load" ns="lattice_planner" />
-		<!--param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/unicycle_backonlystraight.mprim" /-->
-		<param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/mprim_unic_gentle_1_0.mprim" />
+		<param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/unicycle_backonlystraight.mprim" />
+		<param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/unicycle_gentleturns.mprim" />
 		
 		<!-- Path checker parameters -->
 		<rosparam file="$(find bk_configs)/common/nav/path_checker_params.yaml"
