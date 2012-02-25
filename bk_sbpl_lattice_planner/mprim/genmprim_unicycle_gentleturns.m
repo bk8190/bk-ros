@@ -50,11 +50,11 @@ if UNICYCLE_MPRIM_16DEGS == 1
     numberofprimsperangle = 9;
     
     %multipliers (multiplier is used as costmult*cost)
-    forwardcostmult = 2;
-    backwardcostmult = 10;
-    forwardandturncostmult = 4;
-    shallowturncostmult = 2;
-    turninplacecostmult = 10;
+    forwardcostmult = 1;
+    backwardcostmult = 5;
+    forwardandturncostmult = 2;
+    shallowturncostmult = 1;
+    turninplacecostmult = 5;
     
     %note, what is shown x,y,theta changes (not absolute numbers)
     
