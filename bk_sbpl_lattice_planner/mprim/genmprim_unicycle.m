@@ -29,7 +29,7 @@
 function[] = genmprim_unicycle(outfilename)
 
 if ~exist('outfilename','var')
-    outfilename = 'unicycle_unicycle.mprim'
+    outfilename = 'unicycle.mprim'
 end
 
 %
