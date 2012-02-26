@@ -7,7 +7,7 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-set(ROS_BUILD_TYPE Debug)
+#set(ROS_BUILD_TYPE RelWithDebInfo)
 
 rosbuild_init()
 
@@ -17,13 +17,9 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 #uncomment if you have defined messages
-#rosbuild_genmsg()
+rosbuild_genmsg()
 #uncomment if you have defined services
 #rosbuild_gensrv()
-
-rosbuild_add_executable(person_tracker src/PersonTracker.cpp)
-rosbuild_add_library(PTSounds src/PTSounds.cpp)
-target_link_libraries(person_tracker PTSounds)
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)

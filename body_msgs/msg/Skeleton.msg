@@ -1,0 +1,16 @@
+int32 playerid
+body_msgs/SkeletonJoint head
+body_msgs/SkeletonJoint neck
+body_msgs/SkeletonJoint right_hand
+body_msgs/SkeletonJoint left_hand
+body_msgs/SkeletonJoint right_shoulder
+body_msgs/SkeletonJoint left_shoulder
+body_msgs/SkeletonJoint right_elbow
+body_msgs/SkeletonJoint left_elbow
+body_msgs/SkeletonJoint torso
+body_msgs/SkeletonJoint left_hip
+body_msgs/SkeletonJoint right_hip
+body_msgs/SkeletonJoint left_knee
+body_msgs/SkeletonJoint right_knee
+body_msgs/SkeletonJoint left_foot
+body_msgs/SkeletonJoint right_foot

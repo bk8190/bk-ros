@@ -24,7 +24,7 @@
 		<!-- Lattice planner parameters -->
 		<rosparam file="$(find bk_configs)/common/nav/sbpl_global_params.yaml"
 			command="load" ns="lattice_planner" />
-		<param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/unicycle_backturn.mprim" />
+		<!--param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/unicycle_backturn.mprim" /-->
 		<param name="lattice_planner/primitive_filename" value="$(find bk_sbpl_lattice_planner)/mprim/unicycle_gentleturns.mprim" />
 		
 		<!-- Path checker parameters -->

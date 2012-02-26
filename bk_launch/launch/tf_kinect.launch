@@ -1,3 +1,4 @@
+<!-- Static transform for the Kinect -->
 <launch>
 
   <!-- Transform from Roberto's base_link to Roberto's Kinect. -->

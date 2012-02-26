@@ -1,6 +1,7 @@
+<!-- Starts skeleton tracking -->
 <launch>
 	<!-- Kinect driver -->
-	<include file="$(find bk_launch)/launch/run_openni.launch" >
+	<include file="$(find bk_launch)/launch/bringup_kinect.launch" >
 	</include>
 
   <node pkg="bk_openni_tracker" type="bk_openni_tracker" name="bk_openni_tracker" output="screen"  >

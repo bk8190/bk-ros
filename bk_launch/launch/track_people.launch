@@ -1,0 +1,32 @@
+<!-- Starts person tracking -->
+<launch>
+
+	<!-- Setup the debugging prefix -->
+	<arg name="debug" default="true"/>
+	<arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/>
+	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
+
+	<!-- Start the Kinect as well as nodes that publish skeleton information !-->
+	<!--include file="($find bk_launch)/launch/bk_openni_tracker.launch" /-->
+	
+	<!-- Start a soundplay node -->
+	<node pkg="sound_play" type="soundplay_node.py" name="soundplay_node" />
+	
+	
+	<!-- This node subscribes to info from the Kinect and outputs a goal position -->
+	<node pkg="person_tracker" type="person_tracker" respawn="false" name="person_tracker"
+		output="screen" launch-prefix="$(arg launch_prefix)">
+		
+		<!-- Paramter file for person tracker -->
+		<rosparam file="$(find bk_configs)/common/vision/person_tracker_params.yaml"
+			command="load"  />
+			
+		<!-- Paramter file for sound player -->
+		<rosparam file="$(find bk_configs)/common/vision/person_tracker_sounds.yaml"
+			command="load" ns="sounds"  />
+			
+		<!-- Topic remappings -->
+		<!-- remap from="goal" to="/move_base_simple/goal" /-->
+	</node>
+	
+</launch>

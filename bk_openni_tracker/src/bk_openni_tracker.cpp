@@ -37,7 +37,7 @@ void getUserLabelImage(const xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
 	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
 
-	std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
+	// std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
 	cv::Mat tempmat(rows, cols, CV_16U);
 	tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
 	cv::Mat tempmat2 = tempmat.clone();

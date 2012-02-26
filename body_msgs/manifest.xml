@@ -1,0 +1,22 @@
+<package>
+  <description brief="Messages for body primitives">
+  
+    body_msgs provides messages for common body primitives
+    such as hands, skeletons and joints. These primitives are designed
+    to provide a common data type and facilitate interoperability
+    throughout the system. 
+
+     
+
+  </description>
+  <author>Garratt</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/body_msgs</url>
+  <depend package="mapping_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="sensor_msgs"/>
+
+</package>
+
+
