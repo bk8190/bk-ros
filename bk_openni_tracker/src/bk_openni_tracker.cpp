@@ -326,7 +326,7 @@ int main(int argc, char **argv) {
 	{
 		g_Context.WaitAndUpdateAll();
 		
-		publishTransforms(frame_id);
+		//publishTransforms(frame_id);
 
 		pmaps.clear();
 		skels.skeletons.clear();
