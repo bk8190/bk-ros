@@ -51,16 +51,11 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 		{
 			person_pos_.pose.position    = torso.position;
 			person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-//			person_pos_.header.frame_id  = skel_msg.header.frame_id;
 			person_pos_.header.frame_id  = "camera_depth_optical_frame";
-//			person_pos_.header.frame_id  = "camera_link";
 			person_pos_.header.stamp     = skel_msg.header.stamp;
 			
 			found_person_ = true;
 			sound_player_.setState(PTSounds::state_tracking);
-			goal_pub_.publish(getPersonPosition());
-			
-			ROS_INFO("[person tracker] Found a person at x=%.2f\ty=%.2f\tz=%.2f\t", person_pos_.pose.position.x, person_pos_.pose.position.y, person_pos_.pose.position.z);
 			
 			break;
 		}
@@ -72,6 +67,8 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	ROS_DEBUG("[person tracker] Last callback took %f seconds", event.profile.last_duration.toSec());
 
 	if( found_person_ ){
+		goal_pub_.publish(getPersonPosition());
+		ROS_INFO("[person tracker] Found a person at x=%.2f\ty=%.2f\tz=%.2f\t", person_pos_.pose.position.x, person_pos_.pose.position.y, person_pos_.pose.position.z);
 	}
 	else{
 		sound_player_.setState(PTSounds::state_searching);
