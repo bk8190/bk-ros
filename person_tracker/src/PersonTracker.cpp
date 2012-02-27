@@ -50,6 +50,10 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 		if( torso.confidence > 0.5 )
 		{
 			person_pos_.pose.position    = torso.position;
+			
+			// TODO: Fix this dirty hack.  I am mirroring the image over its vertical axis which should be done by a transform
+			person_pos_.pose.position.x = torso.position.x * -1.0;
+			
 			person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
 			ROS_INFO_THROTTLE(5,"Skeletons' frame ID is %s", skel_msg.header.frame_id.c_str());
 			person_pos_.header.frame_id  = skel_msg.header.frame_id;//"camera_depth_frame";

@@ -290,8 +290,8 @@ void glutDisplay (void)
 		g_DepthGenerator.GetMetaData(depthMD);
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 		DrawDepthMap(depthMD, sceneMD);
-		std::vector<mapping_msgs::PolygonalMap> pmaps;
-		body_msgs::Skeletons skels;
+		//std::vector<mapping_msgs::PolygonalMap> pmaps;
+		//body_msgs::Skeletons skels;
 		//getSkels(pmaps,skels);
 
 		/*cv::Mat user_label_image;
@@ -299,10 +299,9 @@ void glutDisplay (void)
 
 		ROS_DEBUG("skels size %d \n",pmaps.size());
 		if(pmaps.size()){
-
 		   skels.header.stamp=tstamp;
 		   skels.header.seq = depthMD.FrameID();
-		   skels.header.frame_id="/openni_depth_optical_frame";
+		   skels.header.frame_id="/camera_depth_optical_frame";
 		   skel_pub.publish(skels);
 	      pmaps.front().header.stamp=tstamp;
 	      pmaps.front().header.seq = depthMD.FrameID();
