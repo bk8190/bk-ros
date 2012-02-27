@@ -1,6 +1,7 @@
 <!-- Brings up the planner -->
 <launch>
-
+	<!--include file="($find precision_steering)/start_precision_steering.launch" /-->
+	
 	<!-- Setup the debugging prefix -->
 	<arg name="debug" default="false"/>
 	<arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/>

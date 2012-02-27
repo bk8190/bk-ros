@@ -4,4 +4,5 @@
   <!-- Transform from Roberto's base_link to Roberto's Kinect. -->
   <node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true" args="-0.4651 0 1.5572 0.017453 0.1047198 -0.017453 base_link camera_link 100" />
   
+  <!-- "-0.4651 0 1.5572 0.017453 0.1047198 -0.017453 base_link camera_link 100" -->
 </launch>

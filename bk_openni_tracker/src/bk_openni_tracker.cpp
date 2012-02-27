@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
 		tstamp=ros::Time::now();
 
 		// Get image with user labels
-		g_UserGenerator.GetUserPixels(0, sceneMD);
+		/*g_UserGenerator.GetUserPixels(0, sceneMD);
 		getUserLabelImage(sceneMD, user_label_image);
 		//cv::imshow(WINDOW, user_label_image*70 );
 		//cv::waitKey(3);
@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
 		cv_img.header.seq = ++img_seq;
 		cv_img.header.stamp = tstamp;
 		cv_img.toImageMsg(ros_image);
-		image_pub.publish(ros_image);
+		image_pub.publish(ros_image);*/
 		
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
@@ -355,12 +355,13 @@ int main(int argc, char **argv) {
 			g_DepthGenerator.GetMetaData(depthMD);
 			skels.header.stamp    = tstamp;
 			skels.header.seq      = depthMD.FrameID();
-			skels.header.frame_id = "/camera_depth_optical_frame";
+			skels.header.frame_id = frame_id;//"/camera_depth_optical_frame";
+			ROS_INFO_THROTTLE(5,"Publishing skeletons in frame %s", skels.header.frame_id.c_str());
 			skel_pub.publish(skels);
 
 			pmaps.front().header.stamp    = tstamp;
 			pmaps.front().header.seq      = depthMD.FrameID();
-			pmaps.front().header.frame_id = "/camera_depth_optical_frame";
+			pmaps.front().header.frame_id = frame_id;//"/camera_depth_optical_frame";
 			pmap_pub.publish(pmaps[0]);
 		}
 

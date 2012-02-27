@@ -292,9 +292,9 @@ void glutDisplay (void)
 		DrawDepthMap(depthMD, sceneMD);
 		std::vector<mapping_msgs::PolygonalMap> pmaps;
 		body_msgs::Skeletons skels;
-		getSkels(pmaps,skels);
+		//getSkels(pmaps,skels);
 
-		cv::Mat user_label_image;
+		/*cv::Mat user_label_image;
 		getUserLabelImage(sceneMD, user_label_image);
 
 		ROS_DEBUG("skels size %d \n",pmaps.size());
@@ -308,7 +308,7 @@ void glutDisplay (void)
 	      pmaps.front().header.seq = depthMD.FrameID();
 	      pmaps.front().header.frame_id="/openni_depth_optical_frame";
 		   pmap_pub.publish(pmaps[0]);
-		}
+		}*/
 
 
 	glutSwapBuffers();
@@ -396,8 +396,8 @@ int main(int argc, char **argv)
    int device_id;
 //   param_nh.param ("device_id", device_id, argc > 1 ? atoi (argv[1]) : 0);
 
-   pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 100);
-   skel_pub = nh_.advertise<body_msgs::Skeletons> ("skeletons", 100);
+   //pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 100);
+   //skel_pub = nh_.advertise<body_msgs::Skeletons> ("skeletons", 100);
 	XnStatus nRetVal = XN_STATUS_OK;
 
 	if (argc > 1)
