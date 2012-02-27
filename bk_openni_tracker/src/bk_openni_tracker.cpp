@@ -307,8 +307,9 @@ int main(int argc, char **argv) {
 	ros::Rate r(10);
 	
 	ros::NodeHandle pnh("~");
-	string frame_id("openni_depth_frame");
+	string frame_id("derpderpderp");//("camera_depth_frame");
 	pnh.getParam("camera_frame_id", frame_id);
+	ROS_INFO("[bk_openni_tracker] Using frame_id = \"%s\"", frame_id.c_str());
 
 	std::vector<mapping_msgs::PolygonalMap> pmaps;
 	body_msgs::Skeletons skels;
@@ -323,19 +324,14 @@ int main(int argc, char **argv) {
 
 	while (ros::ok())
 	{
-		std::cout << "Updating contexts" << std::endl;
 		g_Context.WaitAndUpdateAll();
 		
-		std::cout << "Publishing transforms" << std::endl;
 		publishTransforms(frame_id);
 
-		std::cout << "Clearing" << std::endl;
 		pmaps.clear();
 		skels.skeletons.clear();
 		tstamp=ros::Time::now();
 
-
-		std::cout << "Getting labels" << std::endl;
 		// Get image with user labels
 		g_UserGenerator.GetUserPixels(0, sceneMD);
 		getUserLabelImage(sceneMD, user_label_image);
@@ -349,10 +345,7 @@ int main(int argc, char **argv) {
 		cv_img.header.stamp = tstamp;
 		cv_img.toImageMsg(ros_image);
 		image_pub.publish(ros_image);
-		std::cout << "Got dem labels" << std::endl;
 		
-		
-		std::cout << "Getting skeletons" << std::endl;
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
 		ROS_DEBUG("skels size %d \n",pmaps.size());

@@ -33,7 +33,7 @@ PersonTracker::getPersonPosition()
 void
 PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 {
-	ROS_INFO("[person tracker] Got data, %lu skeletons.", skel_msg.skeletons.size());
+	ROS_INFO_THROTTLE(5,"[person tracker] Got data, %lu skeletons.", skel_msg.skeletons.size());
 
 	body_msgs::SkeletonJoint torso;
 	found_person_ = false;
@@ -44,14 +44,15 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 		// Get the torso position and the player's ID
 		torso = skel_msg.skeletons.at(i).torso;
 		
-		ROS_INFO("[person tracker] Player %d has confidence %f", skel_msg.skeletons.at(i).playerid, torso.confidence);
+		ROS_INFO_THROTTLE(5,"[person tracker] Player %d has confidence %f", skel_msg.skeletons.at(i).playerid, torso.confidence);
 		
 		// If the confidence is high enough (>50%) save the location
 		if( torso.confidence > 0.5 )
 		{
 			person_pos_.pose.position    = torso.position;
 			person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-			person_pos_.header.frame_id  = "camera_depth_optical_frame";
+			ROS_INFO_THROTTLE(5,"Skeletons' frame ID is %s", skel_msg.header.frame_id.c_str());
+			person_pos_.header.frame_id  = skel_msg.header.frame_id;//"camera_depth_frame";
 			person_pos_.header.stamp     = skel_msg.header.stamp;
 			
 			found_person_ = true;

@@ -141,7 +141,7 @@ main(int argc, char** argv)
 	ros::Duration(3.0).sleep();
 	tf::TransformListener tf(ros::Duration(10));
 	
-	bool found = false;
+	/*bool found = false;
 	while( !found ){
 		try{
 			ROS_INFO("[planner] Getting transforms");
@@ -157,7 +157,7 @@ main(int argc, char** argv)
 			found = false;
 		}
 	}
-	ROS_INFO("[planner] Got transforms");
+	ROS_INFO("[planner] Got transforms");*/
 
 	try	{
 		bk_planner::BKPlanner bkp("bk_planner", tf);
