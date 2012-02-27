@@ -2,7 +2,7 @@
 <launch>
 
 	<!-- Setup the debugging prefix -->
-	<arg name="debug" default="true"/>
+	<arg name="debug" default="false"/>
 	<arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/>
 	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
 
@@ -27,6 +27,7 @@
 			
 		<!-- Topic remappings -->
 		<!-- remap from="goal" to="/move_base_simple/goal" /-->
+		<remap from="skeletons" to="/skeletons" />
 	</node>
 	
 </launch>

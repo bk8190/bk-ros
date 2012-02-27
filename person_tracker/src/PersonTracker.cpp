@@ -9,7 +9,7 @@ PersonTracker::PersonTracker(string name) :
 {
 	nh_.param("loop_rate", loop_rate_, 2.0); // default 2Hz
 	
-	skeleton_sub_ = nh_.subscribe("skeletons", 1, &PersonTracker::skeletonCB, this );
+	skeleton_sub_ = nh_.subscribe("/skeletons", 1, &PersonTracker::skeletonCB, this );
 	goal_pub_     = nh_.advertise<PoseStamped>("goal", 1);
 	
 	//Setup a callback to occur at a regular rate
@@ -50,10 +50,11 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 		if( torso.confidence > 0.5 )
 		{
 			person_pos_.pose.position    = torso.position;
-			person_pos_.pose.position.z  = 1.0;
 			person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-			person_pos_.header.frame_id  = "base_link";
-			person_pos_.header.stamp     = ros::Time::now();
+//			person_pos_.header.frame_id  = skel_msg.header.frame_id;
+			person_pos_.header.frame_id  = "camera_depth_optical_frame";
+//			person_pos_.header.frame_id  = "camera_link";
+			person_pos_.header.stamp     = skel_msg.header.stamp;
 			
 			found_person_ = true;
 			sound_player_.setState(PTSounds::state_tracking);
