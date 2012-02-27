@@ -37,7 +37,8 @@ class PersonTracker
 		ros::NodeHandle nh_;
 		PTSounds::PTSoundPlayer sound_player_;
 		bool found_person_;
-		
+		PoseStamped last_pub_pose_;
+		double goal_hysteresis_;
 		ros::Subscriber skeleton_sub_;
 		ros::Publisher  goal_pub_;
 		ros::Timer      compute_loop_timer_;

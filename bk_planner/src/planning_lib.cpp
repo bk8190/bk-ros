@@ -237,11 +237,11 @@ BKPlanningThread::generatePotentialGoals(const PoseStamped& true_goal,
 	potential_goals.push_back(getPoseOffset(true_goal, -.50*pi, ds));
 	
 	// Add two goals behind the true goal, offset by +-135 degrees
-	potential_goals.push_back(getPoseOffset(true_goal,  .75*pi, ds));
-	potential_goals.push_back(getPoseOffset(true_goal, -.75*pi, ds));
+	//potential_goals.push_back(getPoseOffset(true_goal,  .75*pi, ds));
+	//potential_goals.push_back(getPoseOffset(true_goal, -.75*pi, ds));
 	
 	// Add a goal 180 degrees offset
-	potential_goals.push_back(getPoseOffset(true_goal, 1.00*pi, ds));
+	//potential_goals.push_back(getPoseOffset(true_goal, 1.00*pi, ds));
 	
 	// Eliminate goals in collision
 	vector<PoseStamped> cleared_goals = path_checker->getGoodPoses(potential_goals);

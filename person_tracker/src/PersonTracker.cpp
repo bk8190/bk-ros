@@ -8,9 +8,13 @@ PersonTracker::PersonTracker(string name) :
 	found_person_ (false)
 {
 	nh_.param("loop_rate", loop_rate_, 2.0); // default 2Hz
+	nh_.param("goal_hysteresis", goal_hysteresis_, 0.5);
+	
+	ROS_INFO("[person tracker] Goal hysteresis is %.2f", goal_hysteresis_);
 	
 	skeleton_sub_ = nh_.subscribe("/skeletons", 1, &PersonTracker::skeletonCB, this );
 	goal_pub_     = nh_.advertise<PoseStamped>("goal", 1);
+	
 	
 	//Setup a callback to occur at a regular rate
   double dt = 1.0/loop_rate_;
@@ -72,11 +76,32 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	ROS_DEBUG("[person tracker] Last callback took %f seconds", event.profile.last_duration.toSec());
 
 	if( found_person_ ){
-		goal_pub_.publish(getPersonPosition());
-		ROS_INFO("[person tracker] Found a person at x=%.2f\ty=%.2f\tz=%.2f\t", person_pos_.pose.position.x, person_pos_.pose.position.y, person_pos_.pose.position.z);
+	
+		// Find the amount that this goal changed from the last
+		// Most verbose distance formula ever
+		double dist =  sqrt(
+		               (person_pos_.pose.position.x - last_pub_pose_.pose.position.x)
+		              *(person_pos_.pose.position.x - last_pub_pose_.pose.position.x)
+		              +(person_pos_.pose.position.y - last_pub_pose_.pose.position.y)
+		              *(person_pos_.pose.position.y - last_pub_pose_.pose.position.y)
+		              +(person_pos_.pose.position.z - last_pub_pose_.pose.position.z)
+		              *(person_pos_.pose.position.z - last_pub_pose_.pose.position.z) );
+	
+		ROS_INFO("[person tracker] Dist from last pose: %.2f", dist);
+		if( true || dist > goal_hysteresis_ )
+		{
+			goal_pub_.publish(person_pos_);
+			last_pub_pose_ = person_pos_;
+			ROS_INFO("[person tracker] Found a person at x=%.2f\ty=%.2f\tz=%.2f\t", person_pos_.pose.position.x, person_pos_.pose.position.y, person_pos_.pose.position.z);
+		}
+		else
+		{
+			ROS_INFO("[person tracker] Did not publish stale pose");
+		}
 	}
 	else{
 		sound_player_.setState(PTSounds::state_searching);
+		ROS_INFO("[person_tracker] No target");
 	}
 	
 	sound_player_.update();
