@@ -14,6 +14,10 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	path_checker_    = shared_ptr<path_checker::PathChecker>
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
 	
+	
+	nh_.param("goal_hysteresis", goal_hysteresis_, 0.5);
+	ROS_INFO("[bk_planner] Goal hysteresis is %.2f", goal_hysteresis_);
+	
 	// Get the robot's current pose and set a goal there
 	tf::Stamped<tf::Pose> robot_pose;
 	planner_costmap_->getRobotPose(robot_pose);
@@ -59,15 +63,33 @@ BKPlanner::terminateThreads()
 	feeder_thread_  ->join();
 }
 
+double dist( const PoseStamped& p1, const PoseStamped& p2 )
+{
+	return sqrt(
+              ((p1.pose.position.x - p2.pose.position.x)
+              *(p1.pose.position.x - p2.pose.position.x))+
+              ((p1.pose.position.y - p2.pose.position.y)
+              *(p1.pose.position.y - p2.pose.position.y))+
+              ((p1.pose.position.z - p2.pose.position.z)
+              *(p1.pose.position.z - p2.pose.position.z)) );
+}
+
 void
 BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 {
-	PoseStamped goal = *goal_ptr;
+	PoseStamped curr_goal = getLatestGoal();
 
-	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str());
+	PoseStamped new_goal = poseToGlobalFrame(*goal_ptr);
+
+	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", new_goal.pose.position.x, new_goal.pose.position.y, new_goal.header.frame_id.c_str());
 	
-	setNewGoal(poseToGlobalFrame(goal));
-	planner_->escalatePlannerState(NEED_PARTIAL_REPLAN);
+	
+	double d = dist(curr_goal, new_goal);
+	if( d > goal_hysteresis_ )
+	{
+		setNewGoal(new_goal);
+		got_new_goal_ = true;
+	}
 }
 
 PoseStamped

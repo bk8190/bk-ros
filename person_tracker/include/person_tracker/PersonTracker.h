@@ -39,14 +39,12 @@ class PersonTracker
 		ros::NodeHandle nh_;
 		tf::TransformListener tf_; 
 		PTSounds::PTSoundPlayer sound_player_;
-		bool found_person_;
 		ros::Time     last_detect_;
 		
 		ros::Subscriber skeleton_sub_;
 		ros::Publisher  goal_pub_;
 		ros::Timer      compute_loop_timer_;
 		PoseStamped     person_pos_;
-		PoseStamped     last_pub_pose_;
 		
 		double          loop_rate_;
 		double goal_hysteresis_;
@@ -54,7 +52,7 @@ class PersonTracker
 		
 		void skeletonCB(const body_msgs::Skeletons& skel_msg);
 		void computeStateLoop(const ros::TimerEvent& event);
-		bool poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed);
+		//bool poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed);
 		bool getFirstGoodJoint(const body_msgs::Skeleton& skel, body_msgs::SkeletonJoint& body_part, string& body_part_name);
 
 };

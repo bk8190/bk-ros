@@ -80,6 +80,9 @@ BKPlanningThread::run()
 				
 			case GOOD:
 				if( !made_one_plan ){
+					if( parent_->gotNewGoal()) {
+						escalatePlannerState(NEED_PARTIAL_REPLAN);
+					}
 					break;
 				}
 				path_clear = parent_->path_checker_->isPathClear(planner_path_);
@@ -99,6 +102,11 @@ BKPlanningThread::run()
 				else {
 					ROS_INFO_THROTTLE(5, "[planning] Nothing more to pass down.");
 				}
+				
+				// Check if there is a new goal. Note that this is done AFTER committing path segments.
+				if( parent_->gotNewGoal()) {
+					escalatePlannerState(NEED_PARTIAL_REPLAN);
+				}
 			break;	
 			
 			default:
@@ -106,6 +114,7 @@ BKPlanningThread::run()
 			break;
 		}
 	
+		
 		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
 		if( planner_path_.segs.size() > 0 ){
 			planner_path_.segs.back().header.stamp = ros::Time::now();
@@ -138,6 +147,13 @@ void
 BKPlanningThread::doRecovery()
 {
 	ROS_INFO("[planning] In recovery");
+	
+	// TODO: Make a recovery counter/timer that will do several things in turn
+	// (There is a replan attempt after each step, if it succeeds, recovery is done.)
+	// 1: Clear obstacles within footpring from costmap and clear obstacles a bit behind
+	// 2: Spin in place +- 15
+	// 3: Back up
+	// 4: Spin 360
 	
 	// Temporary: just wait for a new goal
 	if(parent_->gotNewGoal()) {

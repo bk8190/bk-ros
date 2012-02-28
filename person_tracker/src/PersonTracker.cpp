@@ -6,16 +6,13 @@ PersonTracker::PersonTracker(string name) :
 	nh_           (name),
 	tf_           (ros::Duration(10)),
 	sound_player_ (nh_, "sounds"),
-	found_person_ (false),
-	last_detect_  (ros::Time::now())
+	last_detect_  (ros::Time(0))
 {
 	nh_.param("loop_rate", loop_rate_, 2.0); // default 2Hz
-	nh_.param("goal_hysteresis", goal_hysteresis_, 0.5);
 	double temp;
 	nh_.param("detect_timeout", temp, 3.0);
 	detect_timeout_ = ros::Duration(temp);
 	
-	ROS_INFO("[person tracker] Goal hysteresis is %.2f", goal_hysteresis_);
 	ROS_INFO("[person tracker] Detect timeout  is %.2f", detect_timeout_.toSec());
 	
 	skeleton_sub_ = nh_.subscribe("/skeletons", 1, &PersonTracker::skeletonCB, this );
@@ -31,7 +28,9 @@ PersonTracker::PersonTracker(string name) :
 bool
 PersonTracker::hasPerson()
 {
-	return(found_person_);
+	ros::Duration time_since_last = ros::Time::now() - last_detect_;
+	ROS_INFO("[person_tracker] Last detect %.2fs ago", time_since_last.toSec());
+	return(time_since_last < detect_timeout_);
 }
 
 PoseStamped
@@ -40,17 +39,7 @@ PersonTracker::getPersonPosition()
 	return(person_pos_);
 }
 
-double dist( const PoseStamped& p1, const PoseStamped& p2 )
-{
-	return sqrt(
-              ((p1.pose.position.x - p2.pose.position.x)
-              *(p1.pose.position.x - p2.pose.position.x))+
-              ((p1.pose.position.y - p2.pose.position.y)
-              *(p1.pose.position.y - p2.pose.position.y))+
-              ((p1.pose.position.z - p2.pose.position.z)
-              *(p1.pose.position.z - p2.pose.position.z)) );
-}
-
+/*
 bool
 PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
 {
@@ -74,7 +63,7 @@ PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& trans
 	tf::poseStampedTFToMsg(global_pose, global_pose_msg);
 	transformed = global_pose_msg;
 	return true;
-}
+}*/
 
 // Searches through the joints in the skeleton, and returns the first one with good confidence
 bool
@@ -154,7 +143,7 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 		// If the person has a trackable joint, save the location
 		if( getFirstGoodJoint(skel_msg.skeletons.at(i), body_part, body_part_name) )
 		{
-			ROS_INFO_THROTTLE(5,"[person tracker] Player %d's %s has confidence %f", skel_msg.skeletons.at(i).playerid, body_part_name.c_str(), body_part.confidence);
+			ROS_INFO_THROTTLE(1,"[person tracker] Player %d's %s has confidence %f", skel_msg.skeletons.at(i).playerid, body_part_name.c_str(), body_part.confidence);
 			
 			person_pos_.pose.position    = body_part.position;
 			
@@ -162,16 +151,11 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 			person_pos_.pose.position.x = body_part.position.x * -1.0;
 			
 			person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-			ROS_INFO_THROTTLE(5,"[person tracker] Skeletons' frame ID is %s", skel_msg.header.frame_id.c_str());
+			//ROS_INFO_THROTTLE(1,"[person tracker] Skeletons' frame ID is %s", skel_msg.header.frame_id.c_str());
 			person_pos_.header.frame_id  = skel_msg.header.frame_id;
 			person_pos_.header.stamp     = skel_msg.header.stamp;
 			
 			last_detect_ = ros::Time::now();
-			
-			// Convert to a global frame
-			if( !poseToGlobalFrame(person_pos_, person_pos_) ) {
-				ROS_ERROR_THROTTLE(3,"[person_tracker] Could not convert to global frame");
-			}
 			
 			break;
 		}
@@ -182,27 +166,18 @@ void
 PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	ROS_DEBUG("[person tracker] Last callback took %f seconds", event.profile.last_duration.toSec());
 
-	// Check if we timed out
-	if( last_detect_ - ros::Time::now() > detect_timeout_ ) {
-		ROS_INFO("[person_tracker] No target");
-		sound_player_.setState(PTSounds::state_searching);
-	}
-	// We did not time out, check if we need to publish a new goal.
-	else 
+	// Found a person -> publish the position
+	if( hasPerson() )
 	{
 		sound_player_.setState(PTSounds::state_tracking);
-		double d = dist(person_pos_, last_pub_pose_);
-		// Make sure the person has moved enough to warrant publishing a new goal
-		if( true || d > goal_hysteresis_ )
-		{
-			goal_pub_.publish(person_pos_);
-			last_pub_pose_  = person_pos_;
-			ROS_INFO("[person tracker] Found a person at x=%.2f\ty=%.2f\tz=%.2f\t", person_pos_.pose.position.x, person_pos_.pose.position.y, person_pos_.pose.position.z);
-		}
-		else
-		{
-			ROS_INFO("[person tracker] Did not publish stale pose (only %.2f away)", d);
-		}
+		
+		PoseStamped pub = person_pos_;
+		goal_pub_.publish(pub);
+		ROS_INFO("[person tracker] Published: person at x=%.2f\ty=%.2f\tz=%.2f\t", pub.pose.position.x, pub.pose.position.y, pub.pose.position.z);
+	}
+	else {
+		ROS_INFO("[person tracker] No target");
+		sound_player_.setState(PTSounds::state_searching);
 	}
 	
 	sound_player_.update();

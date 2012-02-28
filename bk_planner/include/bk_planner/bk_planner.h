@@ -76,6 +76,7 @@ namespace bk_planner {
 		// Main thread sets the goal in a callback, planning thread checks it.
 		// These functions are thread-safe.
     void setNewGoal(PoseStamped new_goal);
+    double goal_hysteresis_;
     
     // Do not directly access these variables, not thread-safe.
 		bool                       got_new_goal_;
