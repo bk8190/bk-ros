@@ -14,7 +14,6 @@
 #include <body_msgs/Skeletons.h>
 
 // OpenCV includes
-#include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/highgui/highgui.hpp>
@@ -30,19 +29,6 @@ XnBool g_bNeedPose   = FALSE;
 XnChar g_strPose[20] = "";
 
 ros::Publisher pmap_pub, skel_pub;
-image_transport::Publisher image_pub;
-
-void getUserLabelImage(const xn::SceneMetaData& sceneMD, cv::Mat& label_image)
-{
-	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
-	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
-
-	// std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
-	cv::Mat tempmat(rows, cols, CV_16U);
-	tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
-	cv::Mat tempmat2 = tempmat.clone();
-	tempmat2.convertTo(label_image, CV_8U);
-}
 
 geometry_msgs::Point vecToPt(XnVector3D pt){
    geometry_msgs::Point ret;
@@ -139,7 +125,7 @@ void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeleto
 }
 
 void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-	ROS_INFO("New User %d", nId);
+	ROS_INFO("[bk_openni_tracker] New User %d", nId);
 
 	if (g_bNeedPose)
 		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
@@ -148,20 +134,20 @@ void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, v
 }
 
 void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-	ROS_INFO("Lost user %d", nId);
+	ROS_INFO("[bk_openni_tracker] Lost user %d", nId);
 }
 
 void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie) {
-	ROS_INFO("Calibration started for user %d", nId);
+	ROS_INFO("[bk_openni_tracker] Calibration started for user %d", nId);
 }
 
 void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		ROS_INFO("Calibration complete, now tracking user %d", nId);
+		ROS_INFO("[bk_openni_tracker] Calibration complete, now tracking user %d", nId);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
-		ROS_INFO("Calibration failed for user %d", nId);
+		ROS_INFO("[bk_openni_tracker] Calibration failed for user %d", nId);
 		if (g_bNeedPose)
 			g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
 		else
@@ -170,7 +156,7 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability& cap
 }
 
 void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability& capability, XnChar const* strPose, XnUserID nId, void* pCookie) {
-    ROS_INFO("Pose %s detected for user %d", strPose, nId);
+    ROS_INFO("[bk_openni_tracker] Pose %s detected for user %d", strPose, nId);
     g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
     g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
@@ -245,61 +231,67 @@ void publishTransforms(const std::string& frame_id) {
     }
 }
 
-#define CHECK_RC(nRetVal, what)										\
-	if (nRetVal != XN_STATUS_OK)									\
-	{																\
-		ROS_ERROR("%s failed: %s", what, xnGetStatusString(nRetVal));\
-		return nRetVal;												\
-	}
+#define CHECK_RC(nRetVal, what) \
+if (nRetVal != XN_STATUS_OK)    \
+{                               \
+	ROS_ERROR("[bk_openni_tracker] %s failed: %s", what, xnGetStatusString(nRetVal)); \
+	return nRetVal;               \
+}
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "openni_tracker");
+	ros::init(argc, argv, "bk_openni_tracker");
 	ros::NodeHandle nh;
-	image_transport::ImageTransport it(nh);
-
 
 	skel_pub = nh.advertise<body_msgs::Skeletons> ("skeletons", 1);
 	pmap_pub = nh.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
-	image_pub = it.advertise("silhouettes", 1);
 
+	// Initialize OpenNI with this configuration
 	string configFilename = ros::package::getPath("bk_openni_tracker") + "/bk_openni_tracker.xml";
 	XnStatus nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
 	CHECK_RC(nRetVal, "InitFromXml");
 
+	// The configuration should have created a depth generator node
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 	CHECK_RC(nRetVal, "Find depth generator");
 
+	// See if a user generator node exists.  If not, create one.
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 	if (nRetVal != XN_STATUS_OK) {
 		nRetVal = g_UserGenerator.Create(g_Context);
 		CHECK_RC(nRetVal, "Find user generator");
 	}
 
+	// Make sure that the user generator supports skeleton capture
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON)) {
 		ROS_WARN("Supplied user generator doesn't support skeleton");
 		return 1;
 	}
 
-	XnCallbackHandle hUserCallbacks;
+	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
+	
+	// Register callbacks to occur on user state change
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
 
-	XnCallbackHandle hCalibrationCallbacks;
+	// Register callbacks to occur on calibration change
 	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
 
+	// If the user generator requires a calibration pose, set up some more callbacks.
 	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
 	{
+		ROS_INFO("[bk_openni_tracker] Pose required for calibration");
 		g_bNeedPose = TRUE;
 		if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION)) {
 			ROS_INFO("Pose required, but not supported");
 			return 1;
 		}
-		XnCallbackHandle hPoseCallbacks;
 		g_UserGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(UserPose_PoseDetected, NULL, NULL, hPoseCallbacks);
 		g_UserGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose);
 	}
 
+	// Set up the skeleton generator
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 
+	// Kick things off
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
@@ -330,24 +322,10 @@ int main(int argc, char **argv) {
 		pmaps.clear();
 		skels.skeletons.clear();
 		tstamp=ros::Time::now();
-
-		// Get image with user labels
-		/*g_UserGenerator.GetUserPixels(0, sceneMD);
-		getUserLabelImage(sceneMD, user_label_image);
-		//cv::imshow(WINDOW, user_label_image*70 );
-		//cv::waitKey(3);
-		
-		// Convert label image to ROS message and publish 
-		cv_img.image = user_label_image;
-		cv_img.encoding = sensor_msgs::image_encodings::MONO8;
-		cv_img.header.seq = ++img_seq;
-		cv_img.header.stamp = tstamp;
-		cv_img.toImageMsg(ros_image);
-		image_pub.publish(ros_image);*/
 		
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
-		ROS_INFO_THROTTLE(3,"skels size %d \n",pmaps.size());
+		ROS_INFO_THROTTLE(3,"[bk_openni_tracker] skels size %d \n",pmaps.size());
 		if(pmaps.size())
 		{
 			// Fill in and publish skeletons object
@@ -355,7 +333,7 @@ int main(int argc, char **argv) {
 			skels.header.stamp    = tstamp;
 			skels.header.seq      = depthMD.FrameID();
 			skels.header.frame_id = frame_id;//"/camera_depth_optical_frame";
-			ROS_INFO_THROTTLE(3,"Publishing skeletons in frame %s", skels.header.frame_id.c_str());
+			ROS_INFO_THROTTLE(3,"[bk_openni_tracker] Publishing skeletons in frame %s", skels.header.frame_id.c_str());
 			skel_pub.publish(skels);
 
 			pmaps.front().header.stamp    = tstamp;

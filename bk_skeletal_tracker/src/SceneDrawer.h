@@ -24,6 +24,7 @@
 #define XNV_POINT_DRAWER_H_
 
 #include <XnCppWrapper.h>
+#include <ros/ros.h>
 
 void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd);
 

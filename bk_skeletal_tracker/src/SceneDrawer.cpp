@@ -30,7 +30,7 @@
 
 #include <GL/glut.h>
 
-extern xn::UserGenerator g_UserGenerator;
+extern xn::UserGenerator  g_UserGenerator;
 extern xn::DepthGenerator g_DepthGenerator;
 
 extern XnBool g_bDrawBackground;
@@ -49,6 +49,7 @@ unsigned int getClosestPowerOfTwo(unsigned int n)
 
 	return m;
 }
+
 GLuint initTexture(void** buf, int& width, int& height)
 {
 	GLuint texID = 0;
@@ -79,6 +80,7 @@ void DrawRectangle(float topLeftX, float topLeftY, float bottomRightX, float bot
 	//TODO: Maybe glFinish needed here instead - if there's some bad graphics crap
 	glFlush();
 }
+
 void DrawTexture(float topLeftX, float topLeftY, float bottomRightX, float bottomRightY)
 {
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -119,7 +121,7 @@ void DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 {
 	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
 	{
-		printf("not tracked!\n");
+		ROS_INFO("[bk_skeletal_tracker] not tracked!\n");
 		return;
 	}
 
@@ -141,7 +143,6 @@ void DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 	glVertex3i(pt[1].X, pt[1].Y, 0);
 }
 
-
 void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 {
 	static bool bInitialized = false;	
@@ -162,10 +163,10 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 		texWidth =  getClosestPowerOfTwo(dmd.XRes());
 		texHeight = getClosestPowerOfTwo(dmd.YRes());
 
-//		printf("Initializing depth texture: width = %d, height = %d\n", texWidth, texHeight);
+//		ROS_INFO("[bk_skeletal_tracker] Initializing depth texture: width = %d, height = %d\n", texWidth, texHeight);
 		depthTexID = initTexture((void**)&pDepthTexBuf,texWidth, texHeight) ;
 
-//		printf("Initialized depth texture: width = %d, height = %d\n", texWidth, texHeight);
+//		ROS_INFO("[bk_skeletal_tracker] Initialized depth texture: width = %d, height = %d\n", texWidth, texHeight);
 		bInitialized = true;
 
 		topLeftX = dmd.XRes();

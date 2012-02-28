@@ -30,8 +30,9 @@
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 #include <cv_bridge/cv_bridge.h>
+
 //---------------------------------------------------------------------------
-// Includes
+// OpenNI includes
 //---------------------------------------------------------------------------
 #include <XnOpenNI.h>
 #include <XnCodecIDs.h>
@@ -39,54 +40,44 @@
 #include <XnTypes.h>
 #include "SceneDrawer.h"
 
-//---------------------------------------------------------------------------
-// Globals
-//---------------------------------------------------------------------------
-xn::Context g_Context;
-xn::DepthGenerator g_DepthGenerator;
-xn::UserGenerator g_UserGenerator;
-
-XnBool g_bhasCal = FALSE;
-XnBool g_bNeedPose = FALSE;
-XnChar g_strPose[20] = "";
-XnBool g_bDrawBackground = TRUE;
-XnBool g_bDrawPixels = TRUE;
-XnBool g_bDrawSkeleton = TRUE;
-XnBool g_bPrintID = TRUE;
-XnBool g_bPrintState = TRUE;
-
 #include <GL/glut.h>
 
 #define GL_WIN_SIZE_X 720
 #define GL_WIN_SIZE_Y 480
 
-XnBool g_bPause = false;
-XnBool g_bRecord = false;
+//---------------------------------------------------------------------------
+// Globals
+//---------------------------------------------------------------------------
+xn::Context        g_Context;
+xn::DepthGenerator g_DepthGenerator;
+xn::UserGenerator  g_UserGenerator;
 
-XnBool g_bQuit = false;
+// Is a pose required for calibration? If so, g_strPose holds its name.
+XnBool g_bNeedPose   = false;
+XnChar g_strPose[20] = "";
 
+// Have we successfully calibrated a user? If so, which user?
+XnBool      g_bhasCal = false;
+XnUserID    first_calibrated_user_;
+
+// Controls what is drawn to the screen
+XnBool g_bDrawBackground = true;
+XnBool g_bDrawPixels     = true;
+XnBool g_bDrawSkeleton   = true;
+XnBool g_bPrintID        = true;
+XnBool g_bPrintState     = true;
+XnBool g_bPause          = false;
+
+// ROS stuff
 ros::Publisher pmap_pub,skel_pub;
+std::string    frame_id_;
 
 //---------------------------------------------------------------------------
 // Code
 //---------------------------------------------------------------------------
-
-
-void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
-{
-	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
-	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
-
-	/*std::cout << "Rows: " << rows << " Cols: " << cols << std::endl;
-	cv::Mat tempmat(rows, cols, CV_8U);
-	tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
-	label_image = tempmat.clone();*/
-}
-
 void CleanupExit()
 {
 	g_Context.Shutdown();
-
 	exit (1);
 }
 
@@ -105,7 +96,6 @@ geometry_msgs::Point32 vecToPt3(XnVector3D pt){
    return ret;
 }
 
-
 void getSkeletonJoint(XnUserID player, body_msgs::SkeletonJoint &j, XnSkeletonJoint name){
    XnSkeletonJointPosition joint1;
    g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, name, joint1);
@@ -113,8 +103,8 @@ void getSkeletonJoint(XnUserID player, body_msgs::SkeletonJoint &j, XnSkeletonJo
    j.confidence = joint1.fConfidence;
 }
 
-
-void getSkeleton(XnUserID player,body_msgs::Skeleton &skel){
+void getSkeleton(XnUserID player,body_msgs::Skeleton &skel)
+{
    skel.playerid=player;
    getSkeletonJoint(player,skel.head,XN_SKEL_HEAD);
    getSkeletonJoint(player,skel.neck,XN_SKEL_NECK);
@@ -133,7 +123,8 @@ void getSkeleton(XnUserID player,body_msgs::Skeleton &skel){
    getSkeletonJoint(player,skel.right_foot,XN_SKEL_RIGHT_FOOT);
 }
 
-void getPolygon(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2, mapping_msgs::PolygonalMap &pmap){
+void getPolygon(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2, mapping_msgs::PolygonalMap &pmap)
+{
    XnSkeletonJointPosition joint1, joint2;
    g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, eJoint1, joint1);
    g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, eJoint2, joint2);
@@ -146,12 +137,15 @@ void getPolygon(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint
    p.points.push_back(vecToPt3(joint2.position));
    pmap.polygons.push_back(p);
 }
-void ptdist(geometry_msgs::Polygon p){
+
+void ptdist(geometry_msgs::Polygon p)
+{
 	geometry_msgs::Point32 p1=p.points.back(),p2=p.points.front();
-	printf(" Shoulder dist %.02f \n", sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y)+(p1.z-p2.z)*(p1.z-p2.z)));
+	ROS_INFO("[bk_skeletal_tracker] Shoulder dist %.02f ", sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y)+(p1.z-p2.z)*(p1.z-p2.z)));
 }
 
-void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeletons &skels){
+void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeletons &skels)
+{
 	XnUserID aUsers[15];
 	XnUInt16 nUsers = 15;
 	g_UserGenerator.GetUsers(aUsers, nUsers);
@@ -163,107 +157,115 @@ void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeleto
 			getSkeleton(aUsers[i],skel);
 			skels.skeletons.push_back(skel);
 
-
-
 			mapping_msgs::PolygonalMap pmap;
-			getPolygon(aUsers[i], XN_SKEL_HEAD, XN_SKEL_NECK, pmap);
-			getPolygon(aUsers[i], XN_SKEL_NECK, XN_SKEL_LEFT_SHOULDER, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_RIGHT_SHOULDER, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND, pmap);
-			getPolygon(aUsers[i], XN_SKEL_NECK, XN_SKEL_RIGHT_SHOULDER, pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW, pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_ELBOW, XN_SKEL_RIGHT_HAND, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_TORSO, pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO, pmap);
-			getPolygon(aUsers[i], XN_SKEL_TORSO, XN_SKEL_LEFT_HIP, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_LEFT_KNEE, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_KNEE, XN_SKEL_LEFT_FOOT, pmap);
-			getPolygon(aUsers[i], XN_SKEL_TORSO, XN_SKEL_RIGHT_HIP, pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_HIP, XN_SKEL_RIGHT_KNEE, pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_FOOT, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_RIGHT_HIP, pmap);
+			getPolygon(aUsers[i], XN_SKEL_HEAD          , XN_SKEL_NECK          , pmap);
+			getPolygon(aUsers[i], XN_SKEL_NECK          , XN_SKEL_LEFT_SHOULDER , pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER , XN_SKEL_LEFT_ELBOW    , pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER , XN_SKEL_RIGHT_SHOULDER, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_ELBOW    , XN_SKEL_LEFT_HAND     , pmap);
+			getPolygon(aUsers[i], XN_SKEL_NECK          , XN_SKEL_RIGHT_SHOULDER, pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW   , pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_ELBOW   , XN_SKEL_RIGHT_HAND    , pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER , XN_SKEL_TORSO         , pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO         , pmap);
+			getPolygon(aUsers[i], XN_SKEL_TORSO         , XN_SKEL_LEFT_HIP      , pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP      , XN_SKEL_LEFT_KNEE     , pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_KNEE     , XN_SKEL_LEFT_FOOT     , pmap);
+			getPolygon(aUsers[i], XN_SKEL_TORSO         , XN_SKEL_RIGHT_HIP     , pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_HIP     , XN_SKEL_RIGHT_KNEE    , pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_KNEE    , XN_SKEL_RIGHT_FOOT    , pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP      , XN_SKEL_RIGHT_HIP     , pmap);
 			
 			pmaps.push_back(pmap);
 		}
 	}
-
 }
 
 
 // Callback: New user was detected
-void XN_CALLBACK_TYPE User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
+void XN_CALLBACK_TYPE
+User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	printf("New User %d\n", nId);
-	// New user found
-//	if (g_bNeedPose)
-//	{
-//		g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
-//	}
-//	else{
-		if(g_bhasCal){
-			g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
-			g_UserGenerator.GetSkeletonCap().StartTracking(nId);
-		}
-		else{  //never gotten calibration before
-//			g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
-			g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
-		}
-//	}
-}
-// Callback: An existing user was lost
-void XN_CALLBACK_TYPE User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
-{
-	printf("Lost user %d\n", nId);
-}
-// Callback: Detected a pose
-void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability& capability, const XnChar* strPose, XnUserID nId, void* pCookie)
-{
-	printf("Pose %s detected for user %d\n", strPose, nId);
-	g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
+	ROS_INFO("[bk_skeletal_tracker] New User %d", nId);
+
+	// If we already calibrated on a user, just load that calibration
 	if(g_bhasCal){
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
-	else{  //never gotten calibration before
-		g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE); // TODO: ALWAYS Load calibration for user 1
+	// Detected first user: request calibration pose detection
+	else
+	{
+		if (g_bNeedPose)
+			g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
+		else
+			g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, true);
 	}
 }
-// Callback: Started calibration
-void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie)
+
+// Callback: An existing user was lost
+void XN_CALLBACK_TYPE
+User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	printf("Calibration started for user %d\n", nId);
+	ROS_INFO("[bk_skeletal_tracker] Lost user %d", nId);
 }
+
+// Callback: Detected a pose
+void XN_CALLBACK_TYPE
+UserPose_PoseDetected(xn::PoseDetectionCapability& capability, const XnChar* strPose, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("[bk_skeletal_tracker] Pose (%s) detected for user %d", strPose, nId);
+	g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
+	
+	// If we already calibrated on a user, just load that calibration
+	if(g_bhasCal){
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
+		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
+	}
+	// Detected pose of first user: start calibration
+	else{
+		g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, true);
+	}
+}
+
+// Callback: Started calibration
+void XN_CALLBACK_TYPE
+UserCalibration_CalibrationStart(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie)
+{
+	ROS_INFO("[bk_skeletal_tracker] Calibration started for user %d", nId);
+}
+
 // Callback: Finished calibration
-void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie)
+void XN_CALLBACK_TYPE
+UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie)
 {
 	if (bSuccess)
 	{
-		// Calibration succeeded
-		printf("Calibration complete, start tracking user %d\n", nId);
-		g_bhasCal=TRUE;
+		// Calibration succeeded - save this first calibration and start tracking the user
+		ROS_INFO("[bk_skeletal_tracker] Calibration complete, now tracking user %d", nId);
+		
+		g_bhasCal=true;
+		first_calibrated_user_ = nId;
 		g_UserGenerator.GetSkeletonCap().SaveCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else
 	{
 		// Calibration failed
-		printf("Calibration failed for user %d\n", nId);
+		ROS_INFO("[bk_skeletal_tracker] Calibration failed for user %d", nId);
+		
 		if (g_bNeedPose)
-		{
 			g_UserGenerator.GetPoseDetectionCap().StartPoseDetection(g_strPose, nId);
-		}
 		else
-		{
-			g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
-		}
+			g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, true);
 	}
 }
 
 // this function is called each frame
 void glutDisplay (void)
 {
-
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Setup the OpenGL viewpoint
@@ -278,44 +280,42 @@ void glutDisplay (void)
 
 	glDisable(GL_TEXTURE_2D);
 
-	if (!g_bPause)
-	{
-	// Read next available data
-	g_Context.WaitAndUpdateAll();
+	if (!g_bPause) {
+		// Read next available data
+		g_Context.WaitAndUpdateAll();
 	}
 	
-	ros::Time tstamp=ros::Time::now();
-	// Process the data
+	// Update the OpenGL display
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
 	DrawDepthMap(depthMD, sceneMD);
+	glutSwapBuffers();
+	
+	// Publish some ROS stuff
+	ros::Time tstamp=ros::Time::now();
 	std::vector<mapping_msgs::PolygonalMap> pmaps;
 	body_msgs::Skeletons skels;
 	getSkels(pmaps,skels);
 
-	/*cv::Mat user_label_image;
-	getUserLabelImage(sceneMD, user_label_image);*/
-
-	ROS_DEBUG("skels size %d \n",pmaps.size());
+	ROS_INFO_THROTTLE(5,"[bk_skeletal_tracker] Skels size %d ",pmaps.size());
 	if(pmaps.size())
 	{
-		skels.header.stamp=tstamp;
-		skels.header.seq = depthMD.FrameID();
-		skels.header.frame_id="/camera_depth_optical_frame";
+		skels.header.stamp    = tstamp;
+		skels.header.seq      = depthMD.FrameID();
+		skels.header.frame_id = frame_id_;
 		skel_pub.publish(skels);
-		pmaps.front().header.stamp=tstamp;
-		pmaps.front().header.seq = depthMD.FrameID();
-		pmaps.front().header.frame_id="/openni_depth_optical_frame";
+		
+		pmaps.front().header.stamp    = tstamp;
+		pmaps.front().header.seq      = depthMD.FrameID();
+		pmaps.front().header.frame_id = frame_id_;
 		pmap_pub.publish(pmaps[0]);
 	}
 
-
-	glutSwapBuffers();
 }
 
 void glutIdle (void)
 {
-	if (g_bQuit) {
+	if (!ros::ok()) {
 		CleanupExit();
 	}
 
@@ -354,12 +354,13 @@ void glutKeyboard (unsigned char key, int x, int y)
 		break;
 	}
 }
+
 void glInit (int * pargc, char ** argv)
 {
 	glutInit(pargc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowSize(GL_WIN_SIZE_X, GL_WIN_SIZE_Y);
-	glutCreateWindow ("Prime Sense User Tracker Viewer");
+	glutCreateWindow ("Kinect User Tracking");
 	//glutFullScreen();
 	glutSetCursor(GLUT_CURSOR_NONE);
 
@@ -374,84 +375,83 @@ void glInit (int * pargc, char ** argv)
 	glDisableClientState(GL_COLOR_ARRAY);
 }
 
-//#define SAMPLE_XML_PATH "/home/garratt/ros/kinect/ni/openni/lib/SamplesConfig.xml"
-
-#define CHECK_RC(nRetVal, what)										\
-	if (nRetVal != XN_STATUS_OK)									\
-	{																\
-		printf("%s failed: %s\n", what, xnGetStatusString(nRetVal));\
-		return nRetVal;												\
-	}
+#define CHECK_RC(nRetVal, what)   \
+if (nRetVal != XN_STATUS_OK)      \
+{                                 \
+	ROS_ERROR("[bk_skeletal_tracker] %s failed: %s", what, xnGetStatusString(nRetVal));\
+	return nRetVal;                 \
+}
 
 int main(int argc, char **argv)
 {
-   ros::init(argc, argv, "skel_tracker");
-   sleep(5);
-   ros::NodeHandle nh_;
+	ros::init(argc, argv, "bk_skeletal_tracker");
+	ros::NodeHandle nh_;
+	ros::NodeHandle pnh("~");
 
-   // Read the device_id parameter from the server
-   int device_id;
-//   param_nh.param ("device_id", device_id, argc > 1 ? atoi (argv[1]) : 0);
+	frame_id_ = "derpderpderp";//("camera_depth_frame");
+	pnh.getParam("camera_frame_id", frame_id_);
+	ROS_INFO("[bk_skeletal_tracker] Frame_id = \"%s\"", frame_id_.c_str());
+	
+	pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
+	skel_pub = nh_.advertise<body_msgs::Skeletons>       ("skeletons", 1);
 
-  pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
-  skel_pub = nh_.advertise<body_msgs::Skeletons> ("skeletons", 1);
-  
 	XnStatus nRetVal = XN_STATUS_OK;
 
-	if (argc > 1)
-	{
-		nRetVal = g_Context.Init();
-		CHECK_RC(nRetVal, "Init");
-		nRetVal = g_Context.OpenFileRecording(argv[1]);
-		if (nRetVal != XN_STATUS_OK)
-		{
-			printf("Can't open recording %s: %s\n", argv[1], xnGetStatusString(nRetVal));
-			return 1;
-		}
-	}
-	else
-	{
-		std::string configFilename = ros::package::getPath("openni") + "/lib/SamplesConfig.xml";
-		nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
-		CHECK_RC(nRetVal, "InitFromXml");
-	}
+	// Initialize OpenNI with a saved configuration
+	std::string configFilename = ros::package::getPath("bk_skeletal_tracker") + "/bk_skeletal_tracker.xml";
+	nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
+	CHECK_RC(nRetVal, "InitFromXml");
 
+	// The configuration should have created a depth generator node
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 	CHECK_RC(nRetVal, "Find depth generator");
+
+	// See if a user generator node exists.  If not, create one.
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
-	if (nRetVal != XN_STATUS_OK)
-	{
-		nRetVal = g_UserGenerator.Create(g_Context);
-		CHECK_RC(nRetVal, "Find user generator");
+	if (nRetVal != XN_STATUS_OK) {
+	nRetVal = g_UserGenerator.Create(g_Context);
+	CHECK_RC(nRetVal, "Find user generator");
 	}
 
-	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
+	// Make sure that the user generator supports skeleton capture
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
 	{
-		printf("Supplied user generator doesn't support skeleton\n");
+		ROS_INFO("[bk_skeletal_tracker] Supplied user generator doesn't support skeleton");
 		return 1;
 	}
+	
+	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
+	
+	// Register callbacks to occur on user state change
 	g_UserGenerator.RegisterUserCallbacks(User_NewUser, User_LostUser, NULL, hUserCallbacks);
+	
+	// Register callbacks to occur on calibration change
 	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
 
+	// If the user generator requires a calibration pose, set up some more callbacks.
 	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
 	{
-		g_bNeedPose = TRUE;
+		g_bNeedPose = true;
 		if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_POSE_DETECTION))
 		{
-			printf("Pose required, but not supported\n");
+			ROS_INFO("[bk_skeletal_tracker] Pose required, but not supported");
 			return 1;
 		}
 		g_UserGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(UserPose_PoseDetected, NULL, NULL, hPoseCallbacks);
 		g_UserGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose);
+		ROS_INFO("[bk_skeletal_tracker] User generator requires calibration pose (%s)", g_strPose);
+	}
+	else{
+		ROS_INFO("[bk_skeletal_tracker] No calibration pose required");
 	}
 
+	// Set up the skeleton generator
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 
+	// Kick things off
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
 
 	glInit(&argc, argv);
 	glutMainLoop();
-
 }
