@@ -388,13 +388,15 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
     //ROS_INFO("[sbpl] Angles corrected from (%.3fpi->%.3fpi) to (%.3fpi->%.3fpi)", sbpl_path.front().theta/pi, sbpl_path.back().theta/pi, tf::getYaw(start.pose.orientation)/pi, tf::getYaw( goal.pose.orientation)/pi);
     
     // Correct discretization error: make the first and last points in the path have the same angles as the start/goal points
-    sbpl_path.front().theta = tf::getYaw(start.pose.orientation);
-    sbpl_path.front().x     = start.pose.position.x;
-    sbpl_path.front().y     = start.pose.position.y;
-    sbpl_path.back ().theta = tf::getYaw(goal.pose.orientation);
-    sbpl_path.back ().x     = goal.pose.position.x;
-    sbpl_path.back ().y     = goal.pose.position.y;
-    
+    if( sbpl_path.size() > 0 )
+    {
+		  sbpl_path.front().theta = tf::getYaw(start.pose.orientation);
+		  sbpl_path.front().x     = start.pose.position.x;
+		  sbpl_path.front().y     = start.pose.position.y;
+		  sbpl_path.back ().theta = tf::getYaw(goal.pose.orientation);
+		  sbpl_path.back ().x     = goal.pose.position.x;
+		  sbpl_path.back ().y     = goal.pose.position.y;
+    }
     
     // Added: convert the state ID path into path segments
     segmentPlan.header.frame_id = costmap_ros_->getGlobalFrameID();
