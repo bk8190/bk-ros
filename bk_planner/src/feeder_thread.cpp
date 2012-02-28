@@ -427,6 +427,10 @@ BKFeederThread::getFeederDistLeft()
 	
 	int start_idx = segment_lib::segnumToIndex(p, current_segnum);
 	
+	if( start_idx == -1 ){
+		return 0.0;
+	}
+	
 	// Length of first segment
 	d = segment_lib::linDist(p.segs.at(start_idx));
 	d = max(0.0, d-current_seg_complete);

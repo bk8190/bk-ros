@@ -1,4 +1,4 @@
 planning:
- commit_distance: 0.80
+ commit_distance: 1.50
  standoff_distance: 0.50
  segs_to_trail: 3
