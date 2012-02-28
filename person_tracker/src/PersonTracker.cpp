@@ -39,87 +39,59 @@ PersonTracker::getPersonPosition()
 	return(person_pos_);
 }
 
-/*
-bool
-PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
-{
-	std::string global_frame = "odom";
-	tf::Stamped<tf::Pose> goal_pose, global_pose;
-	poseStampedMsgToTF(pose_msg, goal_pose);
-
-	//just get the latest available transform
-	goal_pose.stamp_ = ros::Time();
-
-	try {
-		tf_.transformPose(global_frame, goal_pose, global_pose);
-	}
-	catch(tf::TransformException& ex) {
-		ROS_WARN("[person_tracker] Failed to transform the goal pose from %s into the %s frame: %s",
-		goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
-		return false;
-	}
-
-	PoseStamped global_pose_msg;
-	tf::poseStampedTFToMsg(global_pose, global_pose_msg);
-	transformed = global_pose_msg;
-	return true;
-}*/
-
 // Searches through the joints in the skeleton, and returns the first one with good confidence
 bool
-PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, body_msgs::SkeletonJoint& body_part, string& body_part_name)
+PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, double confidence_thresh, body_msgs::SkeletonJoint& body_part, string& body_part_name)
 {
-	double confidence_thresh = 0.5;
-
-	if( skel.head.confidence > confidence_thresh ) {
+	if( skel.head.confidence >= confidence_thresh ) {
 		body_part = skel.head;
 		body_part_name = "head";
 		return true;
 	}
 	
-	if( skel.neck.confidence > confidence_thresh ) {
+	if( skel.neck.confidence >= confidence_thresh ) {
 		body_part = skel.neck;
 		body_part_name = "neck";
 		return true;
 	}
 	
-	if( skel.right_shoulder.confidence > confidence_thresh ) {
+	if( skel.right_shoulder.confidence >= confidence_thresh ) {
 		body_part = skel.right_shoulder;
 		body_part_name = "right_shoulder";
 		return true;
 	}
 	
-	if( skel.left_shoulder.confidence > confidence_thresh ) {
+	if( skel.left_shoulder.confidence >= confidence_thresh ) {
 		body_part = skel.left_shoulder;
 		body_part_name = "left_shoulder";
 		return true;
 	}
 	
-	if( skel.right_elbow.confidence > confidence_thresh ) {
+	if( skel.right_elbow.confidence >= confidence_thresh ) {
 		body_part = skel.right_elbow;
 		body_part_name = "right_elbow";
 		return true;
 	}
 	
-	if( skel.left_elbow.confidence > confidence_thresh ) {
+	if( skel.left_elbow.confidence >= confidence_thresh ) {
 		body_part = skel.left_elbow;
 		body_part_name = "left_elbow";
 		return true;
 	}
 	
-	if( skel.torso.confidence > confidence_thresh ) {
+	if( skel.torso.confidence >= confidence_thresh ) {
 		body_part = skel.torso;
 		body_part_name = "torso";
 		return true;
 	}
 	
-	if( skel.right_hip.confidence > confidence_thresh ) {
+	if( skel.right_hip.confidence >= confidence_thresh ) {
 		body_part = skel.right_hip;
 		body_part_name = "right_hip";
 		return true;
 	}
 	
-	if( skel.left_hip.confidence > confidence_thresh ) {
+	if( skel.left_hip.confidence >= confidence_thresh ) {
 		body_part = skel.left_hip;
 		body_part_name = "left_hip";
 		return true;
@@ -137,27 +109,34 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 	body_msgs::SkeletonJoint body_part;
 	string                   body_part_name;
 	
-	// Find the first trackable person
-	for( unsigned int i=0; i<skel_msg.skeletons.size(); i++ )
+	std::vector<double> thresholds;
+	thresholds.push_back(0.7);
+	thresholds.push_back(0.5);
+	thresholds.push_back(0.3);
+	thresholds.push_back(-0.1);
+	
+	for( int ithresh = 0; ithresh<thresholds.size(); ithresh++ )
 	{
-		// If the person has a trackable joint, save the location
-		if( getFirstGoodJoint(skel_msg.skeletons.at(i), body_part, body_part_name) )
+		// Find the first trackable person
+		for( unsigned int i=0; i<skel_msg.skeletons.size(); i++ )
 		{
-			ROS_INFO_THROTTLE(1,"[person tracker] Player %d's %s has confidence %f", skel_msg.skeletons.at(i).playerid, body_part_name.c_str(), body_part.confidence);
+			// If the person has a trackable joint, save the location
+			if( getFirstGoodJoint(skel_msg.skeletons.at(i), thresholds.at(ithresh), body_part, body_part_name) )
+			{
+				ROS_INFO_THROTTLE(2,"[person tracker] Player %d's %s has confidence %f", skel_msg.skeletons.at(i).playerid, body_part_name.c_str(), body_part.confidence);
 			
-			person_pos_.pose.position    = body_part.position;
+				person_pos_.pose.position    = body_part.position;
+				person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+				person_pos_.header.frame_id  = skel_msg.header.frame_id;
+				person_pos_.header.stamp     = skel_msg.header.stamp;
 			
-			// TODO: Fix this dirty hack.  I am mirroring the image over its vertical axis which should be done by a transform
-			person_pos_.pose.position.x = body_part.position.x * -1.0;
+				// TODO: Fix this dirty hack.  I am mirroring the image over its vertical axis which should be done by a transform
+				person_pos_.pose.position.x = body_part.position.x * -1.0;
 			
-			person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-			//ROS_INFO_THROTTLE(1,"[person tracker] Skeletons' frame ID is %s", skel_msg.header.frame_id.c_str());
-			person_pos_.header.frame_id  = skel_msg.header.frame_id;
-			person_pos_.header.stamp     = skel_msg.header.stamp;
+				last_detect_ = ros::Time::now();
 			
-			last_detect_ = ros::Time::now();
-			
-			break;
+				break;
+			}
 		}
 	}
 }
@@ -173,10 +152,10 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 		
 		PoseStamped pub = person_pos_;
 		goal_pub_.publish(pub);
-		ROS_INFO("[person tracker] Published: person at x=%.2f\ty=%.2f\tz=%.2f\t", pub.pose.position.x, pub.pose.position.y, pub.pose.position.z);
+		//ROS_INFO("[person tracker] Published: person at x=%.2f\ty=%.2f\tz=%.2f\t", pub.pose.position.x, pub.pose.position.y, pub.pose.position.z);
 	}
 	else {
-		ROS_INFO("[person tracker] No target");
+		//ROS_INFO("[person tracker] No target");
 		sound_player_.setState(PTSounds::state_searching);
 	}
 	

@@ -152,43 +152,41 @@ void ptdist(geometry_msgs::Polygon p){
 }
 
 void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeletons &skels){
-   XnUserID aUsers[15];
-   XnUInt16 nUsers = 15;
-   g_UserGenerator.GetUsers(aUsers, nUsers);
-   for (int i = 0; i < nUsers; ++i)
-   {
-      if (g_bDrawSkeleton && g_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i]))
-            {
-               body_msgs::Skeleton skel;
-               getSkeleton(aUsers[i],skel);
-               skels.skeletons.push_back(skel);
+	XnUserID aUsers[15];
+	XnUInt16 nUsers = 15;
+	g_UserGenerator.GetUsers(aUsers, nUsers);
+	for (int i = 0; i < nUsers; ++i)
+	{
+		if (g_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i]))
+		{
+			body_msgs::Skeleton skel;
+			getSkeleton(aUsers[i],skel);
+			skels.skeletons.push_back(skel);
 
 
 
-               mapping_msgs::PolygonalMap pmap;
-               getPolygon(aUsers[i], XN_SKEL_HEAD, XN_SKEL_NECK, pmap);
-//               printPt(aUsers[i], XN_SKEL_RIGHT_HAND);
-               getPolygon(aUsers[i], XN_SKEL_NECK, XN_SKEL_LEFT_SHOULDER, pmap);
-               getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW, pmap);
-               getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_RIGHT_SHOULDER, pmap);
-//               ptdist(pmap.polygons.back());
-               getPolygon(aUsers[i], XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND, pmap);
-               getPolygon(aUsers[i], XN_SKEL_NECK, XN_SKEL_RIGHT_SHOULDER, pmap);
-               getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW, pmap);
-               getPolygon(aUsers[i], XN_SKEL_RIGHT_ELBOW, XN_SKEL_RIGHT_HAND, pmap);
-               getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_TORSO, pmap);
-               getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO, pmap);
-               getPolygon(aUsers[i], XN_SKEL_TORSO, XN_SKEL_LEFT_HIP, pmap);
-               getPolygon(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_LEFT_KNEE, pmap);
-               getPolygon(aUsers[i], XN_SKEL_LEFT_KNEE, XN_SKEL_LEFT_FOOT, pmap);
-               getPolygon(aUsers[i], XN_SKEL_TORSO, XN_SKEL_RIGHT_HIP, pmap);
-               getPolygon(aUsers[i], XN_SKEL_RIGHT_HIP, XN_SKEL_RIGHT_KNEE, pmap);
-               getPolygon(aUsers[i], XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_FOOT, pmap);
-               getPolygon(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_RIGHT_HIP, pmap);
-//               getSkel(aUsers[i],pmap);
-               pmaps.push_back(pmap);
-            }
-   }
+			mapping_msgs::PolygonalMap pmap;
+			getPolygon(aUsers[i], XN_SKEL_HEAD, XN_SKEL_NECK, pmap);
+			getPolygon(aUsers[i], XN_SKEL_NECK, XN_SKEL_LEFT_SHOULDER, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_LEFT_ELBOW, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_RIGHT_SHOULDER, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_ELBOW, XN_SKEL_LEFT_HAND, pmap);
+			getPolygon(aUsers[i], XN_SKEL_NECK, XN_SKEL_RIGHT_SHOULDER, pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW, pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_ELBOW, XN_SKEL_RIGHT_HAND, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER, XN_SKEL_TORSO, pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO, pmap);
+			getPolygon(aUsers[i], XN_SKEL_TORSO, XN_SKEL_LEFT_HIP, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_LEFT_KNEE, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_KNEE, XN_SKEL_LEFT_FOOT, pmap);
+			getPolygon(aUsers[i], XN_SKEL_TORSO, XN_SKEL_RIGHT_HIP, pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_HIP, XN_SKEL_RIGHT_KNEE, pmap);
+			getPolygon(aUsers[i], XN_SKEL_RIGHT_KNEE, XN_SKEL_RIGHT_FOOT, pmap);
+			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP, XN_SKEL_RIGHT_HIP, pmap);
+			
+			pmaps.push_back(pmap);
+		}
+	}
 
 }
 
@@ -228,7 +226,7 @@ void XN_CALLBACK_TYPE UserPose_PoseDetected(xn::PoseDetectionCapability& capabil
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else{  //never gotten calibration before
-		g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
+		g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE); // TODO: ALWAYS Load calibration for user 1
 	}
 }
 // Callback: Started calibration
@@ -282,32 +280,34 @@ void glutDisplay (void)
 
 	if (!g_bPause)
 	{
-		// Read next available data
-		g_Context.WaitAndUpdateAll();
+	// Read next available data
+	g_Context.WaitAndUpdateAll();
 	}
+	
 	ros::Time tstamp=ros::Time::now();
-		// Process the data
-		g_DepthGenerator.GetMetaData(depthMD);
-		g_UserGenerator.GetUserPixels(0, sceneMD);
-		DrawDepthMap(depthMD, sceneMD);
-		//std::vector<mapping_msgs::PolygonalMap> pmaps;
-		//body_msgs::Skeletons skels;
-		//getSkels(pmaps,skels);
+	// Process the data
+	g_DepthGenerator.GetMetaData(depthMD);
+	g_UserGenerator.GetUserPixels(0, sceneMD);
+	DrawDepthMap(depthMD, sceneMD);
+	std::vector<mapping_msgs::PolygonalMap> pmaps;
+	body_msgs::Skeletons skels;
+	getSkels(pmaps,skels);
 
-		/*cv::Mat user_label_image;
-		getUserLabelImage(sceneMD, user_label_image);
+	/*cv::Mat user_label_image;
+	getUserLabelImage(sceneMD, user_label_image);*/
 
-		ROS_DEBUG("skels size %d \n",pmaps.size());
-		if(pmaps.size()){
-		   skels.header.stamp=tstamp;
-		   skels.header.seq = depthMD.FrameID();
-		   skels.header.frame_id="/camera_depth_optical_frame";
-		   skel_pub.publish(skels);
-	      pmaps.front().header.stamp=tstamp;
-	      pmaps.front().header.seq = depthMD.FrameID();
-	      pmaps.front().header.frame_id="/openni_depth_optical_frame";
-		   pmap_pub.publish(pmaps[0]);
-		}*/
+	ROS_DEBUG("skels size %d \n",pmaps.size());
+	if(pmaps.size())
+	{
+		skels.header.stamp=tstamp;
+		skels.header.seq = depthMD.FrameID();
+		skels.header.frame_id="/camera_depth_optical_frame";
+		skel_pub.publish(skels);
+		pmaps.front().header.stamp=tstamp;
+		pmaps.front().header.seq = depthMD.FrameID();
+		pmaps.front().header.frame_id="/openni_depth_optical_frame";
+		pmap_pub.publish(pmaps[0]);
+	}
 
 
 	glutSwapBuffers();
@@ -356,8 +356,6 @@ void glutKeyboard (unsigned char key, int x, int y)
 }
 void glInit (int * pargc, char ** argv)
 {
-
-
 	glutInit(pargc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowSize(GL_WIN_SIZE_X, GL_WIN_SIZE_Y);
@@ -365,7 +363,7 @@ void glInit (int * pargc, char ** argv)
 	//glutFullScreen();
 	glutSetCursor(GLUT_CURSOR_NONE);
 
-	glutKeyboardFunc(glutKeyboard);
+	//glutKeyboardFunc(glutKeyboard);
 	glutDisplayFunc(glutDisplay);
 	glutIdleFunc(glutIdle);
 
@@ -387,16 +385,17 @@ void glInit (int * pargc, char ** argv)
 
 int main(int argc, char **argv)
 {
-   sleep(10);
    ros::init(argc, argv, "skel_tracker");
+   sleep(5);
    ros::NodeHandle nh_;
 
    // Read the device_id parameter from the server
    int device_id;
 //   param_nh.param ("device_id", device_id, argc > 1 ? atoi (argv[1]) : 0);
 
-   //pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 100);
-   //skel_pub = nh_.advertise<body_msgs::Skeletons> ("skeletons", 100);
+  pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
+  skel_pub = nh_.advertise<body_msgs::Skeletons> ("skeletons", 1);
+  
 	XnStatus nRetVal = XN_STATUS_OK;
 
 	if (argc > 1)
@@ -412,8 +411,7 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-
-	   std::string configFilename = ros::package::getPath("openni") + "/lib/SamplesConfig.xml";
+		std::string configFilename = ros::package::getPath("openni") + "/lib/SamplesConfig.xml";
 		nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
 		CHECK_RC(nRetVal, "InitFromXml");
 	}

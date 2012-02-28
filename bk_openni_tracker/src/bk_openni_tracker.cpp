@@ -257,7 +257,6 @@ int main(int argc, char **argv) {
 	ros::NodeHandle nh;
 	image_transport::ImageTransport it(nh);
 
-	//cv::namedWindow(WINDOW);
 
 	skel_pub = nh.advertise<body_msgs::Skeletons> ("skeletons", 1);
 	pmap_pub = nh.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
@@ -348,7 +347,7 @@ int main(int argc, char **argv) {
 		
 		// Get current skeleton objects and polygonal maps representing skeletons
 		getSkels(pmaps,skels);
-		ROS_DEBUG("skels size %d \n",pmaps.size());
+		ROS_INFO_THROTTLE(3,"skels size %d \n",pmaps.size());
 		if(pmaps.size())
 		{
 			// Fill in and publish skeletons object
@@ -356,7 +355,7 @@ int main(int argc, char **argv) {
 			skels.header.stamp    = tstamp;
 			skels.header.seq      = depthMD.FrameID();
 			skels.header.frame_id = frame_id;//"/camera_depth_optical_frame";
-			ROS_INFO_THROTTLE(5,"Publishing skeletons in frame %s", skels.header.frame_id.c_str());
+			ROS_INFO_THROTTLE(3,"Publishing skeletons in frame %s", skels.header.frame_id.c_str());
 			skel_pub.publish(skels);
 
 			pmaps.front().header.stamp    = tstamp;

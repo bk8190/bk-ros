@@ -53,7 +53,7 @@ class PersonTracker
 		void skeletonCB(const body_msgs::Skeletons& skel_msg);
 		void computeStateLoop(const ros::TimerEvent& event);
 		//bool poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed);
-		bool getFirstGoodJoint(const body_msgs::Skeleton& skel, body_msgs::SkeletonJoint& body_part, string& body_part_name);
+		bool getFirstGoodJoint(const body_msgs::Skeleton& skel, double confidence_thresh, body_msgs::SkeletonJoint& body_part, string& body_part_name);
 
 };
 
