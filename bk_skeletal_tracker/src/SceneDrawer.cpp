@@ -262,6 +262,7 @@ void DrawDepthMap(const xn::DepthMetaData& dmd, const xn::SceneMetaData& smd)
 				pDestImage+=3;
 			}
 
+			pDestImage += (texWidth - g_nXRes) *3;
 		}
 	}
 	else
