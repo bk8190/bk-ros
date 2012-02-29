@@ -121,7 +121,7 @@ void DrawLimb(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2)
 {
 	if (!g_UserGenerator.GetSkeletonCap().IsTracking(player))
 	{
-		ROS_INFO("[bk_skeletal_tracker] not tracked!\n");
+		//ROS_INFO("[bk_skeletal_tracker] not tracked!\n");
 		return;
 	}
 

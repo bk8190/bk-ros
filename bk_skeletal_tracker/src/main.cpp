@@ -285,14 +285,15 @@ void glutDisplay (void)
 		g_Context.WaitAndUpdateAll();
 	}
 	
+	ros::Time tstamp=ros::Time::now();
+	
 	// Update the OpenGL display
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
 	DrawDepthMap(depthMD, sceneMD);
-	glutSwapBuffers();
+	
 	
 	// Publish some ROS stuff
-	ros::Time tstamp=ros::Time::now();
 	std::vector<mapping_msgs::PolygonalMap> pmaps;
 	body_msgs::Skeletons skels;
 	getSkels(pmaps,skels);
@@ -310,6 +311,8 @@ void glutDisplay (void)
 		pmaps.front().header.frame_id = frame_id_;
 		pmap_pub.publish(pmaps[0]);
 	}
+	
+	glutSwapBuffers();
 
 }
 
@@ -360,7 +363,7 @@ void glInit (int * pargc, char ** argv)
 	glutInit(pargc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowSize(GL_WIN_SIZE_X, GL_WIN_SIZE_Y);
-	glutCreateWindow ("Kinect User Tracking");
+	glutCreateWindow ("User Tracking");
 	//glutFullScreen();
 	glutSetCursor(GLUT_CURSOR_NONE);
 

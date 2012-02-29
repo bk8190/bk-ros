@@ -1,13 +1,14 @@
 <!-- Starts skeleton tracking -->
 <launch>
 	<!-- Kinect driver -->
-	<include file="$(find bk_launch)/launch/bringup_kinect.launch" >
-	</include>
+	<!--include file="$(find bk_launch)/launch/bringup_kinect.launch" /-->
 
-  <node pkg="bk_openni_tracker" type="bk_openni_tracker" name="bk_openni_tracker" output="screen"  >
+  <!--node pkg="bk_openni_tracker" type="bk_openni_tracker" name="bk_openni_tracker" output="screen"  >
     <param name="camera_frame_id" value="/camera_depth_optical_frame" />
     <param name="tf_prefix" value="tracker" />
-  </node>
+  </node-->
   
-  <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="log"/>
+  <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen">
+    <param name="camera_frame_id" value="/camera_depth_optical_frame" />
+  </node>
 </launch>
