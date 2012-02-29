@@ -4,9 +4,10 @@ namespace PersonTracker {
 
 PersonTracker::PersonTracker(string name) :
 	nh_           (name),
-	tf_           (ros::Duration(10)),
+	tf_           (ros::Duration(15)),
 	sound_player_ (nh_, "sounds"),
-	last_detect_  (ros::Time(0))
+	last_detect_  (ros::Time(0)),
+	new_goal_     (false)
 {
 	nh_.param("loop_rate", loop_rate_, 2.0); // default 2Hz
 	double temp;
@@ -19,7 +20,7 @@ PersonTracker::PersonTracker(string name) :
 	goal_pub_     = nh_.advertise<PoseStamped>("goal", 1);
 	
 	
-	//Setup a callback to occur at a regular rate
+	//Set a callback to occur at a regular rate
   double dt = 1.0/loop_rate_;
 	ROS_INFO("[person tracker] Loop rate is %.2fHz (%.2f seconds)", loop_rate_, dt);
 	compute_loop_timer_ = nh_.createTimer(ros::Duration(dt), boost::bind(&PersonTracker::computeStateLoop, this, _1));
@@ -101,6 +102,28 @@ PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, double confide
 
 }
 
+bool
+PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
+{
+	std::string global_frame = "map";
+	tf::Stamped<tf::Pose> goal_tf, global_tf;
+	poseStampedMsgToTF(pose_msg, goal_tf);
+
+	try {
+		tf_.transformPose(global_frame, goal_tf, global_tf);
+	}
+	catch(tf::TransformException& ex) {
+		ROS_WARN("[person_tracker] Failed to transform the goal pose from %s into the %s frame: %s",
+		goal_tf.frame_id_.c_str(), global_frame.c_str(), ex.what());
+		return false;
+	}
+
+	PoseStamped global_pose;
+	tf::poseStampedTFToMsg(global_tf, global_pose);
+	transformed = global_pose;
+	return true;
+}
+
 void
 PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 {
@@ -125,17 +148,23 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 			{
 				ROS_INFO_THROTTLE(2,"[person tracker] Player %d's %s has confidence %f", skel_msg.skeletons.at(i).playerid, body_part_name.c_str(), body_part.confidence);
 			
-				person_pos_.pose.position    = body_part.position;
-				person_pos_.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-				person_pos_.header.frame_id  = skel_msg.header.frame_id;
-				person_pos_.header.stamp     = skel_msg.header.stamp;
-			
+				PoseStamped temp_pose;
+				temp_pose.pose.position    = body_part.position;
+				temp_pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+				temp_pose.header.frame_id  = skel_msg.header.frame_id;
+				temp_pose.header.stamp     = skel_msg.header.stamp;
+				
 				// TODO: Fix this dirty hack.  I am mirroring the image over its vertical axis which should be done by a transform
-				person_pos_.pose.position.x = body_part.position.x * -1.0;
-			
-				last_detect_ = ros::Time::now();
-			
-				break;
+				//person_pos_.pose.position.x = body_part.position.x * -1.0;
+				
+				
+				// Transform the goal to a global, fixed frame.  Otherwise it will be at most detect_timeout old which is really bad in an odometric frame
+				if( poseToGlobalFrame(temp_pose, person_pos_) )
+				{
+					last_detect_ = ros::Time::now();
+					new_goal_ = true;
+					break;
+				}
 			}
 		}
 	}
@@ -150,9 +179,13 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	{
 		sound_player_.setState(PTSounds::state_tracking);
 		
-		PoseStamped pub = person_pos_;
-		goal_pub_.publish(pub);
-		//ROS_INFO("[person tracker] Published: person at x=%.2f\ty=%.2f\tz=%.2f\t", pub.pose.position.x, pub.pose.position.y, pub.pose.position.z);
+		if( new_goal_ )
+		{
+			new_goal_ = false;
+			PoseStamped pub = person_pos_;
+			goal_pub_.publish(pub);
+			//ROS_INFO("[person tracker] Published: person at x=%.2f\ty=%.2f\tz=%.2f\t", pub.pose.position.x, pub.pose.position.y, pub.pose.position.z);
+		}
 	}
 	else {
 		//ROS_INFO("[person tracker] No target");
@@ -160,6 +193,7 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	}
 	
 	sound_player_.update();
+	ros::spinOnce();
 }
 
 };//namespace

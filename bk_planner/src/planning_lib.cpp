@@ -145,14 +145,8 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
                                         shared_ptr<path_checker::PathChecker>     path_checker,
                                         shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner)
 {
-	// Modify the goal's angle
-	double dx = goal.pose.position.x - start.pose.position.x;
-	double dy = goal.pose.position.y - start.pose.position.y;
-	PoseStamped newgoal = goal;
-	newgoal.pose.orientation = tf::createQuaternionMsgFromYaw(atan2(dy,dx));
-	
 	// Generate potential goal poses
-	vector<PoseStamped> cleared_goals = generatePotentialGoals(newgoal, path_checker);
+	vector<PoseStamped> cleared_goals = generatePotentialGoals(start, goal, path_checker);
 	
   if( cleared_goals.size() == 0 ) {
   	ROS_INFO("[planning] All potential goal poses blocked!");
@@ -160,12 +154,13 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
   } 
 	
 	bool found_goal = false;
-	for( int igoal=0; igoal<cleared_goals.size(); igoal++ )
+	for( unsigned int igoal=0; igoal<cleared_goals.size(); igoal++ )
 	{
 		found_goal = planPointToPoint(start, cleared_goals.at(igoal), path, path_checker, lattice_planner);
 		
 		// Take the first valid path
 		if( found_goal ){
+			goal_pub_.publish(cleared_goals.at(igoal));
 			return true;
 		}
 	}
@@ -214,45 +209,118 @@ BKPlanningThread::getPoseOffset(const PoseStamped& pose, double dtheta, double d
 	return newpose;
 }
 
-// Generates candidate goals centered on the true goal
-vector<PoseStamped>
-BKPlanningThread::generatePotentialGoals(const PoseStamped& true_goal,
-                                         shared_ptr<path_checker::PathChecker> path_checker)
+double dist( const PoseStamped& p1, const PoseStamped& p2 )
 {
+	return sqrt(
+              ((p1.pose.position.x - p2.pose.position.x)
+              *(p1.pose.position.x - p2.pose.position.x))+
+              ((p1.pose.position.y - p2.pose.position.y)
+              *(p1.pose.position.y - p2.pose.position.y))+
+              ((p1.pose.position.z - p2.pose.position.z)
+              *(p1.pose.position.z - p2.pose.position.z)) );
+}
+
+// Up to a certain threhsold, just turn and face the target.
+vector<PoseStamped>
+BKPlanningThread::generateNearGoals(const PoseStamped& start,
+                                    const PoseStamped& goal,
+                                    shared_ptr<path_checker::PathChecker> path_checker)
+{
+	// Get the angle to the target
+	double dx    = goal.pose.position.x - start.pose.position.x;
+	double dy    = goal.pose.position.y - start.pose.position.y;
+	double theta = atan2(dy,dx);
+	
+	// Instruct the robot to rotate in place
+	PoseStamped newgoal = start;
+	newgoal.pose.orientation = tf::createQuaternionMsgFromYaw(theta);
+	
+	vector<PoseStamped> potential_goals;
+	potential_goals.push_back(newgoal);
+	
+	// Eliminate goals in collision
+	vector<PoseStamped> cleared_goals = path_checker->getGoodPoses(potential_goals);
+	
+	
+	// Store the candidate goals for visualization
+	pub_goals_.poses.clear();
+	pub_goals_.header = newgoal.header;
+	for(unsigned int i=0; i<cleared_goals.size(); i++){
+		pub_goals_.poses.push_back(cleared_goals.at(i).pose);
+	}
+	
+	return cleared_goals;
+}
+
+vector<PoseStamped>
+BKPlanningThread::generateFarGoals(const PoseStamped& start,
+                                   const PoseStamped& goal,
+                                   shared_ptr<path_checker::PathChecker> path_checker)
+{
+	// Modify the goal's angle
+	double dx = goal.pose.position.x - start.pose.position.x;
+	double dy = goal.pose.position.y - start.pose.position.y;
+	PoseStamped newgoal = goal;
+	newgoal.pose.orientation = tf::createQuaternionMsgFromYaw(atan2(dy,dx));
+	
 	vector<PoseStamped> potential_goals;
 	double ds = -1.0*standoff_distance_;
 	
 	// First of all, add the true goal.
-	//potential_goals.push_back(true_goal);
+	//potential_goals.push_back(goal);
 	
 	// Add a goal in between the robot and the true goal
-	potential_goals.push_back(getPoseOffset(true_goal,  0.00  , ds));
+	potential_goals.push_back(getPoseOffset(newgoal,  0.00  , ds));
 	
 	// Add two goals behind the true goal, offset by +-45 degrees
-	potential_goals.push_back(getPoseOffset(true_goal,  .25*pi, ds));
-	potential_goals.push_back(getPoseOffset(true_goal, -.25*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal,  .25*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal, -.25*pi, ds));
 	
 	// Add two goals behind the true goal, offset by +-90 degrees
-	potential_goals.push_back(getPoseOffset(true_goal,  .50*pi, ds));
-	potential_goals.push_back(getPoseOffset(true_goal, -.50*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal,  .50*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal, -.50*pi, ds));
 	
 	// Add two goals behind the true goal, offset by +-135 degrees
-	//potential_goals.push_back(getPoseOffset(true_goal,  .75*pi, ds));
-	//potential_goals.push_back(getPoseOffset(true_goal, -.75*pi, ds));
+	//potential_goals.push_back(getPoseOffset(newgoal,  .75*pi, ds));
+	//potential_goals.push_back(getPoseOffset(newgoal, -.75*pi, ds));
 	
 	// Add a goal 180 degrees offset
-	//potential_goals.push_back(getPoseOffset(true_goal, 1.00*pi, ds));
+	//potential_goals.push_back(getPoseOffset(newgoal, 1.00*pi, ds));
 	
 	// Eliminate goals in collision
 	vector<PoseStamped> cleared_goals = path_checker->getGoodPoses(potential_goals);
 	
 	// Store the candidate goals for visualization
 	pub_goals_.poses.clear();
-	pub_goals_.header = true_goal.header;
-	for(int i=0; i<cleared_goals.size(); i++){
+	pub_goals_.header = newgoal.header;
+	for(unsigned int i=0; i<cleared_goals.size(); i++){
 		pub_goals_.poses.push_back(cleared_goals.at(i).pose);
 	}
 	
+	return cleared_goals;
+}
+
+// Generates candidate goals centered on the true goal
+vector<PoseStamped>
+BKPlanningThread::generatePotentialGoals(const PoseStamped& start,
+                                         const PoseStamped& goal,
+                                         shared_ptr<path_checker::PathChecker> path_checker)
+{
+	double d = dist(start,goal);
+	vector<PoseStamped> cleared_goals;
+
+	if( d < short_dist_ )
+	{
+		// Try the short-distance planner.  If it fails, use the long-distance planner.
+		cleared_goals = generateNearGoals(start, goal, path_checker);
+		
+		if( cleared_goals.size() > 0 ){
+			return cleared_goals;
+		}
+	}
+	
+	// Either we are out of range of the short-term distance or the short distance failed
+	cleared_goals = generateFarGoals(start, goal, path_checker);
 	return cleared_goals;
 }
 };//namespace

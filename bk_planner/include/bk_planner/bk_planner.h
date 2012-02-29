@@ -125,6 +125,8 @@ namespace bk_planner {
 		// If planner can not get exactly to the target, it will try to get this far away
 		double standoff_distance_;
 		
+		double short_dist_;
+		
 		// Manage planning
     void doRecovery();
 		void startRecovery();
@@ -144,12 +146,15 @@ namespace bk_planner {
 
 		// Save a copy of the goals for visualization
 		ros::Publisher candidate_goal_pub_;
+		ros::Publisher goal_pub_;
 		geometry_msgs::PoseArray pub_goals_;
 		
     // Do not directly access these variables, not thread-safe.
 		plannerState                    planner_state_;
 		recursive_mutex          planner_state_mutex_;
 		p_nav::Path committed_path_;
+		
+		
 		
 		/* Planning functions in planning_lib.cpp */
 		// Makes a plan from start to goal
@@ -169,9 +174,21 @@ namespace bk_planner {
 		PoseStamped getPoseOffset(const PoseStamped& pose, double dtheta, double dx);
 
 		// Generates candidate goals centered on the true goal
-		vector<PoseStamped> generatePotentialGoals(const PoseStamped& true_goal,
-                                        shared_ptr<path_checker::PathChecker> path_checker);
-		
+		vector<PoseStamped>
+		generatePotentialGoals(const PoseStamped& start,
+		                       const PoseStamped& true_goal,
+                           shared_ptr<path_checker::PathChecker> path_checker);
+                                        
+		vector<PoseStamped>
+		generateNearGoals(const PoseStamped& start,
+		                  const PoseStamped& true_goal,
+                      shared_ptr<path_checker::PathChecker> path_checker);
+                      
+		vector<PoseStamped>
+		generateFarGoals(const PoseStamped& start,
+		                 const PoseStamped& true_goal,
+                     shared_ptr<path_checker::PathChecker> path_checker);
+                                  
 	};//BKPlanningThread
 	
 	
@@ -197,6 +214,7 @@ namespace bk_planner {
 		// ex: BKPlannerPtr(parent_weak_)->someFunction();
 		BKPlanner* parent_;
 		boost::weak_ptr<BKPlanningThread> planner_;
+		
 		
 		bool isFeederEnabled();
 		void sendHaltState();

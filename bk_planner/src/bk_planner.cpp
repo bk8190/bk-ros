@@ -15,7 +15,7 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
 	
 	
-	nh_.param("goal_hysteresis", goal_hysteresis_, 0.5);
+	priv_nh_.param("goal_hysteresis", goal_hysteresis_, 0.2);
 	ROS_INFO("[bk_planner] Goal hysteresis is %.2f", goal_hysteresis_);
 	
 	// Get the robot's current pose and set a goal there
@@ -79,10 +79,9 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 {
 	PoseStamped curr_goal = getLatestGoal();
 
-	PoseStamped new_goal = poseToGlobalFrame(*goal_ptr);
-
-	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", new_goal.pose.position.x, new_goal.pose.position.y, new_goal.header.frame_id.c_str());
+	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal_ptr->pose.position.x, goal_ptr->pose.position.y, goal_ptr->header.frame_id.c_str());
 	
+	PoseStamped new_goal = poseToGlobalFrame(*goal_ptr);
 	
 	double d = dist(curr_goal, new_goal);
 	if( d > goal_hysteresis_ )

@@ -190,7 +190,8 @@ User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 
 	// If we already calibrated on a user, just load that calibration
 	if(g_bhasCal){
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
+		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
@@ -220,7 +221,8 @@ UserPose_PoseDetected(xn::PoseDetectionCapability& capability, const XnChar* str
 	
 	// If we already calibrated on a user, just load that calibration
 	if(g_bhasCal){
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
+		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
@@ -311,6 +313,8 @@ void glutDisplay (void)
 		pmaps.front().header.frame_id = frame_id_;
 		pmap_pub.publish(pmaps[0]);
 	}
+	
+	//TODO: Weed out and stop tracking users with low confidence, and inhibit them for a bit
 	
 	glutSwapBuffers();
 
@@ -450,6 +454,7 @@ int main(int argc, char **argv)
 
 	// Set up the skeleton generator
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
+	//g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
 	// Kick things off
 	nRetVal = g_Context.StartGeneratingAll();

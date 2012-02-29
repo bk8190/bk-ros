@@ -1,4 +1,7 @@
+goal_hysteresis: 0.3
+
 planning:
  commit_distance: 1.00
  standoff_distance: 0.50
+ short_distance: 1.50
  segs_to_trail: 3

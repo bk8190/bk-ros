@@ -15,10 +15,14 @@ BKPlanningThread::BKPlanningThread(BKPlanner* parent):
 	lattice_planner_ = shared_ptr<bk_sbpl::BKSBPLLatticePlanner>
 		(new bk_sbpl::BKSBPLLatticePlanner("lattice_planner", parent_->planner_costmap_) );
 	
-	parent_->priv_nh_.param("planning/commit_distance" ,commit_distance_     ,1.1);
-	parent_->priv_nh_.param("planning/standoff_distance" ,standoff_distance_ ,1.1);
-	ROS_INFO("[planning] Commit   distance %.2f", commit_distance_);
+	parent_->priv_nh_.param("planning/commit_distance"   , commit_distance_   ,1.1);
+	parent_->priv_nh_.param("planning/standoff_distance" , standoff_distance_ ,1.1);
+	parent_->priv_nh_.param("planning/short_distance"    , short_dist_        ,1.1);
+	ROS_INFO("[planning] Commit   distance %.2f", commit_distance_  );
 	ROS_INFO("[planning] Standoff distance %.2f", standoff_distance_);
+	ROS_INFO("[planning] Short    distance %.2f", short_dist_       );
+	
+	goal_pub_ = parent->nh_.advertise<PoseStamped>("target_goal", 1);
 	
 	planner_path_.segs.clear();
 	planner_state_         = GOOD;
@@ -141,6 +145,10 @@ void
 BKPlanningThread::startRecovery()
 {
 	ROS_INFO("[planning] Starting recovery");
+	
+	if(parent_->gotNewGoal()) {
+		setPlannerState(NEED_FULL_REPLAN);
+	}
 }
 
 void
