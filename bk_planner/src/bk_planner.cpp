@@ -22,8 +22,14 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	planner_costmap_->getRobotPose(robot_pose);
 	PoseStamped start_pose;
 	tf::poseStampedTFToMsg(robot_pose, start_pose);
-	start_pose = poseToGlobalFrame(start_pose);
-	setNewGoal(start_pose);
+	bool ret = poseToGlobalFrame(start_pose, start_pose);
+	
+	if( ret ) {
+		setNewGoal(start_pose);
+	}
+	else {
+		ROS_ERROR("[bk_planner] Could not transform start pose");
+	}
 	
 	// Create the planner and feeder threads
 	planner_ = shared_ptr<BKPlanningThread>
