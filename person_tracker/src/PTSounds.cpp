@@ -47,7 +47,7 @@ void PTSoundPlayer::update()
 				
 			case state_searching:
 				playTargetLostSound();
-				next_scheduled_time_ = ros::Time::now() + ros::Duration(10);
+				next_scheduled_time_ = ros::Time::now() + ros::Duration(45);
 				break;
 			
 			default:

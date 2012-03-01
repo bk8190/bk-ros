@@ -88,20 +88,18 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 	
 	PoseStamped new_goal;
 	
-	/*if( !poseToGlobalFrame(*goal_ptr, new_goal) )
+	if( !poseToGlobalFrame(*goal_ptr, new_goal) )
 	{
 		ROS_ERROR("[Goal callback] Could not transform goal to global frame");
 		return;
-	}*/
-	new_goal = *goal_ptr;
-	got_new_goal_ = true;
+	}
 	
-	/*double d = dist(curr_goal, new_goal);
+	double d = dist(latest_goal_, new_goal);
 	if( d > goal_hysteresis_ )
 	{
 		setNewGoal(new_goal);
 		got_new_goal_ = true;
-	}*/
+	}
 }
 
 bool
@@ -159,7 +157,9 @@ BKPlanner::getLatestGoal()
 	}
 	
 	got_new_goal_ = false;
+	return latest_goal_;
 	
+	/*
 	PoseStamped transformed_goal;
 	if( poseToGlobalFrame(latest_goal_, transformed_goal) ) {
 		return transformed_goal;
@@ -167,7 +167,7 @@ BKPlanner::getLatestGoal()
 	else {
 		ROS_ERROR("[getLatestGoal] Failed to transform!");
 		return latest_goal_;
-	}
+	}*/
 }
 
 };// namespace
