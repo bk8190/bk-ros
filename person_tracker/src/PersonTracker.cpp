@@ -133,9 +133,9 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 	
 	std::vector<double> thresholds;
 	thresholds.push_back(0.7);
-	thresholds.push_back(0.5);
-	thresholds.push_back(0.3);
-	thresholds.push_back(-0.1);
+	//thresholds.push_back(0.5);
+	//thresholds.push_back(0.3);
+	//thresholds.push_back(-0.1);
 	
 	for( int ithresh = 0; ithresh<thresholds.size(); ithresh++ )
 	{
