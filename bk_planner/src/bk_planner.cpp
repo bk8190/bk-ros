@@ -14,7 +14,6 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	path_checker_    = shared_ptr<path_checker::PathChecker>
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
 	
-	
 	priv_nh_.param("goal_hysteresis", goal_hysteresis_, 0.2);
 	ROS_INFO("[bk_planner] Goal hysteresis is %.2f", goal_hysteresis_);
 	

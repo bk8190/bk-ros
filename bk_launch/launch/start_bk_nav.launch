@@ -4,7 +4,8 @@
 	
 	<!-- Setup the debugging prefix -->
 	<arg name="debug" default="true"/>
-	<arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/>
+	<arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run -args"/>
+	<!--arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/-->
 	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
 
 	<node pkg="bk_planner" type="bk_planner" respawn="false" name="bk_planner"
@@ -37,8 +38,8 @@
 			command="load" />
 		
 		<!-- Topic remappings -->
-		<!--remap from="goal" to="/move_base_simple/goal" /-->
-		<remap from="goal" to="/person_tracker/goal" />
+		<remap from="goal" to="/move_base_simple/goal" />
+		<!--remap from="goal" to="/person_tracker/goal" /-->
 		<remap from="plan" to="plan" />
 		<remap from="plan_visualization" to="plan_visualization" />
 	</node>

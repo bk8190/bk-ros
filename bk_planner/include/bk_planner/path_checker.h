@@ -24,7 +24,8 @@ namespace path_checker{
 
 			// Fills in a safe velocity to a segment based on nearby obstacles
 			void assignSegVelocity(p_nav::PathSegment& seg);
-
+			
+			// Checks if a single pose is clear
 			bool isPoseClear(const PoseStamped& pose);
 
 			// Returns only the poses not in collision

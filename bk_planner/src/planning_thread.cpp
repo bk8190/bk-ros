@@ -18,6 +18,7 @@ BKPlanningThread::BKPlanningThread(BKPlanner* parent):
 	parent_->priv_nh_.param("planning/commit_distance"   , commit_distance_   ,1.1);
 	parent_->priv_nh_.param("planning/standoff_distance" , standoff_distance_ ,1.1);
 	parent_->priv_nh_.param("planning/short_distance"    , short_dist_        ,1.1);
+	parent_->priv_nh_.param("planning/planner_loop_rate" , loop_rate_         ,1.0);
 	ROS_INFO("[planning] Commit   distance %.2f", commit_distance_  );
 	ROS_INFO("[planning] Standoff distance %.2f", standoff_distance_);
 	ROS_INFO("[planning] Short    distance %.2f", short_dist_       );
@@ -42,10 +43,10 @@ BKPlanningThread::setFeeder(boost::weak_ptr<BKFeederThread> feeder)
 void
 BKPlanningThread::run()
 {
-	ROS_INFO("[planning] Main thread started");
+	ROS_INFO("[planning] Main thread started at %.2fHz", loop_rate_);
 	bool made_one_plan = false; // true if we made at least one plan
 	bool path_clear, segs_left;
-	ros::Rate r(1.0); // hz
+	ros::Rate r(loop_rate_); // hz
 		
 	while(ros::ok()) // Main loop
 	{
@@ -169,6 +170,7 @@ BKPlanningThread::doRecovery()
 	}
 }
 
+// TODO: Stop committing at a turn segment, and don't commit anything else until
 void
 BKPlanningThread::commitPathSegments()
 {
@@ -178,23 +180,17 @@ BKPlanningThread::commitPathSegments()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	
-	p_nav::PathSegment seg_just_committed;
-	double dist_just_committed;
-	
 	// How much path the feeder has left
 	double dist_left = FeedThreadPtr(feeder_)->getFeederDistLeft();
 	
 	// Desired distance to add
 	double dist_to_add = commit_distance_ - dist_left;
 	
-	//ROS_INFO("[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
-	while( planner_path_.segs.size() > 0 && dist_to_add > 0 )
+	ROS_INFO_THROTTLE(2,"[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
+	if( planner_path_.segs.size() > 0 && dist_to_add > 0 )
 	{
-		seg_just_committed  = commitOneSegment();
-		dist_just_committed = segment_lib::linDist(seg_just_committed);
-		dist_to_add        -= dist_just_committed;
+		commitOneSegment();
 	}
-	//ROS_INFO("Done committing");
 }
 
 p_nav::PathSegment

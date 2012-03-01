@@ -6,7 +6,8 @@ BKFeederThread::BKFeederThread(BKPlanner* parent):
 	client_ ("execute_path", true),
 	parent_ (parent)
 {
-	parent_->priv_nh_.param("planning/segs_to_trail", segs_to_trail_, 4);
+	parent_->priv_nh_.param("planning/segs_to_trail"   , segs_to_trail_ , 4);
+	parent_->priv_nh_.param("planning/feeder_loop_rate", loop_rate_     , 5.0);
 	ROS_INFO("[feeder] Trailing segs:  %d", segs_to_trail_);
 	
 	visualizer_ = shared_ptr<segment_lib::SegmentVisualizer>
@@ -33,8 +34,8 @@ BKFeederThread::setPlanner(boost::weak_ptr<BKPlanningThread> planner)
 void
 BKFeederThread::run()
 {	
-	ROS_INFO("[feeder] Main thread started");
-	ros::Rate r(5.0); // hz
+	ROS_INFO("[feeder] Main thread started at %.2fHz", loop_rate_);
+	ros::Rate r(loop_rate_); // hz
 	
 	while(ros::ok())
 	{
@@ -431,16 +432,28 @@ BKFeederThread::getFeederDistLeft()
 		return 0.0;
 	}
 	
+
 	// Length of first segment
 	d = segment_lib::linDist(p.segs.at(start_idx));
 	d = max(0.0, d-current_seg_complete);
+	
+	if( p.segs.at(start_idx).seg_type == p_nav::PathSegment::SPIN_IN_PLACE )
+	{
+		d *= 2;
+	}
 	
 	// Length of the rest
 	if( p.segs.size() > 1)
 	{
 		for( unsigned int i = start_idx + 1; i < p.segs.size(); i++ )
 		{
-			d += segment_lib::linDist(p.segs.at(i));
+			double d2 = segment_lib::linDist(p.segs.at(i));
+			
+			if( p.segs.at(i).seg_type == p_nav::PathSegment::SPIN_IN_PLACE )
+			{
+				d2 *= 100;
+			}
+			d += d2;
 		}
 	}
 	

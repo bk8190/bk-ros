@@ -28,6 +28,7 @@ BKPlanningThread::doFullReplan()
 	if( success )
 	{
 		// Reindex the path so that all previously committed segments are invalid
+		segment_lib::combineSegments(planner_path_);
 		segment_lib::reindexPath(planner_path_, last_committed_segnum_ + 2);
 	
 		planner_path_.header.stamp = planner_path_.segs.back().header.stamp;
@@ -90,6 +91,7 @@ BKPlanningThread::doPartialReplan()
 		}
 		
 		// Reindex the path to be continuous with the segments previously committed
+		segment_lib::combineSegments(planner_path_);
 		segment_lib::reindexPath(planner_path_, last_committed_segnum_+1 );
 	
 		planner_path_.header.stamp = planner_path_.segs.back().header.stamp;
@@ -115,7 +117,7 @@ BKPlanningThread::planPointToPoint(const PoseStamped& start,
   {
   	ROS_INFO("[planning] Start pose blocked!");
   	return false;
-  } 
+  }
   
   // Make sure the goal is in bounds
   if( !path_checker->isPoseClear(goal) )
@@ -137,7 +139,47 @@ BKPlanningThread::planPointToPoint(const PoseStamped& start,
 	
 	return true;
 }
- 
+
+bool
+BKPlanningThread::planShortDistance(const PoseStamped& start,
+                                    const PoseStamped& goal,
+                                    p_nav::Path&       path,
+                                    shared_ptr<path_checker::PathChecker> path_checker)
+{
+	// Get the angle to the target
+	double dx    = goal.pose.position.x - start.pose.position.x;
+	double dy    = goal.pose.position.y - start.pose.position.y;
+	double theta = atan2(dy,dx);
+	
+	// Instruct the robot to rotate in place
+	PoseStamped newgoal = start;
+	newgoal.header = start.header;
+	newgoal.pose.position = start.pose.position;
+	newgoal.pose.orientation = tf::createQuaternionMsgFromYaw(theta);
+
+  // Make sure the goal is in bounds
+  if( !path_checker->isPoseClear(newgoal) )
+  {
+  	ROS_INFO("[planning] [Short distance planner] Goal pose blocked!");
+  	return false;
+  }
+  
+	// Construct a turn-in-place segment
+	double x0 = start.pose.position.x;
+	double y0 = start.pose.position.y;
+	double t1 = tf::getYaw(start  .pose.orientation);
+	double t2 = tf::getYaw(newgoal.pose.orientation);
+	
+	p_nav::PathSegment p = segment_lib::makeTurnSegment(x0, y0, t1, t2);
+	
+	path.segs.clear();
+	path.segs.push_back(p);
+	
+	goal_pub_.publish(newgoal);
+	return true;
+}
+
+
 bool
 BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
                                         const PoseStamped& goal,
@@ -145,6 +187,24 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
                                         shared_ptr<path_checker::PathChecker>     path_checker,
                                         shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner)
 {
+	// TODO: Clear the costmap within the robot's footprint
+
+	bool found_goal = false;
+	
+	double d = dist(start,goal);
+	
+	// See if the target is close.  If so, activate a special short-distance planner.
+	if( d <= short_dist_ && getPlannerState() == NEED_FULL_REPLAN )
+	{
+		found_goal = planShortDistance(start, goal, path, path_checker);
+	
+		// Success in short-distance planner (fallthrough to normal planner otherwise)
+		if( found_goal ){
+			ROS_INFO("[planning] Short-distance planner succeeded");
+			return true;
+		}
+	}
+
 	// Generate potential goal poses
 	vector<PoseStamped> cleared_goals = generatePotentialGoals(start, goal, path_checker);
 	
@@ -153,7 +213,6 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
   	return false;
   } 
 	
-	bool found_goal = false;
 	for( unsigned int igoal=0; igoal<cleared_goals.size(); igoal++ )
 	{
 		found_goal = planPointToPoint(start, cleared_goals.at(igoal), path, path_checker, lattice_planner);
@@ -306,6 +365,7 @@ BKPlanningThread::generatePotentialGoals(const PoseStamped& start,
                                          const PoseStamped& goal,
                                          shared_ptr<path_checker::PathChecker> path_checker)
 {
+	
 	double d = dist(start,goal);
 	vector<PoseStamped> cleared_goals;
 
@@ -315,12 +375,14 @@ BKPlanningThread::generatePotentialGoals(const PoseStamped& start,
 		cleared_goals = generateNearGoals(start, goal, path_checker);
 		
 		if( cleared_goals.size() > 0 ){
+			ROS_INFO("[planning] Near goal");
 			return cleared_goals;
 		}
 	}
 	
 	// Either we are out of range of the short-term distance or the short distance failed
 	cleared_goals = generateFarGoals(start, goal, path_checker);
+	ROS_INFO("[planning] Far goal");
 	return cleared_goals;
 }
 };//namespace

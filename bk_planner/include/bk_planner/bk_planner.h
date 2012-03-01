@@ -42,6 +42,8 @@ namespace bk_planner {
 	typedef shared_ptr<BKFeederThread>   FeedThreadPtr;
 	typedef shared_ptr<BKPlanningThread> PlanThreadPtr;
 	
+	double dist( const PoseStamped& p1, const PoseStamped& p2 );
+	
 	// Main class that handles a goal callbacks as well as managing a planning thread and a path feeder thread
 	class BKPlanner
 	{
@@ -126,6 +128,7 @@ namespace bk_planner {
 		double standoff_distance_;
 		
 		double short_dist_;
+		double loop_rate_;
 		
 		// Manage planning
     void doRecovery();
@@ -170,7 +173,12 @@ namespace bk_planner {
 		                           p_nav::Path&       path,
 		                           shared_ptr<path_checker::PathChecker>     path_checker,
                                shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner );
-                               
+    
+    bool planShortDistance(const PoseStamped& start,
+                           const PoseStamped& goal,
+                           p_nav::Path&       path,
+                           shared_ptr<path_checker::PathChecker> path_checker);
+    
 		PoseStamped getPoseOffset(const PoseStamped& pose, double dtheta, double dx);
 
 		// Generates candidate goals centered on the true goal
@@ -236,6 +244,7 @@ namespace bk_planner {
 		
 		// Keep around this many already-completed segments for show
 		int    segs_to_trail_;
+		double loop_rate_;
 		
 		p_nav::ExecutePathFeedback latest_feedback_; // Feedback from action server
 		boost::mutex feedback_mutex_;

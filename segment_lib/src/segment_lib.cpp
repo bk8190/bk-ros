@@ -91,10 +91,11 @@ getFirstSegnum(const p_nav::Path& path)
 double
 linDist(const p_nav::PathSegment& seg)
 {
-	/*if( seg.seg_type == SPIN_IN_PLACE ) {
-		return 0.0;
-	}*/
-	
+	if( seg.seg_type == p_nav::PathSegment::SPIN_IN_PLACE )
+	{
+		return seg.seg_length*1.0;
+	}
+
 	return seg.seg_length;
 }
 
