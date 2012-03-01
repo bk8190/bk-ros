@@ -82,9 +82,9 @@ double dist( const PoseStamped& p1, const PoseStamped& p2 )
 void
 BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 {
-	PoseStamped curr_goal = getLatestGoal();
+	//PoseStamped curr_goal = getLatestGoal();
 
-	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal_ptr->pose.position.x, goal_ptr->pose.position.y, goal_ptr->header.frame_id.c_str());
+	ROS_INFO_THROTTLE(2,"[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal_ptr->pose.position.x, goal_ptr->pose.position.y, goal_ptr->header.frame_id.c_str());
 	
 	PoseStamped new_goal;
 	
@@ -95,33 +95,31 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 	}*/
 	new_goal = *goal_ptr;
 	
-	double d = dist(curr_goal, new_goal);
+	/*double d = dist(curr_goal, new_goal);
 	if( d > goal_hysteresis_ )
 	{
 		setNewGoal(new_goal);
 		got_new_goal_ = true;
-	}
+	}*/
 }
 
 bool
-BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
+BKPlanner::poseToGlobalFrame(const PoseStamped& pose, PoseStamped& transformed)
 {
 	std::string global_frame = planner_costmap_->getGlobalFrameID();
-	tf::Stamped<tf::Pose> goal_pose, global_pose;
-	poseStampedMsgToTF(pose_msg, goal_pose);
+	tf::Stamped<tf::Pose> pose_tf, global_tf;
+	poseStampedMsgToTF(pose, pose_tf);
 
 	try {
-		tf_.transformPose(global_frame, goal_pose, global_pose);
+		tf_.transformPose(global_frame, pose_tf, global_tf);
 	}
 	catch(tf::TransformException& ex) {
-		ROS_ERROR("Failed to transform goal pose from \"%s\" to \"%s\" frame: %s",
-		goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
+		ROS_ERROR("[poseToGlobalFrame] Failed to transform goal pose from \"%s\" to \"%s\" frame: %s",
+		pose_tf.frame_id_.c_str(), global_frame.c_str(), ex.what());
 		return false;
 	}
 
-	PoseStamped global_pose_msg;
-	tf::poseStampedTFToMsg(global_pose, global_pose_msg);
-	transformed = global_pose_msg;
+	tf::poseStampedTFToMsg(global_tf, transformed);
 	return true;
 }
 
@@ -158,14 +156,15 @@ BKPlanner::getLatestGoal()
 		l = boost::recursive_mutex::scoped_try_lock(goal_mutex_);
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
+	
 	got_new_goal_ = false;
 	
 	PoseStamped transformed_goal;
-	
 	if( poseToGlobalFrame(latest_goal_, transformed_goal) ) {
 		return transformed_goal;
 	}
 	else {
+		ROS_ERROR("[getLatestGoal] Failed to transform!");
 		return latest_goal_;
 	}
 }

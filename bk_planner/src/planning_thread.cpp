@@ -155,7 +155,7 @@ BKPlanningThread::startRecovery()
 void
 BKPlanningThread::doRecovery()
 {
-	ROS_INFO("[planning] In recovery");
+	ROS_INFO_THROTTLE(5,"[planning] In recovery");
 	
 	// TODO: Make a recovery counter/timer that will do several things in turn
 	// (There is a replan attempt after each step, if it succeeds, recovery is done.)
@@ -186,7 +186,7 @@ BKPlanningThread::commitPathSegments()
 	// Desired distance to add
 	double dist_to_add = commit_distance_ - dist_left;
 	
-	ROS_INFO_THROTTLE(2,"[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
+	//ROS_INFO_THROTTLE(2,"[planning] Feeder has %.2f left, committing %.2f, I have %d segs left", dist_left, dist_to_add, planner_path_.segs.size());
 	if( planner_path_.segs.size() > 0 && dist_to_add > 0 )
 	{
 		commitOneSegment();

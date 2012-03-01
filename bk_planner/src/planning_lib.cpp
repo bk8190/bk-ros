@@ -375,14 +375,14 @@ BKPlanningThread::generatePotentialGoals(const PoseStamped& start,
 		cleared_goals = generateNearGoals(start, goal, path_checker);
 		
 		if( cleared_goals.size() > 0 ){
-			ROS_INFO("[planning] Near goal");
+			//ROS_INFO("[planning] Near goal");
 			return cleared_goals;
 		}
 	}
 	
 	// Either we are out of range of the short-term distance or the short distance failed
 	cleared_goals = generateFarGoals(start, goal, path_checker);
-	ROS_INFO("[planning] Far goal");
+	//ROS_INFO("[planning] Far goal");
 	return cleared_goals;
 }
 };//namespace
