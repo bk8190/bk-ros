@@ -189,7 +189,7 @@ User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 	ROS_INFO("[bk_skeletal_tracker] New User %d", nId);
 
 	// If we already calibrated on a user, just load that calibration
-	if(g_bhasCal){
+	if(false){//g_bhasCal){
 		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
@@ -220,7 +220,7 @@ UserPose_PoseDetected(xn::PoseDetectionCapability& capability, const XnChar* str
 	g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
 	
 	// If we already calibrated on a user, just load that calibration
-	if(g_bhasCal){
+	if(false){//g_bhasCal){
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
 		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
@@ -453,8 +453,8 @@ int main(int argc, char **argv)
 	}
 
 	// Set up the skeleton generator
-	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
-	//g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
+	//g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
+	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
 	// Kick things off
 	nRetVal = g_Context.StartGeneratingAll();
