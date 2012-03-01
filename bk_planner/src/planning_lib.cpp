@@ -58,7 +58,9 @@ BKPlanningThread::doPartialReplan()
 		ROS_INFO("[planning] Feeder path empty and nothing more to commit, doing full replan instead.");
 		return false;
 	}
-		
+	
+	// TODO: Trigger full replan if target has moved behind the robot
+	
 	// Clear all but the first uncommitted segment
 	if( planner_path_.segs.size() > 1 ) {
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
