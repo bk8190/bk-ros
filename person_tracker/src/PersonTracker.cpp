@@ -30,7 +30,6 @@ bool
 PersonTracker::hasPerson()
 {
 	ros::Duration time_since_last = ros::Time::now() - last_detect_;
-	ROS_INFO("[person_tracker] Last detect %.2fs ago", time_since_last.toSec());
 	return(time_since_last < detect_timeout_);
 }
 
@@ -105,7 +104,7 @@ PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, double confide
 bool
 PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
 {
-	std::string global_frame = "map";
+	std::string global_frame = "odom";
 	tf::Stamped<tf::Pose> goal_tf, global_tf;
 	poseStampedMsgToTF(pose_msg, goal_tf);
 

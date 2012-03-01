@@ -98,7 +98,7 @@ BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg)
 	poseStampedMsgToTF(pose_msg, goal_pose);
 
 	//just get the latest available transform
-	goal_pose.stamp_ = ros::Time();
+	//goal_pose.stamp_ = ros::Time();
 
 	try {
 		tf_.transformPose(global_frame, goal_pose, global_pose);
