@@ -88,11 +88,12 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 	
 	PoseStamped new_goal;
 	
-	if( !poseToGlobalFrame(*goal_ptr, new_goal) )
+	/*if( !poseToGlobalFrame(*goal_ptr, new_goal) )
 	{
 		ROS_ERROR("[Goal callback] Could not transform goal to global frame");
 		return;
-	}
+	}*/
+	new_goal = *goal_ptr;
 	
 	double d = dist(curr_goal, new_goal);
 	if( d > goal_hysteresis_ )
@@ -109,14 +110,11 @@ BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transform
 	tf::Stamped<tf::Pose> goal_pose, global_pose;
 	poseStampedMsgToTF(pose_msg, goal_pose);
 
-	//just get the latest available transform
-	//goal_pose.stamp_ = ros::Time();
-
 	try {
 		tf_.transformPose(global_frame, goal_pose, global_pose);
 	}
 	catch(tf::TransformException& ex) {
-		ROS_WARN("Failed to transform the goal pose from %s into the %s frame: %s",
+		ROS_ERROR("Failed to transform goal pose from \"%s\" to \"%s\" frame: %s",
 		goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
 		return false;
 	}
@@ -161,7 +159,15 @@ BKPlanner::getLatestGoal()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 	}
 	got_new_goal_ = false;
-	return latest_goal_;
+	
+	PoseStamped transformed_goal;
+	
+	if( poseToGlobalFrame(latest_goal_, transformed_goal) ) {
+		return transformed_goal;
+	}
+	else {
+		return latest_goal_;
+	}
 }
 
 };// namespace
@@ -171,32 +177,13 @@ main(int argc, char** argv)
 {
 	ros::init(argc, argv, "bk_planner_node");
 	ros::NodeHandle nh;
-	ros::Duration(3.0).sleep();
 	tf::TransformListener tf(ros::Duration(10));
 	
-	/*bool found = false;
-	while( !found ){
-		try{
-			ROS_INFO("[planner] Getting transforms");
-			found = true;
-			tf::StampedTransform transform;
-			tf.waitForTransform("odom", "map"      , ros::Time::now(), ros::Duration(1));
-			tf.lookupTransform ("odom", "map"      , ros::Time::now(), transform);
-			tf.waitForTransform("odom", "base_link", ros::Time::now(), ros::Duration(1));
-			tf.lookupTransform ("odom", "base_link", ros::Time::now(), transform);
-		}
-		catch(tf::TransformException& ex){
-			ROS_INFO("[planner] Failed to get transforms %s", ex.what());
-			found = false;
-		}
-	}
-	ROS_INFO("[planner] Got transforms");*/
-
 	try	{
 		bk_planner::BKPlanner bkp("bk_planner", tf);
 
 		// All callbacks are taken care of in the main thread
-		while(bkp.nh_.ok()) {
+		while(nh.ok()) {
 			ros::spinOnce();
 		}
 	}
