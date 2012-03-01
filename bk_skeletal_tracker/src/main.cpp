@@ -288,8 +288,6 @@ void glutDisplay (void)
 		g_Context.WaitAndUpdateAll();
 	}
 	
-	ros::Time tstamp=ros::Time::now();
-	
 	// Update the OpenGL display
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
@@ -300,6 +298,7 @@ void glutDisplay (void)
 	std::vector<mapping_msgs::PolygonalMap> pmaps;
 	body_msgs::Skeletons skels;
 	getSkels(pmaps,skels);
+	ros::Time tstamp=ros::Time::now();
 
 	ROS_INFO_THROTTLE(5,"[bk_skeletal_tracker] Skels size %d ",pmaps.size());
 	if(pmaps.size())

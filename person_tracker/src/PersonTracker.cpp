@@ -104,7 +104,7 @@ PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, double confide
 bool
 PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
 {
-	std::string global_frame = "odom";
+	std::string global_frame = "map";
 	tf::Stamped<tf::Pose> goal_tf, global_tf;
 	poseStampedMsgToTF(pose_msg, goal_tf);
 
@@ -159,7 +159,7 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 				
 				// Transform the goal to a global, fixed frame.  Otherwise it will be at most detect_timeout old which is really bad in an odometric frame
 				person_pos_ = temp_pose;
-				if( true )//poseToGlobalFrame(temp_pose, person_pos_) )
+				if( poseToGlobalFrame(temp_pose, person_pos_) )
 				{
 					last_detect_ = ros::Time::now();
 					new_goal_ = true;
