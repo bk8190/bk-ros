@@ -6,6 +6,9 @@ BKPlanningThread::doFullReplan()
 {	
 	ROS_INFO("[planning] Doing full replan");
 			
+	// Clear obstacles from the robot's footprint
+	parent_->planner_costmap_->clearRobotFootprint();
+	
 	// Get the robot's current pose
 	tf::Stamped<tf::Pose> robot_pose;
 	if(!parent_->planner_costmap_->getRobotPose(robot_pose)){
@@ -50,9 +53,9 @@ BKPlanningThread::doPartialReplan()
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
 	double dist_left = FeedThreadPtr(feeder_)->getFeederDistLeft();
 	// ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
-	if( dist_left < 0.1 && planner_path_.segs.size() == 0){
+	if( dist_left < 0.1 )//&& planner_path_.segs.size() == 0)
+	{
 		ROS_INFO("[planning] Feeder path empty and nothing more to commit, doing full replan instead.");
-		planner_path_.segs.clear();
 		return false;
 	}
 		
@@ -112,14 +115,14 @@ BKPlanningThread::planPointToPoint(const PoseStamped& start,
                                    shared_ptr<path_checker::PathChecker>     path_checker,
                                    shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner )
 {
-  // Make sure the goal is clear
+  // Make sure the start pose is clear
   if( !path_checker->isPoseClear(start) )
   {
   	ROS_INFO("[planning] Start pose blocked!");
   	return false;
   }
   
-  // Make sure the goal is in bounds
+  // Make sure the goal pose is clear
   if( !path_checker->isPoseClear(goal) )
   {
   	ROS_INFO("[planning] Goal pose blocked!");
@@ -179,7 +182,6 @@ BKPlanningThread::planShortDistance(const PoseStamped& start,
 	return true;
 }
 
-
 bool
 BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
                                         const PoseStamped& goal,
@@ -187,8 +189,6 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
                                         shared_ptr<path_checker::PathChecker>     path_checker,
                                         shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner)
 {
-	// TODO: Clear the costmap within the robot's footprint
-
 	bool found_goal = false;
 	
 	double d = dist(start,goal);
@@ -198,7 +198,7 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
 	{
 		found_goal = planShortDistance(start, goal, path, path_checker);
 	
-		// Success in short-distance planner (fallthrough to normal planner otherwise)
+		// Success in short-distance planner (fallthrough to normal planner on failure)
 		if( found_goal ){
 			ROS_INFO("[planning] Short-distance planner succeeded");
 			return true;
