@@ -265,6 +265,7 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 	}
 }
 
+
 // this function is called each frame
 void glutDisplay (void)
 {
