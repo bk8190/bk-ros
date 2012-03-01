@@ -94,6 +94,7 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 		return;
 	}*/
 	new_goal = *goal_ptr;
+	got_new_goal_ = true;
 	
 	/*double d = dist(curr_goal, new_goal);
 	if( d > goal_hysteresis_ )
