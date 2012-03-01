@@ -73,7 +73,7 @@ namespace bk_planner {
 		
 		// Main thread handles all ROS callbacks
 		void goalCB(const PoseStamped::ConstPtr& goal);
-		PoseStamped poseToGlobalFrame(const PoseStamped& pose_msg);
+		bool poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed);
 		
 		// Main thread sets the goal in a callback, planning thread checks it.
 		// These functions are thread-safe.

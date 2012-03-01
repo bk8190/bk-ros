@@ -80,7 +80,13 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 
 	ROS_INFO("[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal_ptr->pose.position.x, goal_ptr->pose.position.y, goal_ptr->header.frame_id.c_str());
 	
-	PoseStamped new_goal = poseToGlobalFrame(*goal_ptr);
+	PoseStamped new_goal;
+	
+	if( !poseToGlobalFrame(*goal_ptr, new_goal) )
+	{
+		ROS_ERROR("[Goal callback] Could not transform goal to global frame");
+		return;
+	}
 	
 	double d = dist(curr_goal, new_goal);
 	if( d > goal_hysteresis_ )
@@ -90,8 +96,8 @@ BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
 	}
 }
 
-PoseStamped
-BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg)
+bool
+BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
 {
 	std::string global_frame = planner_costmap_->getGlobalFrameID();
 	tf::Stamped<tf::Pose> goal_pose, global_pose;
@@ -106,12 +112,13 @@ BKPlanner::poseToGlobalFrame(const PoseStamped& pose_msg)
 	catch(tf::TransformException& ex) {
 		ROS_WARN("Failed to transform the goal pose from %s into the %s frame: %s",
 		goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
-		return pose_msg;
+		return false;
 	}
 
 	PoseStamped global_pose_msg;
 	tf::poseStampedTFToMsg(global_pose, global_pose_msg);
-	return global_pose_msg;
+	transformed = global_pose_msg;
+	return true;
 }
 
 void 
