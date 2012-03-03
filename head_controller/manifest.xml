@@ -1,0 +1,14 @@
+<package>
+  <description brief="head_controller">
+
+     head_controller
+
+  </description>
+  <author>Bill</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/head_controller</url>
+
+</package>
+
+
