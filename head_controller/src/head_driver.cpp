@@ -15,7 +15,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "head_driver");
 	ros::NodeHandle nh;
 	tf::TransformBroadcaster br;
-	ros::Subscriber angle_sub_ = nh.subscribe("/pan_angle", 1, &panAngleCallback);
+	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	
 	// TODO: constraints on pan velocity and acceleration
 	double cmd_pan;

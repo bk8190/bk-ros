@@ -1,35 +1,42 @@
 <!-- Starts the OpenNI Kinect driver and sets up static transforms -->
 <launch>
-
 	<!-- Kinect driver -->
 	<include file="$(find openni_launch)/launch/openni.launch" >
 		<!--arg name="depth_frame_id" value="/camera/camera_depth_frame" /-->
 		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
 	</include>
-
+	
 	<!-- Kinect static transforms -->
 	<!--include file="$(find bk_launch)/launch/tf_kinect.launch" /-->
-
+	
 	<!-- Static transform from Harlie's base to the pan mount -->
 	<node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true" args="-0.00 0 1.5572 0.017453 0.1047198 -0.017453 base_link pan_link 100" />
-
+	
 	<!-- Node that drives the Kinect's pan platform and publishes its transform -->
 	<node ns="head_controller" pkg="head_controller" type="head_driver" name="head_driver" output="screen">
-		<rosparam>
+		<remap from="pan_angle" to="head_controller/pan_command"/>
+		<rosparam ns="head_controller">
 			parent_tf_frame: "pan_link"
 			child_tf_frame:  "camera_link"
 			loop_rate: 20.0
 		</rosparam>
 	</node>
-
-
+	
+	<!-- Node that points the Kinect at a target -->
+	<node ns="head_controller" pkg="head_controller" type="point_head" name="point_head" output="screen">
+		<remap from="target_point" to="/move_base_simple/goal"/>
+		<rosparam ns="head_controller">
+			rate: 2.0
+		</rosparam>
+	</node>
+	
+	
 	<!-- Image viewer -->
 	<!--node pkg="image_view" type="image_view" name="depth_image_viewer">
 		<remap from="image" to="/camera/depth/image_rect"/>
 	</node-->
-
+	
 	<!--node pkg="pcl_decimator_bk" type="pcl_decimator_bk" name="pcl_decimator_bk">
 		<remap from="/camera/depth/points" to="/camera/depth_registered/points">
 	</node-->
-
 </launch>

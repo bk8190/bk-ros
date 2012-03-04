@@ -16,6 +16,7 @@ class PointHeadNode():
 		
 		my_namespace = rospy.get_namespace()
 		rate = rospy.get_param('~rate', 1)
+		print('Rate = ', rate)
 		r = rospy.Rate(rate)
 		
 		# Initialize the target point
@@ -27,7 +28,7 @@ class PointHeadNode():
 
 		# Initialize publisher for the pan servo
 		self.head_pan_frame = 'head_pan_link'
-		self.head_pan_pub = rospy.Publisher(my_namespace + 'head_pan_controller/command', Float64)
+		self.head_pan_pub = rospy.Publisher(my_namespace + 'pan_command', Float64)
 		
 		# Initialize tf listener
 		self.tf = tf.TransformListener()
