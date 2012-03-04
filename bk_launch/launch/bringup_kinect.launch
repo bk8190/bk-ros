@@ -8,7 +8,20 @@
 	</include>
 
 	<!-- Kinect static transforms -->
-	<include file="$(find bk_launch)/launch/tf_kinect.launch" />
+	<!--include file="$(find bk_launch)/launch/tf_kinect.launch" /-->
+
+	<!-- Static transform from Harlie's base to the pan mount -->
+	<node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true" args="-0.00 0 1.5572 0.017453 0.1047198 -0.017453 base_link pan_link 100" />
+
+	<!-- Node that drives the Kinect's pan platform and publishes its transform -->
+	<node ns="head_controller" pkg="head_controller" type="head_driver" name="head_driver" output="screen">
+		<rosparam>
+			parent_tf_frame: "pan_link"
+			child_tf_frame:  "camera_link"
+			loop_rate: 20.0
+		</rosparam>
+	</node>
+
 
 	<!-- Image viewer -->
 	<!--node pkg="image_view" type="image_view" name="depth_image_viewer">
