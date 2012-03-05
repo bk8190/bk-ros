@@ -77,6 +77,7 @@ int main(int argc, char** argv)
 	tf::TransformBroadcaster br;
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	
+	ROS_INFO("[head_driver] My namespace is \"%s\"", nh.getNamespace().c_str());
 	// We control a servo that determines the link between parent_frame and child_frame
 	std::string parent_frame, child_frame;
 	nh.param<std::string>("parent_tf_frame", parent_frame , "NULL");
@@ -96,13 +97,13 @@ int main(int argc, char** argv)
 	ros::Rate loop_rate = ros::Rate(loop_rate_dbl);
 	ROS_INFO("[head_driver] Loop rate is %.2fHz", loop_rate_dbl);	
 	
-	
 	//Declare an advanced servo handle
 	CPhidgetAdvancedServoHandle servo = 0;
 
 	//create the advanced servo object
 	CPhidgetAdvancedServo_create(&servo);
 	
+	/*
 	//Set the handlers to be run when the device is plugged in or opened from software, unplugged or closed from software, or generates an error.
 	CPhidget_set_OnAttach_Handler((CPhidgetHandle)servo, AttachHandler, NULL);
 	CPhidget_set_OnDetach_Handler((CPhidgetHandle)servo, DetachHandler, NULL);
@@ -138,7 +139,7 @@ int main(int argc, char** argv)
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setPosition(servo, 0, 0.0);
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
-	
+	*/
 	ros::Duration(1.0).sleep();
 	
 	double curr_pos;
@@ -147,7 +148,7 @@ int main(int argc, char** argv)
 	while( ros::ok() )
 	{
 		//Get current motor position
-		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
+		/*if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
 		{
 			ROS_INFO_THROTTLE(2,"[head_driver] Motor: 0 > Current Position: %f\n", curr_pos);
 		
@@ -168,21 +169,21 @@ int main(int argc, char** argv)
 		else
 		{
 			ROS_ERROR_THROTTLE(2,"[head_driver] Could not read servo position");
-		}
+		}*/
 		
-	/*
+	
 		// TODO: PD control loop on the desired angle
-		cmd_pan = desired_pan_;
+		actual_pan_ = desired_pan_;
 		
 		// TODO: Send the commanded angle to the servo
-		ROS_INFO_THROTTLE(2, "[head_driver] Commanded angle %.2f", desired_pan_);
+		//ROS_INFO_THROTTLE(2, "[head_driver] Commanded angle %.2f", desired_pan_);
 	
 		// Create and publish a transform. No translation, one degree of rotation (pan).
 		tf::Transform transform;
 		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
 		transform.setRotation( tf::Quaternion(actual_pan_, 0.0, 0.0) );
 		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
-	*/
+	
 	
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		ros::spinOnce();

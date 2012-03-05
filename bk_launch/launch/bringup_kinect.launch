@@ -13,21 +13,20 @@
 	<node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true" args="-0.00 0 1.5572 0.017453 0.1047198 -0.017453 base_link pan_link 100" />
 	
 	<!-- Node that drives the Kinect's pan platform and publishes its transform -->
-	<node ns="head_controller" pkg="head_controller" type="head_driver" name="head_driver" output="screen">
-		<remap from="pan_angle" to="head_controller/pan_command"/>
-		<rosparam ns="head_controller">
-			parent_tf_frame: "pan_link"
-			child_tf_frame:  "camera_link"
-			loop_rate: 20.0
-		</rosparam>
+	<node pkg="head_controller" type="head_driver" name="head_driver"
+	output="screen" ns="head_controller/head_driver" >
+		<remap from="/pan_command" to="/head_controller/point_head/pan_command"/>
+		<rosparam>
+parent_tf_frame: "pan_link"
+child_tf_frame: "camera_link"
+loop_rate: 20.0</rosparam>
 	</node>
 	
 	<!-- Node that points the Kinect at a target -->
-	<node ns="head_controller" pkg="head_controller" type="point_head" name="point_head" output="screen">
-		<remap from="target_point" to="/move_base_simple/goal"/>
-		<rosparam ns="head_controller">
-			rate: 2.0
-		</rosparam>
+	<node pkg="head_controller" type="point_head.py" name="point_head"
+	output="screen" ns="head_controller/point_head" >
+		<remap from="/target_pose" to="/move_base_simple/goal"/>
+		<rosparam>rate: 3.0</rosparam>
 	</node>
 	
 	<!-- Image viewer -->
