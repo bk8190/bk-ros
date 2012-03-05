@@ -30,7 +30,6 @@
 		</rosparam>
 	</node>
 	
-	
 	<!-- Image viewer -->
 	<!--node pkg="image_view" type="image_view" name="depth_image_viewer">
 		<remap from="image" to="/camera/depth/image_rect"/>
