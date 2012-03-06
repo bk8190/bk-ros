@@ -181,14 +181,10 @@ int main(int argc, char** argv)
 		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
 		
 		//Get current motor position, publish an updated transform
-		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
-		{
+		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK) {
 			ROS_INFO_THROTTLE(3,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
-			
-			
 		}
-		else
-		{
+		else {
 			ROS_ERROR_THROTTLE(3,"[head_driver] Couldn't read servo position");
 		}
 		
