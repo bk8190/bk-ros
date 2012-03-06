@@ -8,10 +8,20 @@
 double desired_pan_ = 0.0;
 double actual_pan_ = 0.0;
 
+double pan_ang_min_ = 0.0, pan_ang_max_ = 0.0, pan_ang_center_ = 0.0;
+
 void panAngleCallback(const std_msgs::Float64& msg)
 {
-	// TODO: Impose reasonable limits on the angle, or transform it to center it
-	desired_pan_ = msg.data;
+	// Center the angle and clamp it to the defined limits
+	desired_pan_ = msg.data - pan_ang_center_;
+	
+	if( desired_pan_ > pan_ang_max_ ) {
+		desired_pan_ = pan_ang_max_;
+	}
+	
+	if( desired_pan_ < pan_ang_min_ ) {
+		desired_pan_ = pan_ang_min_;
+	}
 }
 
 // Called when a Phidget is attached
@@ -47,6 +57,7 @@ int CCONV ErrorHandler(CPhidgetHandle ADVSERVO, void *userptr, int ErrorCode, co
 	return 0;
 }
 
+// Called whenever the servo changes position
 int CCONV PositionChangeHandler(CPhidgetAdvancedServoHandle ADVSERVO, void *usrptr, int Index, double Value)
 {
 	actual_pan_ = Value;
@@ -60,9 +71,9 @@ int display_properties(CPhidgetAdvancedServoHandle phid)
 	int serialNo, version, numMotors;
 	const char* ptr;
 
-	CPhidget_getDeviceType((CPhidgetHandle)phid, &ptr);
-	CPhidget_getSerialNumber((CPhidgetHandle)phid, &serialNo);
-	CPhidget_getDeviceVersion((CPhidgetHandle)phid, &version);
+	CPhidget_getDeviceType   ((CPhidgetHandle)phid, &ptr     );
+	CPhidget_getSerialNumber ((CPhidgetHandle)phid, &serialNo);
+	CPhidget_getDeviceVersion((CPhidgetHandle)phid, &version );
 
 	CPhidgetAdvancedServo_getMotorCount (phid, &numMotors);
 
@@ -77,27 +88,28 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "head_driver");
 	ros::NodeHandle nh("~");
 	tf::TransformBroadcaster br;
-	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	
-	ROS_INFO("[head_driver] My namespace is \"%s\"", nh.getNamespace().c_str());
 	// We control a servo that determines the link between parent_frame and child_frame
 	std::string parent_frame, child_frame;
 	nh.param<std::string>("parent_tf_frame", parent_frame , "NULL");
 	nh.param<std::string>("child_tf_frame" , child_frame  , "NULL");
-	ROS_INFO("[head_driver] Broadcasting TF from \"%s\" to \"%s\"",
-		parent_frame.c_str(), child_frame.c_str());
+	ROS_INFO("[head_driver] Broadcasting TF from \"%s\" to \"%s\"",	parent_frame.c_str(), child_frame.c_str());
 	
 	// Constraints on pan velocity and acceleration
 	double pan_vel_max, pan_acc_max;
-	nh.param("pan_vel_max", pan_vel_max, 0.5);
-	nh.param("pan_acc_max", pan_acc_max, 0.5);
+	nh.param("pan_angle_center", pan_ang_center_, 0.0);
+	nh.param("pan_angle_min"   , pan_ang_min_   ,-1.0);
+	nh.param("pan_angle_max"   , pan_ang_max_   , 1.0);
+	nh.param("pan_vel_max"     , pan_vel_max    , 0.5);
+	nh.param("pan_acc_max"     , pan_acc_max    , 0.5);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
+	ROS_INFO("[head_driver] Angle min: %.2f center: %.2f max: %.2f", pan_ang_min_, pan_ang_center_, pan_ang_max_);
 	
 	// Control loop rate
 	double loop_rate_dbl;
 	nh.param("loop_rate", loop_rate_dbl, 10.0);
+	ROS_INFO("[head_driver] Loop rate is %.2fHz", loop_rate_dbl);
 	ros::Rate loop_rate = ros::Rate(loop_rate_dbl);
-	ROS_INFO("[head_driver] Loop rate is %.2fHz", loop_rate_dbl);	
 	
 	//Declare an advanced servo handle
 	CPhidgetAdvancedServoHandle servo = 0;
@@ -142,6 +154,8 @@ int main(int argc, char** argv)
 	CPhidgetAdvancedServo_setPosition(servo, 0, 0.0);
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
 	*/
+	
+	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	ros::Duration(1.0).sleep();
 	
 	double curr_pos;
