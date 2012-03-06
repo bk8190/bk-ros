@@ -44,7 +44,7 @@ int CCONV AttachHandler(CPhidgetHandle ADVSERVO, void *userptr)
 
 	CPhidget_getDeviceName  (ADVSERVO, &name);
 	CPhidget_getSerialNumber(ADVSERVO, &serialNo);
-	ROS_INFO("[head_driver] %s %10d attached!\n", name, serialNo);
+	ROS_INFO("[head_driver] %s %10d attached!", name, serialNo);
 
 	return 0;
 }
@@ -57,7 +57,7 @@ int CCONV DetachHandler(CPhidgetHandle ADVSERVO, void *userptr)
 
 	CPhidget_getDeviceName  (ADVSERVO, &name);
 	CPhidget_getSerialNumber(ADVSERVO, &serialNo);
-	ROS_INFO("[head_driver] %s %10d detached!\n", name, serialNo);
+	ROS_INFO("[head_driver] %s %10d detached!", name, serialNo);
 
 	return 0;
 }
@@ -65,7 +65,7 @@ int CCONV DetachHandler(CPhidgetHandle ADVSERVO, void *userptr)
 // Called when an error occurs in a Phidget
 int CCONV ErrorHandler(CPhidgetHandle ADVSERVO, void *userptr, int ErrorCode, const char *Description)
 {
-	ROS_ERROR("[head_driver] Error handled. %d - %s\n", ErrorCode, Description);
+	ROS_ERROR("[head_driver] Error handled. %d - %s", ErrorCode, Description);
 	return 0;
 }
 
@@ -73,7 +73,7 @@ int CCONV ErrorHandler(CPhidgetHandle ADVSERVO, void *userptr, int ErrorCode, co
 int CCONV PositionChangeHandler(CPhidgetAdvancedServoHandle ADVSERVO, void *usrptr, int Index, double Value)
 {
 	actual_pan_ = fromServoFrame(Value);
-	ROS_INFO_THROTTLE(2,"[head_driver] Callback: Current Position: %.2f (%.2f in servo frame)\n", fromServoFrame(Value) , Value);
+	//ROS_INFO_THROTTLE(2,"[head_driver] Callback: Current Position: %.2f (%.2f in servo frame)", fromServoFrame(Value) , Value);
 	return 0;
 }
 
@@ -89,8 +89,10 @@ int display_properties(CPhidgetAdvancedServoHandle phid)
 
 	CPhidgetAdvancedServo_getMotorCount (phid, &numMotors);
 
-	ROS_INFO("%s\n", ptr);
-	ROS_INFO("[head_driver] Serial Number: %10d\nVersion: %8d\n# Motors: %d\n", serialNo, version, numMotors);
+	ROS_INFO("[head_driver] %s", ptr);
+	ROS_INFO("[head_driver] Serial #: %10d", serialNo);
+	ROS_INFO("[head_driver] Version : %8d" , version);
+	ROS_INFO("[head_driver] # Motors: %d"  , numMotors);
 
 	return 0;
 }
@@ -134,7 +136,7 @@ int main(int argc, char** argv)
 	CPhidget_set_OnAttach_Handler((CPhidgetHandle)servo, AttachHandler, NULL);
 	CPhidget_set_OnDetach_Handler((CPhidgetHandle)servo, DetachHandler, NULL);
 	CPhidget_set_OnError_Handler ((CPhidgetHandle)servo, ErrorHandler , NULL);
-	CPhidgetAdvancedServo_set_OnPositionChange_Handler(servo, PositionChangeHandler, NULL);
+	//CPhidgetAdvancedServo_set_OnPositionChange_Handler(servo, PositionChangeHandler, NULL);
 	
 	//open the device for connections
 	CPhidget_open((CPhidgetHandle)servo, -1);
@@ -173,27 +175,27 @@ int main(int argc, char** argv)
 	
 	while( ros::ok() )
 	{
-		//Get current motor position
+		// Send the commanded angle to the servo
+		//valid range is -23 to 232, but for most motors ~30-210
+		ROS_INFO_THROTTLE(3,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
+		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
+		
+		//Get current motor position, publish an updated transform
 		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
 		{
-			ROS_INFO_THROTTLE(2,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
+			ROS_INFO_THROTTLE(3,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
+			
+			// Publish a transform encorporating the actual position of the servo
+			// No translation, one degree of rotation (pan).
+			transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
+			transform.setRotation( tf::Quaternion(fromServoFrame(curr_pos)*3.1415926/180, 0.0, 0.0) );
+			br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
 		}
 		else
 		{
-			ROS_ERROR_THROTTLE(2,"[head_driver] Couldn't read servo position");
+			ROS_ERROR_THROTTLE(3,"[head_driver] Couldn't read servo position");
 		}
 		
-		// Send the commanded angle to the servo
-		//valid range is -23 to 232, but for most motors ~30-210
-		ROS_INFO_THROTTLE(2,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
-		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
-		
-		// Publish a transform encorporating the actual position of the servo
-		// No translation, one degree of rotation (pan).
-		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
-		transform.setRotation( tf::Quaternion(actual_pan_*3.1415926/180, 0.0, 0.0) );
-		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
-			
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		ros::spinOnce();
 		loop_rate.sleep();
