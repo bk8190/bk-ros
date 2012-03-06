@@ -42,7 +42,7 @@ class PointHeadNode():
 		while not rospy.is_shutdown():
 			rospy.wait_for_message('/target_pose', PoseStamped)
 			if self.target_point == self.last_target_point:
-				rospy.loginfo("[point_head] Old target point")
+				rospy.loginfo("[point_head] Stale target point")
 				continue
 			
 			try:
@@ -51,7 +51,7 @@ class PointHeadNode():
 				rospy.loginfo("[point_head] tf Failure")
 				continue
 
-			rospy.loginfo("[point_head] Setting Target pan:\n" + str(target_pan))
+			rospy.loginfo("[point_head] Setting Target pan:\n" + str(target_pan*180/3.141) + " degrees")
 			
 			self.head_pan_pub.publish(target_pan)
 			self.last_target_point = self.target_point
@@ -59,7 +59,7 @@ class PointHeadNode():
 
 
 	def update_target_point(self, msg):
-		rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id + ":\n" +  str(msg.pose.position))
+		#rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id + ":\n" +  str(msg.pose.position))
 		self.target_point = PointStamped()
 		self.target_point.point  = msg.pose.position
 		self.target_point.header = msg.header
@@ -92,4 +92,4 @@ if __name__ == '__main__':
 	except rospy.ROSInterruptException:
 		pass
 	
-	rospy.loginfo("[point_head] Node shutting down.")
+	rospy.loginfo("[point_head] Goodbye.")

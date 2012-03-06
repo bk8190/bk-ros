@@ -19,7 +19,12 @@
 		<rosparam>
 parent_tf_frame: "pan_link"
 child_tf_frame: "camera_link"
-loop_rate: 20.0</rosparam>
+pan_angle_center: 109.0
+pan_angle_min: 0.0
+pan_angle_max: 195.0
+pan_vel_max: 50.0
+pan_acc_max: 1.0
+loop_rate: 10.0</rosparam>
 	</node>
 	
 	<!-- Node that points the Kinect's pan platform at a target -->

@@ -10,18 +10,30 @@ double actual_pan_ = 0.0;
 
 double pan_ang_min_ = 0.0, pan_ang_max_ = 0.0, pan_ang_center_ = 0.0;
 
+double toServoFrame(double angle)
+{
+	angle += pan_ang_center_;
+	
+	if( angle < pan_ang_min_ ) {
+		angle = pan_ang_min_;
+	}
+	
+	if( angle > pan_ang_max_ ) {
+		angle = pan_ang_max_;
+	}
+	
+	return angle;
+}
+
+double fromServoFrame(double angle)
+{
+	return angle - pan_ang_center_;
+}
+
 void panAngleCallback(const std_msgs::Float64& msg)
 {
-	// Center the angle and clamp it to the defined limits
-	desired_pan_ = msg.data - pan_ang_center_;
-	
-	if( desired_pan_ > pan_ang_max_ ) {
-		desired_pan_ = pan_ang_max_;
-	}
-	
-	if( desired_pan_ < pan_ang_min_ ) {
-		desired_pan_ = pan_ang_min_;
-	}
+	// Convert to degrees
+	desired_pan_ = (msg.data*180.0/3.14159);
 }
 
 // Called when a Phidget is attached
@@ -60,8 +72,8 @@ int CCONV ErrorHandler(CPhidgetHandle ADVSERVO, void *userptr, int ErrorCode, co
 // Called whenever the servo changes position
 int CCONV PositionChangeHandler(CPhidgetAdvancedServoHandle ADVSERVO, void *usrptr, int Index, double Value)
 {
-	actual_pan_ = Value;
-	ROS_INFO("[head_driver] Motor: %d > Current Position: %f\n", Index, Value);
+	actual_pan_ = fromServoFrame(Value);
+	ROS_INFO_THROTTLE(2,"[head_driver] Callback: Current Position: %.2f (%.2f in servo frame)\n", fromServoFrame(Value) , Value);
 	return 0;
 }
 
@@ -98,11 +110,11 @@ int main(int argc, char** argv)
 	
 	// Constraints on pan velocity and acceleration
 	double pan_vel_max, pan_acc_max;
-	nh.param("pan_angle_center", pan_ang_center_, 0.0);
-	nh.param("pan_angle_min"   , pan_ang_min_   ,-1.0);
-	nh.param("pan_angle_max"   , pan_ang_max_   , 1.0);
-	nh.param("pan_vel_max"     , pan_vel_max    , 0.5);
-	nh.param("pan_acc_max"     , pan_acc_max    , 0.5);
+	nh.param("pan_angle_center", pan_ang_center_,  90.0);
+	nh.param("pan_angle_min"   , pan_ang_min_   ,   0.0);
+	nh.param("pan_angle_max"   , pan_ang_max_   , 180.0);
+	nh.param("pan_vel_max"     , pan_vel_max    ,   0.0);
+	nh.param("pan_acc_max"     , pan_acc_max    ,   0.0);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
 	ROS_INFO("[head_driver] Angle min: %.2f center: %.2f max: %.2f", pan_ang_min_, pan_ang_center_, pan_ang_max_);
 	
@@ -118,7 +130,6 @@ int main(int argc, char** argv)
 	//create the advanced servo object
 	CPhidgetAdvancedServo_create(&servo);
 	
-	/*
 	//Set the handlers to be run when the device is plugged in or opened from software, unplugged or closed from software, or generates an error.
 	CPhidget_set_OnAttach_Handler((CPhidgetHandle)servo, AttachHandler, NULL);
 	CPhidget_set_OnDetach_Handler((CPhidgetHandle)servo, DetachHandler, NULL);
@@ -145,16 +156,14 @@ int main(int argc, char** argv)
 	
 	//Set up some initial acceleration and velocity values
 	// TODO: Currently, is overwritng with the defaults.
-	CPhidgetAdvancedServo_getAccelerationMin(servo, 0, &pan_acc_max);
 	CPhidgetAdvancedServo_setAcceleration   (servo, 0, pan_acc_max);
-	CPhidgetAdvancedServo_getVelocityMax    (servo, 0, &pan_vel_max);
 	CPhidgetAdvancedServo_setVelocityLimit  (servo, 0, pan_vel_max);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
 	
 	// Center the servo, engage the drive.
-	CPhidgetAdvancedServo_setPosition(servo, 0, 0.0);
+	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
+	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
-	*/
 	
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	ros::Duration(1.0).sleep();
@@ -165,35 +174,26 @@ int main(int argc, char** argv)
 	while( ros::ok() )
 	{
 		//Get current motor position
-		/*if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
+		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
 		{
-			ROS_INFO_THROTTLE(2,"[head_driver] Motor: 0 > Current Position: %f\n", curr_pos);
-		
-			// Send the commanded angle to the servo
-			//valid range is -23 to 232, but for most motors ~30-210
-			ROS_INFO_THROTTLE(2, "[head_driver] Commanded angle %.2f", desired_pan_);
-			CPhidgetAdvancedServo_setPosition(servo, 0, desired_pan_*180/pi);
-		
-			// Publish a transform encorporating the actual position of the servo
-			// No translation, one degree of rotation (pan).
-			transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
-			transform.setRotation( tf::Quaternion(actual_pan_, 0.0, 0.0) );
-			br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
+			ROS_INFO_THROTTLE(2,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
 		}
 		else
 		{
-			ROS_ERROR_THROTTLE(2,"[head_driver] Could not read servo position");
-		}*/
-		
-		// TODO: This is temporary until the servo is hooked up
-		{
-			actual_pan_ = desired_pan_;
-			tf::Transform transform;
-			transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
-			transform.setRotation( tf::Quaternion(actual_pan_, 0.0, 0.0) );
-			br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
+			ROS_ERROR_THROTTLE(2,"[head_driver] Couldn't read servo position");
 		}
-	
+		
+		// Send the commanded angle to the servo
+		//valid range is -23 to 232, but for most motors ~30-210
+		ROS_INFO_THROTTLE(2,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
+		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
+		
+		// Publish a transform encorporating the actual position of the servo
+		// No translation, one degree of rotation (pan).
+		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
+		transform.setRotation( tf::Quaternion(actual_pan_*3.1415926/180, 0.0, 0.0) );
+		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
+			
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		ros::spinOnce();
 		loop_rate.sleep();
