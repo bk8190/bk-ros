@@ -1,6 +1,25 @@
 #include <bk_planner/bk_planner.h>
 namespace bk_planner {
 
+bool BKPlanningThread::isTargetBehind(const PoseStamped& target)
+{
+	// Transform the target to base_link
+	PoseStamped transformed_target;
+	try {
+		parent_->tf_.transformPose("base_link", target, transformed_target);
+	}
+	catch(tf::TransformException& ex) {
+		ROS_ERROR("[isTargetBehind] Failed to transform target pose from \"%s\" to \"base_link\" (%s)",
+		target.header.frame_id.c_str(), ex.what());
+		return false;
+	}
+	
+	ROS_INFO("[isTargetBehind] Transformed pose is (%.2f,%.2f)", transformed_target.pose.position.x, transformed_target.pose.position.y);
+	
+	return transformed_target.pose.position.x < 0.2;
+}
+
+
 bool
 BKPlanningThread::doFullReplan()
 {	
@@ -10,13 +29,11 @@ BKPlanningThread::doFullReplan()
 	parent_->planner_costmap_->clearRobotFootprint();
 	
 	// Get the robot's current pose
-	tf::Stamped<tf::Pose> robot_pose;
-	if(!parent_->planner_costmap_->getRobotPose(robot_pose)){
+	PoseStamped start;
+	if(!parent_->getRobotPose(start)){
 		ROS_ERROR("[planning] Full replan failed (could not get robot's current pose)");
 		return false;
 	}
-	PoseStamped start;
-	tf::poseStampedTFToMsg(robot_pose, start);
 	
 	// Get the goal
 	PoseStamped goal = parent_->getLatestGoal();
@@ -47,7 +64,6 @@ BKPlanningThread::doFullReplan()
 bool
 BKPlanningThread::doPartialReplan()
 {
-	
 	ROS_INFO("[planning] Doing partial replan");
 			
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
@@ -59,19 +75,26 @@ BKPlanningThread::doPartialReplan()
 		return false;
 	}
 	
-	// TODO: Trigger full replan if target has moved behind the robot
+	PoseStamped goal  = parent_->getLatestGoal();
+	
+	// Trigger full replan if target has moved behind the robot.  There is a timer to prevent this from happening too often
+	if( isTargetBehind(goal) && (ros::Time::now() - last_scrapped_path_ > scrap_path_timeout_) )
+	{
+		ROS_INFO("[planning] Target is behind me, scrapping current path and doing a full replan.");
+		last_scrapped_path_ = ros::Time::now();
+		return false;
+	}
 	
 	// Clear all but the first uncommitted segment
 	if( planner_path_.segs.size() > 1 ) {
 		planner_path_.segs.erase( planner_path_.segs.begin()+1, planner_path_.segs.end() );
 	}
 	
-	PoseStamped goal  = parent_->getLatestGoal();
-	PoseStamped start;
-	
 	bool replan_from_end_of_first_seg;
 		
 	// Plan from the end of the first uncommitted segment if possible, otherwise plan from the last committed pose
+	PoseStamped start;
+	
 	if( planner_path_.segs.size() == 1 ){
 		//ROS_INFO("[planning] Replanning from first uncommitted segment");
 		start = segment_lib::getEndPose(planner_path_.segs.front());
@@ -228,7 +251,7 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
 	
 	// Failure
 	path = p_nav::Path();
-	ROS_INFO("[planning] Searched through %d candidate goals, no clear path.", cleared_goals.size());
+	ROS_INFO("[planning] Searched through %lu candidate goals, no clear path.", cleared_goals.size());
 	return false;
 }
 

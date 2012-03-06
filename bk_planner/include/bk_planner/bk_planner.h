@@ -58,9 +58,14 @@ namespace bk_planner {
 		bool gotNewGoal();
     PoseStamped getLatestGoal();
     
+		// Get the robot's current poseToGlobalFrame
+		bool getRobotPose(PoseStamped& pose);
+    
 		shared_ptr<costmap_2d::Costmap2DROS>  planner_costmap_;
 		shared_ptr<path_checker::PathChecker> path_checker_;
 		recursive_mutex                       path_checker_mutex;
+		
+		tf::TransformListener& tf_;
 		
 	private:
     shared_ptr<BKPlanningThread> planner_;
@@ -69,7 +74,6 @@ namespace bk_planner {
 		void terminateThreads();
 		
 		ros::Subscriber        goal_sub_;
-		tf::TransformListener& tf_;
 		
 		// Main thread handles all ROS callbacks
 		void goalCB(const PoseStamped::ConstPtr& goal);
@@ -127,6 +131,10 @@ namespace bk_planner {
 		// If planner can not get exactly to the target, it will try to get this far away
 		double standoff_distance_;
 		
+		// The planner periodically checks if it is faster just to scrap the current path and replan
+		ros::Time last_scrapped_path_;
+		ros::Duration scrap_path_timeout_;
+		
 		double short_dist_;
 		double loop_rate_;
 		
@@ -138,10 +146,12 @@ namespace bk_planner {
     void commitPathSegments();
 		void enqueueSegments(p_nav::Path new_segments);
 		p_nav::PathSegment commitOneSegment();
+		bool isTargetBehind(const PoseStamped& target);
 		
 		
 		shared_ptr<bk_sbpl::BKSBPLLatticePlanner>  lattice_planner_;
 		shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
+		
 		
 		p_nav::Path planner_path_;
 		PoseStamped last_committed_pose_;
@@ -221,6 +231,7 @@ namespace bk_planner {
 		// Whenever we want to dereference these we need to take ownership
 		// ex: BKPlannerPtr(parent_weak_)->someFunction();
 		BKPlanner* parent_;
+		actionlib::SimpleActionClient<p_nav::ExecutePathAction> client_;
 		boost::weak_ptr<BKPlanningThread> planner_;
 		
 		
@@ -252,7 +263,6 @@ namespace bk_planner {
 		bool         feeder_path_has_changed_; // Has our path been updated?
 		
 		shared_ptr<segment_lib::SegmentVisualizer> visualizer_;
-		actionlib::SimpleActionClient<p_nav::ExecutePathAction> client_;
 		bool client_has_goal_;
 		
 		// Do not directly access these variables, not thread-safe.

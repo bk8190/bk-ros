@@ -3,8 +3,8 @@
 namespace bk_planner {
 
 BKFeederThread::BKFeederThread(BKPlanner* parent):
-	client_ ("execute_path", true),
-	parent_ (parent)
+	parent_ (parent),
+	client_ ("execute_path", true)
 {
 	parent_->priv_nh_.param("planning/segs_to_trail"   , segs_to_trail_ , 4);
 	parent_->priv_nh_.param("planning/feeder_loop_rate", loop_rate_     , 5.0);
@@ -34,7 +34,7 @@ BKFeederThread::setPlanner(boost::weak_ptr<BKPlanningThread> planner)
 void
 BKFeederThread::run()
 {	
-	ROS_INFO("[feeder] Main thread started at %.2fHz", loop_rate_);
+	//ROS_INFO("[feeder] Main thread started at %.2fHz", loop_rate_);
 	ros::Rate r(loop_rate_); // hz
 	
 	while(ros::ok())
@@ -45,7 +45,7 @@ BKFeederThread::run()
 		
 			if(!l){
 				boost::this_thread::interruption_point();
-				ROS_WARN("[feeder] Locked out!");
+				ROS_WARN_THROTTLE(2,"[feeder] Locked out!");
 				sendHaltState();
 				r.sleep();
 				continue;
@@ -121,14 +121,12 @@ BKFeederThread::sendHaltState()
 	feeder_path_.segs.clear();
 			
 	// If we've given steering a goal, clear it and send it a new trivial goal (holding position)	
-	if(client_has_goal_ == true)
+	//if(client_has_goal_ == true)
 	{
-		tf::Stamped<tf::Pose> robot_pose;
-		if(!parent_->planner_costmap_->getRobotPose(robot_pose)){
+		PoseStamped pose;
+		if(!parent_->getRobotPose(pose)) {
 			ROS_ERROR("[feeder] Couldn't get robot pose to make halt state");
 		}
-		PoseStamped pose;
-		tf::poseStampedTFToMsg(robot_pose, pose);
 			
 		// Make an arbitrary path segment with no speed
 		p_nav::PathSegment seg;
@@ -158,15 +156,6 @@ BKFeederThread::sendHaltState()
 				boost::bind(&BKFeederThread::feedbackCb, this, _1    ));
 		client_has_goal_ = false;
 	}
-	/*
-	// Cancel any active goal
-	if( (client_has_goal_ == true) && (client_.getState().isDone() == false) )
-	{
-		
-		client_.stopTrackingGoal();
-		client_.cancelGoal();
-		client_has_goal_ = false;
-	}*/
 }
 
 void
@@ -198,7 +187,7 @@ BKFeederThread::getNewSegments()
 		
 		// No current path exists - get the new segments
 		if( feeder_path_.segs.size() == 0 ) {
-			ROS_INFO("[feeder] Got new path, %u segs, first number %d", new_segs.segs.size(), new_segs.segs.front().seg_number);
+			ROS_INFO("[feeder] Got new path, %llu segs, first number %d", new_segs.segs.size(), new_segs.segs.front().seg_number);
 			feeder_path_ = new_segs;
 			latest_feedback_.seg_number = new_segs.segs.front().seg_number; // Hacky
 			return;

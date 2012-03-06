@@ -29,6 +29,8 @@ BKPlanningThread::BKPlanningThread(BKPlanner* parent):
 	planner_state_         = GOOD;
 	last_committed_segnum_ = 0;
 	last_committed_pose_   = parent_->getLatestGoal();
+	last_scrapped_path_    = ros::Time::now();
+	scrap_path_timeout_    = ros::Duration(5.0);
 	
 	ROS_INFO("[planning] Constructor finished");
 }

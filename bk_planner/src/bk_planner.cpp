@@ -170,6 +170,18 @@ BKPlanner::getLatestGoal()
 	}*/
 }
 
+// Get the robot's current pose
+bool
+BKPlanner::getRobotPose(PoseStamped& pose)
+{
+	tf::Stamped<tf::Pose> robot_pose;
+	if(!planner_costmap_->getRobotPose(robot_pose)){
+		ROS_WARN("[planning] getRobotPose failed!");
+		return false;
+	}
+	tf::poseStampedTFToMsg(robot_pose, pose);
+}
+
 };// namespace
 
 int
