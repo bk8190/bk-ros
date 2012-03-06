@@ -49,9 +49,9 @@ class PointHeadNode():
 				target_pan = self.transform_target_point(self.target_point)
 			except (tf.Exception, tf.ConnectivityException, tf.LookupException) as inst:
 				rospy.logwarn("[point_head] tf Failure")
-				print type(inst)
-				print inst.args
-				print inst
+				rospy.logwarn(type(inst))
+				rospy.logwarn(inst.args)
+				rospy.logwarn(inst)
 				continue
 
 			rospy.loginfo("[point_head] Setting Target pan: " + str(target_pan*180/3.141) + " degrees")
@@ -77,10 +77,10 @@ class PointHeadNode():
 		# Set the pan reference frame to the head_pan_frame defined above
 		pan_ref_frame = self.head_pan_frame
 		
-		# Wait for tf info (time-out in 5 seconds)
+		# Make sure the TF is available
 		try:
 			#self.tf.waitForTransform(pan_ref_frame, target.header.frame_id, rospy.Time(), rospy.Duration(5.0))
-			self.tf.lookupTransform(pan_ref_frame, target.header.frame_id, rospy.Time())
+			self.tf.getLatestCommonTime(pan_ref_frame, target.header.frame_id)
 		except tf.Exception:
 			rospy.logwarn("[point_head] TF could not get transform")
 			raise
