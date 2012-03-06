@@ -88,6 +88,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "head_driver");
 	ros::NodeHandle nh("~");
 	tf::TransformBroadcaster br;
+	const double pi = 3.1415926;
 	
 	// We control a servo that determines the link between parent_frame and child_frame
 	std::string parent_frame, child_frame;
@@ -171,10 +172,7 @@ int main(int argc, char** argv)
 			// Send the commanded angle to the servo
 			//valid range is -23 to 232, but for most motors ~30-210
 			ROS_INFO_THROTTLE(2, "[head_driver] Commanded angle %.2f", desired_pan_);
-			CPhidgetAdvancedServo_setPosition(servo, 0, desired_pan_);
-		
-			// TODO: This is temporary, and will be replaced when the servo is hooked up
-			actual_pan_ = desired_pan_;
+			CPhidgetAdvancedServo_setPosition(servo, 0, desired_pan_*180/pi);
 		
 			// Publish a transform encorporating the actual position of the servo
 			// No translation, one degree of rotation (pan).
@@ -187,19 +185,14 @@ int main(int argc, char** argv)
 			ROS_ERROR_THROTTLE(2,"[head_driver] Could not read servo position");
 		}*/
 		
-	
-		// TODO: PD control loop on the desired angle
-		actual_pan_ = desired_pan_;
-		
-		// TODO: Send the commanded angle to the servo
-		//ROS_INFO_THROTTLE(2, "[head_driver] Commanded angle %.2f", desired_pan_);
-	
-		// Create and publish a transform. No translation, one degree of rotation (pan).
-		tf::Transform transform;
-		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
-		transform.setRotation( tf::Quaternion(actual_pan_, 0.0, 0.0) );
-		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
-	
+		// TODO: This is temporary until the servo is hooked up
+		{
+			actual_pan_ = desired_pan_;
+			tf::Transform transform;
+			transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
+			transform.setRotation( tf::Quaternion(actual_pan_, 0.0, 0.0) );
+			br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
+		}
 	
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		ros::spinOnce();

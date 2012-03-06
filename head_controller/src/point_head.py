@@ -33,9 +33,6 @@ class PointHeadNode():
 		
 		# Initialize tf listener
 		self.tf = tf.TransformListener()
-		
-		# Make sure we can see at least the pan and tilt frames
-		#self.tf.waitForTransform(self.head_pan_frame, self.head_tilt_frame, rospy.Time(), rospy.Duration(5.0))
 	
 		# Reset the head position to neutral
 		rospy.sleep(1)
@@ -47,6 +44,7 @@ class PointHeadNode():
 			if self.target_point == self.last_target_point:
 				rospy.loginfo("[point_head] Old target point")
 				continue
+			
 			try:
 				target_pan = self.transform_target_point(self.target_point)
 			except (tf.Exception, tf.ConnectivityException, tf.LookupException):
