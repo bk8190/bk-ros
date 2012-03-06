@@ -11,34 +11,36 @@ double actual_pan_ = 0.0;
 void panAngleCallback(const std_msgs::Float64& msg)
 {
 	// TODO: Impose reasonable limits on the angle, or transform it to center it
-
 	desired_pan_ = msg.data;
 }
 
+// Called when a Phidget is attached
 int CCONV AttachHandler(CPhidgetHandle ADVSERVO, void *userptr)
 {
 	int serialNo;
 	const char *name;
 
-	CPhidget_getDeviceName (ADVSERVO, &name);
+	CPhidget_getDeviceName  (ADVSERVO, &name);
 	CPhidget_getSerialNumber(ADVSERVO, &serialNo);
 	ROS_INFO("[head_driver] %s %10d attached!\n", name, serialNo);
 
 	return 0;
 }
 
+// Called when a Phidget is detached
 int CCONV DetachHandler(CPhidgetHandle ADVSERVO, void *userptr)
 {
 	int serialNo;
 	const char *name;
 
-	CPhidget_getDeviceName (ADVSERVO, &name);
+	CPhidget_getDeviceName  (ADVSERVO, &name);
 	CPhidget_getSerialNumber(ADVSERVO, &serialNo);
 	ROS_INFO("[head_driver] %s %10d detached!\n", name, serialNo);
 
 	return 0;
 }
 
+// Called when an error occurs in a Phidget
 int CCONV ErrorHandler(CPhidgetHandle ADVSERVO, void *userptr, int ErrorCode, const char *Description)
 {
 	ROS_ERROR("[head_driver] Error handled. %d - %s\n", ErrorCode, Description);
@@ -73,7 +75,7 @@ int display_properties(CPhidgetAdvancedServoHandle phid)
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "head_driver");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 	tf::TransformBroadcaster br;
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	
