@@ -8,6 +8,7 @@
 #include <person_tracker/PTSounds.h>
 
 #include <mapping_msgs/PolygonalMap.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Twist.h>
 #include <body_msgs/Skeletons.h>
@@ -22,13 +23,15 @@ namespace PersonTracker {
 
 using std::string;
 using geometry_msgs::PoseStamped;
+using geometry_msgs::PoseWithCovarianceStamped;
 
 class PersonTracker
 {
 	public:
 		
 		bool hasPerson();
-		PoseStamped getPersonPosition();
+		ros::Duration timeSinceLastDetect();
+		PoseWithCovarianceStamped getPersonPosition();
 	
 		PersonTracker(string name);
 		~PersonTracker()
@@ -44,17 +47,23 @@ class PersonTracker
 		
 		ros::Subscriber skeleton_sub_;
 		ros::Publisher  goal_pub_;
+		ros::Publisher  goal_cov_pub_;
 		ros::Timer      compute_loop_timer_;
-		PoseStamped     person_pos_;
+		
+		PoseWithCovarianceStamped person_pos_;
 		
 		double          loop_rate_;
 		double goal_hysteresis_;
 		ros::Duration detect_timeout_;
+		double pos_var_start_;
+		double var_increase_rate_;
+		double max_var_;
 		
 		void skeletonCB(const body_msgs::Skeletons& skel_msg);
 		void computeStateLoop(const ros::TimerEvent& event);
 		PoseStamped poseToGlobalFrame(const PoseStamped& pose_msg);
 		bool poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed);
+		bool poseToGlobalFrame(const PoseWithCovarianceStamped& pose_msg, PoseWithCovarianceStamped& transformed);
 		bool getFirstGoodJoint(const body_msgs::Skeleton& skel, double confidence_thresh, body_msgs::SkeletonJoint& body_part, string& body_part_name);
 
 };
