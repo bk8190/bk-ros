@@ -50,6 +50,11 @@ PersonTracker::PersonTracker(string name) :
 	goal_pub_     = nh_.advertise<PoseStamped>("goal", 1);
 	goal_cov_pub_ = nh_.advertise<PoseWithCovarianceStamped>("goal_with_covariance", 1);
 	
+	person_pos_.pose.pose.position.x = 0.0;
+	person_pos_.pose.pose.position.y = 0.0;
+	person_pos_.pose.pose.position.z = 0.0;
+	person_pos_.pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+	person_pos_.header.frame_id = "base_link";
 	
 	//Set a callback to occur at a regular rate
   double dt = 1.0/loop_rate_;
@@ -224,7 +229,7 @@ void
 PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	ROS_DEBUG("[person tracker] Last callback took %f seconds", event.profile.last_duration.toSec());
 
-	// Set covariance based on time since last acquisition
+	// Set variance based on time since last acquisition
 	double dt = timeSinceLastDetect().toSec();
 	double current_var  = std::min(var_increase_rate_*dt, max_var_);
 	setVariance(person_pos_, current_var);

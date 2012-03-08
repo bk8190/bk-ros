@@ -28,9 +28,9 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	ROS_INFO("[bk_planner] Goal covariance threshold is %.2f", goal_cov_thresh_);
 	
 	// Get the robot's current pose and set a goal there
-	tf::Stamped<tf::Pose> robot_pose;
+	PoseStamped robot_pose;
 	if( getRobotPose(robot_pose) ) {
-		setNewGoal(start_pose);
+		setNewGoal(robot_pose);
 	}
 	else {
 		ROS_ERROR("[bk_planner] Could not transform start pose");
@@ -196,6 +196,7 @@ BKPlanner::getRobotPose(PoseStamped& pose)
 		return false;
 	}
 	tf::poseStampedTFToMsg(robot_pose, pose);
+	return true;
 }
 
 };// namespace

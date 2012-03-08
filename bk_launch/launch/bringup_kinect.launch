@@ -23,14 +23,15 @@ pan_angle_center: 109.0
 pan_angle_min: 0.0
 pan_angle_max: 195.0
 pan_vel_max: 50.0
-pan_acc_max: 1.0
+pan_acc_max: 30.0
 loop_rate: 20.0</rosparam>
 	</node>
 	
 	<!-- Node that points the Kinect's pan platform at a target -->
 	<node pkg="head_controller" type="point_head.py" name="point_head"
 	output="screen" ns="head_controller" >
-		<remap from="/target_pose" to="/move_base_simple/goal"/>
+		<remap from="/target_pose" to="/person_tracker/goal"/>
+		<!--remap from="/target_pose" to="/move_base_simple/goal"/-->
 		<rosparam>rate: 3.0</rosparam>
 	</node>
 	

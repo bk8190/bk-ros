@@ -26,7 +26,6 @@
 			command="load" ns="sounds"  />
 			
 		<!-- Topic remappings -->
-		<!-- remap from="goal" to="/move_base_simple/goal" /-->
 		<remap from="skeletons" to="/skeletons" />
 	</node>
 	
