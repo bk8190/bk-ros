@@ -7,6 +7,7 @@
 
 #include <tf/transform_listener.h>
 #include <costmap_2d/costmap_2d_ros.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib_msgs/GoalStatus.h>
 
@@ -29,6 +30,7 @@ namespace bk_planner {
 	namespace bk_sbpl = bk_sbpl_lattice_planner;
 	
 	using geometry_msgs::PoseStamped;
+	using geometry_msgs::PoseWithCovarianceStamped;
 	using std::vector;
 	using segment_lib::pi;
 	using boost::shared_ptr;
@@ -73,10 +75,12 @@ namespace bk_planner {
 		shared_ptr<boost::thread>    planning_thread_, feeder_thread_;
 		void terminateThreads();
 		
-		ros::Subscriber        goal_sub_;
+		ros::Subscriber goal_sub_;
+		ros::Duration   goal_timeout_;
+		double  goal_cov_thresh_;
 		
 		// Main thread handles all ROS callbacks
-		void goalCB(const PoseStamped::ConstPtr& goal);
+		void goalCB(const PoseWithCovarianceStamped::ConstPtr& goal);
 		bool poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed);
 		
 		// Main thread sets the goal in a callback, planning thread checks it.
@@ -85,9 +89,11 @@ namespace bk_planner {
     double goal_hysteresis_;
     
     // Do not directly access these variables, not thread-safe.
-		bool                       got_new_goal_;
-		PoseStamped latest_goal_;
-		recursive_mutex     goal_mutex_;
+		bool            got_new_goal_;
+		PoseStamped     latest_goal_;
+		recursive_mutex goal_mutex_;
+		
+		ros::Time       last_accepted_goal_;
 	};//BKPlanner
 	
 	enum plannerState

@@ -3,10 +3,11 @@
 namespace bk_planner {
 
 BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
-	nh_           (),
-	priv_nh_      ("~"),
-	tf_           (tf),
-	got_new_goal_ (false)
+	nh_                 (),
+	priv_nh_            ("~"),
+	tf_                 (tf),
+	got_new_goal_       (false),
+	last_accepted_goal_ (ros::Time(0))
 {
 	// Initialize the cost map and path checker
 	planner_costmap_ = shared_ptr<costmap_2d::Costmap2DROS>
@@ -14,17 +15,21 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 	path_checker_    = shared_ptr<path_checker::PathChecker>
 		(new path_checker::PathChecker("path_checker", planner_costmap_));
 	
+	// Get planner-related parameters
 	priv_nh_.param("goal_hysteresis", goal_hysteresis_, 0.2);
 	ROS_INFO("[bk_planner] Goal hysteresis is %.2f", goal_hysteresis_);
 	
+	double temp;
+	priv_nh_.param("goal_timeout", temp, 3.0);
+	goal_timeout_ = ros::Duration(temp);
+	ROS_INFO("[bk_planner] Goal timeout is %.2fsec", temp);
+	
+	priv_nh_.param("goal_cov_thresh", goal_cov_thresh_, 1.0);
+	ROS_INFO("[bk_planner] Goal covariance threshold is %.2f", goal_cov_thresh_);
+	
 	// Get the robot's current pose and set a goal there
 	tf::Stamped<tf::Pose> robot_pose;
-	planner_costmap_->getRobotPose(robot_pose);
-	PoseStamped start_pose;
-	tf::poseStampedTFToMsg(robot_pose, start_pose);
-	bool ret = poseToGlobalFrame(start_pose, start_pose);
-	
-	if( ret ) {
+	if( getRobotPose(robot_pose) ) {
 		setNewGoal(start_pose);
 	}
 	else {
@@ -71,34 +76,45 @@ BKPlanner::terminateThreads()
 double dist( const PoseStamped& p1, const PoseStamped& p2 )
 {
 	return sqrt(
-              ((p1.pose.position.x - p2.pose.position.x)
-              *(p1.pose.position.x - p2.pose.position.x))+
-              ((p1.pose.position.y - p2.pose.position.y)
-              *(p1.pose.position.y - p2.pose.position.y))+
-              ((p1.pose.position.z - p2.pose.position.z)
-              *(p1.pose.position.z - p2.pose.position.z)) );
+	 ((p1.pose.position.x - p2.pose.position.x)
+	 *(p1.pose.position.x - p2.pose.position.x))+
+	 ((p1.pose.position.y - p2.pose.position.y)
+	 *(p1.pose.position.y - p2.pose.position.y))+
+	 ((p1.pose.position.z - p2.pose.position.z)
+	 *(p1.pose.position.z - p2.pose.position.z)) );
 }
 
 void
-BKPlanner::goalCB(const PoseStamped::ConstPtr& goal_ptr)
+BKPlanner::goalCB(const PoseWithCovarianceStamped::ConstPtr& goal_cov_ptr)
 {
-	//PoseStamped curr_goal = getLatestGoal();
+	// Get the covariance
+	double cov = goal_cov_ptr->pose.covariance[0];
+	
+	// Then strip it out so we are left with a regular PoseStamped
+	PoseStamped goal;
+	goal.header = goal_cov_ptr->header;
+	goal.pose   = goal_cov_ptr->pose.pose;
 
-	ROS_INFO_THROTTLE(2,"[Goal callback] Got new goal: (%.2f,%.2f) in frame %s", goal_ptr->pose.position.x, goal_ptr->pose.position.y, goal_ptr->header.frame_id.c_str());
+	ROS_INFO_THROTTLE(2,"[Goal callback] Got new goal: (%.2f,%.2f) in frame %s, covariance %.2f", goal.pose.position.x, goal.pose.position.y, goal.header.frame_id.c_str(), cov);
 	
+	// Try to transform the goal to my frame of reference
 	PoseStamped new_goal;
-	
-	if( !poseToGlobalFrame(*goal_ptr, new_goal) )
+	if( !poseToGlobalFrame(goal, new_goal) )
 	{
 		ROS_ERROR("[Goal callback] Could not transform goal to global frame");
 		return;
 	}
 	
+	// Accept the new goal under two conditions:
+	// 1) it is far enough away from the last accepted goal (goal_hysteresis_)
+	// 2) enough time has elapsed since the last time (goal_timeout_)
 	double d = dist(latest_goal_, new_goal);
-	if( d > goal_hysteresis_ )
+	ros::Duration time_since_goal = last_accepted_goal_ - ros::Time::now();
+	if( d > goal_hysteresis_ || time_since_goal > goal_timeout_ )
 	{
 		setNewGoal(new_goal);
 		got_new_goal_ = true;
+		last_accepted_goal_ = ros::Time::now();
 	}
 }
 
