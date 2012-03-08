@@ -13,8 +13,8 @@ child_tf_frame: "camera_link"
 pan_angle_center: 109.0
 pan_angle_min: 0.0
 pan_angle_max: 195.0
-pan_vel_max: 50.0
-pan_acc_max: 30.0
+pan_vel_max: 30.0
+pan_acc_max: 40.0
 loop_rate: 20.0</rosparam>
 	</node>
 	

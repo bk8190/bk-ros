@@ -44,7 +44,7 @@ class PointHeadNode():
 			rospy.wait_for_message('/target_pose', PoseWithCovarianceStamped)
 			if self.target_point == self.last_target_point:
 				rospy.loginfo("[point_head] Stale target point")
-				continue
+				#continue
 			
 			try:
 				target_pan = self.transform_target_point(self.target_point)
