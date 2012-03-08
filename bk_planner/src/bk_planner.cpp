@@ -53,7 +53,7 @@ BKPlanner::BKPlanner(std::string name, tf::TransformListener& tf):
 		(new boost::thread(boost::bind(&BKFeederThread::run  , feeder_ )) );
 
 	// This node subscribes to a goal pose.
-	goal_sub_ = nh_.subscribe("goal", 1, &BKPlanner::goalCB, this);
+	goal_sub_ = nh_.subscribe("goal_with_covariance", 1, &BKPlanner::goalCB, this);
 	
 	// ROS_INFO("BKPlanner constructor finished");
 	return;
