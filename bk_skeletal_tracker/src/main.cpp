@@ -20,6 +20,23 @@
 *                                                                            *
 *****************************************************************************/
 
+// TODO: Add a meta-reliability layer.  Track each object individually
+// Map varying player IDs (PIDs) to constant UIDs (constant).
+// When a new player appears, check if there is a UID near the detection.
+
+// Clear old UIDs every several seconds
+
+// Transform everything to the map frame, so you have a consistant point of reference
+
+struct player
+{
+	ros::Time           first_detected;
+	ros::Time           last_detected;
+	geometry_msgs::Pose last_pose;
+	XnUserID            last_pid
+}
+
+
 #include <ros/ros.h>
 #include <ros/package.h>
 
