@@ -47,7 +47,7 @@ PersonTracker::PersonTracker(string name) :
 	ROS_INFO("[person tracker] Detect timeout  is %.2f", detect_timeout_.toSec());
 	
 	skeleton_sub_ = nh_.subscribe("/skeletons", 1, &PersonTracker::skeletonCB, this );
-	goal_cov_pub_ = nh_.subscribe<PoseWithCovarianceStamped>("goal_with_covariance", 1);
+	goal_cov_pub_ = nh_.subscribe<PoseWithCovarianceStamped>("/goal_with_covariance", 1);
 	goal_pub_     = nh_.advertise<PoseStamped>("goal", 1);
 	
 	person_pos_.pose.pose.position.x = 0.0;
