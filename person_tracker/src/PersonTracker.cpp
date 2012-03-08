@@ -54,7 +54,7 @@ PersonTracker::PersonTracker(string name) :
 	person_pos_.pose.pose.position.y = 0.0;
 	person_pos_.pose.pose.position.z = 0.0;
 	person_pos_.pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-	person_pos_.header.frame_id = "base_link";
+	person_pos_.header.frame_id = "/base_link";
 	
 	//Set a callback to occur at a regular rate
   double dt = 1.0/loop_rate_;
@@ -161,7 +161,7 @@ PersonTracker::poseToGlobalFrame(const PoseWithCovarianceStamped& pose_msg, Pose
 bool
 PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
 {
-	std::string global_frame = "map";
+	std::string global_frame = "/map";
 	tf::Stamped<tf::Pose> goal_tf, global_tf;
 	poseStampedMsgToTF(pose_msg, goal_tf);
 

@@ -39,7 +39,7 @@
 		
 		<!-- Topic remappings -->
 		<!--remap from="goal" to="/move_base_simple/goal" /-->
-		<remap from="goal" to="/person_tracker/goal_cov" />
+		<remap from="goal_with_covariance" to="/person_tracker/goal_cov" />
 		<remap from="plan" to="plan" />
 		<remap from="plan_visualization" to="plan_visualization" />
 	</node>
