@@ -5,6 +5,7 @@ import rospy
 import tf
 from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from std_msgs.msg import Float64
 
 import math
@@ -25,7 +26,7 @@ class PointHeadNode():
 		self.last_target_point = PointStamped()
 
 		# Subscribe to the target_pose topic
-		rospy.Subscriber('/target_pose', PoseStamped, self.update_target_point)
+		rospy.Subscriber('/target_pose', PoseWithCovarianceStamped, self.update_target_point)
 
 		# Initialize publisher for the pan servo
 		self.head_pan_frame = 'pan_link'
@@ -40,7 +41,7 @@ class PointHeadNode():
 		rospy.loginfo("[point_head] Ready to accept target point")
 		
 		while not rospy.is_shutdown():
-			rospy.wait_for_message('/target_pose', PoseStamped)
+			rospy.wait_for_message('/target_pose', PoseWithCovarianceStamped)
 			if self.target_point == self.last_target_point:
 				rospy.loginfo("[point_head] Stale target point")
 				continue
@@ -62,9 +63,9 @@ class PointHeadNode():
 
 
 	def update_target_point(self, msg):
-		#rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id + ":\n" +  str(msg.pose.position))
-		self.target_point = PointStamped()
-		self.target_point.point  = msg.pose.position
+		rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id )#+ ":\n" +  str(msg.pose.pose.position))
+		self.target_point        = PointStamped()
+		self.target_point.point  = msg.pose.pose.position
 		self.target_point.header = msg.header
 
 
@@ -82,7 +83,7 @@ class PointHeadNode():
 			#self.tf.waitForTransform(pan_ref_frame, target.header.frame_id, rospy.Time(), rospy.Duration(5.0))
 			self.tf.getLatestCommonTime(pan_ref_frame, target.header.frame_id)
 		except tf.Exception:
-			rospy.logwarn("[point_head] TF could not get transform")
+			rospy.logwarn("[point_head] TF could not get transform from \"" + pan_ref_frame + "\" to \"" + target.header.frame_id + "\"")
 			raise
 
 		# Transform target point to pan reference frame & retrieve the pan angle

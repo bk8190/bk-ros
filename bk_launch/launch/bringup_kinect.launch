@@ -6,34 +6,14 @@
 		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
 	</include>
 	
+	<!-- Start a soundplay node -->
+	<node pkg="sound_play" type="soundplay_node.py" name="soundplay_node" />
+	
 	<!-- Kinect static transforms -->
 	<!--include file="$(find bk_launch)/launch/tf_kinect.launch" /-->
 	
 	<!-- Static transform from Harlie's base to the pan mount -->
 	<node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true" args="-0.00 0 1.5572 0.017453 0.1047198 -0.017453 base_link pan_link 100" />
-	
-	<!-- Node that drives the Kinect's pan platform and publishes its transform -->
-	<node pkg="head_controller" type="head_driver" name="head_driver"
-	output="screen" ns="head_controller" >
-		<remap from="/pan_command" to="/head_controller/pan_command"/>
-		<rosparam>
-parent_tf_frame: "pan_link"
-child_tf_frame: "camera_link"
-pan_angle_center: 109.0
-pan_angle_min: 0.0
-pan_angle_max: 195.0
-pan_vel_max: 50.0
-pan_acc_max: 30.0
-loop_rate: 20.0</rosparam>
-	</node>
-	
-	<!-- Node that points the Kinect's pan platform at a target -->
-	<node pkg="head_controller" type="point_head.py" name="point_head"
-	output="screen" ns="head_controller" >
-		<remap from="/target_pose" to="/person_tracker/goal"/>
-		<!--remap from="/target_pose" to="/move_base_simple/goal"/-->
-		<rosparam>rate: 3.0</rosparam>
-	</node>
 	
 	<!-- Image viewer -->
 	<!--node pkg="image_view" type="image_view" name="depth_image_viewer">

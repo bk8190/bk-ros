@@ -162,21 +162,19 @@ bool
 PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
 {
 	std::string global_frame = "/map";
-	tf::Stamped<tf::Pose> goal_tf, global_tf;
-	poseStampedMsgToTF(pose_msg, goal_tf);
+	tf::Stamped<tf::Pose> pose_tf, global_tf;
+	poseStampedMsgToTF(pose_msg, pose_tf);
 
 	try {
-		tf_.transformPose(global_frame, goal_tf, global_tf);
+		tf_.transformPose(global_frame, pose_tf, global_tf);
 	}
 	catch(tf::TransformException& ex) {
-		ROS_WARN("[person_tracker] Failed to transform the goal pose from %s into the %s frame: %s",
-		goal_tf.frame_id_.c_str(), global_frame.c_str(), ex.what());
+		ROS_WARN_THROTTLE(2,"[person_tracker] Failed to transform goal pose from \"%s\" to \"%s\" frame: %s",
+		pose_tf.frame_id_.c_str(), global_frame.c_str(), ex.what());
 		return false;
 	}
 
-	PoseStamped global_pose;
-	tf::poseStampedTFToMsg(global_tf, global_pose);
-	transformed = global_pose;
+	tf::poseStampedTFToMsg(global_tf, transformed);
 	return true;
 }
 
@@ -208,15 +206,16 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 				PoseWithCovarianceStamped temp_pose;
 				temp_pose.pose.pose.position    = body_part.position;
 				temp_pose.pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
-				temp_pose.header.frame_id  = skel_msg.header.frame_id;
-				temp_pose.header.stamp     = skel_msg.header.stamp;
+				temp_pose.header.frame_id       = skel_msg.header.frame_id;
+				temp_pose.header.stamp          = skel_msg.header.stamp;
 				
 				setVariance(temp_pose, 0.0);
 				
 				// Transform the goal to a global, fixed frame.  Otherwise it will be at most detect_timeout old which is really bad in an odometric frame
-				person_pos_ = temp_pose;
-				if( poseToGlobalFrame(temp_pose, person_pos_) )
+				PoseWithCovarianceStamped transformed_pose;
+				if( poseToGlobalFrame(temp_pose, transformed_pose) )
 				{
+					person_pos_ = transformed_pose;
 					last_detect_ = ros::Time::now();
 					break;
 				}
