@@ -124,21 +124,21 @@ void getSkeletonJoint(XnUserID player, body_msgs::SkeletonJoint &j, XnSkeletonJo
 void getSkeleton(XnUserID player,body_msgs::Skeleton &skel)
 {
    skel.playerid=player;
-   getSkeletonJoint(player,skel.head,XN_SKEL_HEAD);
-   getSkeletonJoint(player,skel.neck,XN_SKEL_NECK);
-   getSkeletonJoint(player,skel.left_shoulder,XN_SKEL_LEFT_SHOULDER);
-   getSkeletonJoint(player,skel.left_elbow,XN_SKEL_LEFT_ELBOW);
-   getSkeletonJoint(player,skel.left_hand,XN_SKEL_LEFT_HAND);
-   getSkeletonJoint(player,skel.right_shoulder,XN_SKEL_RIGHT_SHOULDER);
-   getSkeletonJoint(player,skel.right_elbow,XN_SKEL_RIGHT_ELBOW);
-   getSkeletonJoint(player,skel.right_hand,XN_SKEL_RIGHT_HAND);
-   getSkeletonJoint(player,skel.torso,XN_SKEL_TORSO);
-   getSkeletonJoint(player,skel.left_hip,XN_SKEL_LEFT_HIP);
-   getSkeletonJoint(player,skel.left_knee,XN_SKEL_LEFT_KNEE);
-   getSkeletonJoint(player,skel.left_foot,XN_SKEL_LEFT_FOOT);
-   getSkeletonJoint(player,skel.right_hip,XN_SKEL_RIGHT_HIP);
-   getSkeletonJoint(player,skel.right_knee,XN_SKEL_RIGHT_KNEE);
-   getSkeletonJoint(player,skel.right_foot,XN_SKEL_RIGHT_FOOT);
+   getSkeletonJoint(player, skel.head           ,XN_SKEL_HEAD           );
+   getSkeletonJoint(player, skel.neck           ,XN_SKEL_NECK           );
+   getSkeletonJoint(player, skel.left_shoulder  ,XN_SKEL_LEFT_SHOULDER  );
+   getSkeletonJoint(player, skel.left_elbow     ,XN_SKEL_LEFT_ELBOW     );
+   getSkeletonJoint(player, skel.left_hand      ,XN_SKEL_LEFT_HAND      );
+   getSkeletonJoint(player, skel.right_shoulder ,XN_SKEL_RIGHT_SHOULDER );
+   getSkeletonJoint(player, skel.right_elbow    ,XN_SKEL_RIGHT_ELBOW    );
+   getSkeletonJoint(player, skel.right_hand     ,XN_SKEL_RIGHT_HAND     );
+   getSkeletonJoint(player, skel.torso          ,XN_SKEL_TORSO          );
+   getSkeletonJoint(player, skel.left_hip       ,XN_SKEL_LEFT_HIP       );
+   getSkeletonJoint(player, skel.left_knee      ,XN_SKEL_LEFT_KNEE      );
+   getSkeletonJoint(player, skel.left_foot      ,XN_SKEL_LEFT_FOOT      );
+   getSkeletonJoint(player, skel.right_hip      ,XN_SKEL_RIGHT_HIP      );
+   getSkeletonJoint(player, skel.right_knee     ,XN_SKEL_RIGHT_KNEE     );
+   getSkeletonJoint(player, skel.right_foot     ,XN_SKEL_RIGHT_FOOT     );
 }
 
 void getPolygon(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2, mapping_msgs::PolygonalMap &pmap)
