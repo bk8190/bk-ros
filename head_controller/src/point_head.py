@@ -63,7 +63,7 @@ class PointHeadNode():
 
 
 	def update_target_point(self, msg):
-		rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id )#+ ":\n" +  str(msg.pose.pose.position))
+		#rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id )#+ ":\n" +  str(msg.pose.pose.position))
 		self.target_point        = PointStamped()
 		self.target_point.point  = msg.pose.pose.position
 		self.target_point.header = msg.header

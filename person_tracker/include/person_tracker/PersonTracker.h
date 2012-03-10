@@ -51,10 +51,12 @@ class PersonTracker
 		ros::Timer      compute_loop_timer_;
 		
 		PoseWithCovarianceStamped person_pos_;
+		PoseWithCovarianceStamped last_pub_pos_;
 		
-		double          loop_rate_;
-		double goal_hysteresis_;
 		ros::Duration detect_timeout_;
+		double alpha_;
+		double loop_rate_;
+		double goal_hysteresis_;
 		double pos_var_start_;
 		double var_increase_rate_;
 		double max_var_;

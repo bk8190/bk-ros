@@ -46,6 +46,9 @@ PersonTracker::PersonTracker(string name) :
 	
 	ROS_INFO("[person tracker] Detect timeout  is %.2f", detect_timeout_.toSec());
 	
+	nh_.param("alpha", alpha_, 1.0);
+	ROS_INFO("[person tracker] Alpha = %.2f", alpha_);
+	
 	skeleton_sub_ = nh_.subscribe("/skeletons", 1, &PersonTracker::skeletonCB, this );
 	goal_pub_     = nh_.advertise<PoseStamped>("goal", 1);
 	goal_cov_pub_ = nh_.advertise<PoseWithCovarianceStamped>("goal_with_covariance", 1);
@@ -55,6 +58,7 @@ PersonTracker::PersonTracker(string name) :
 	person_pos_.pose.pose.position.z = 0.0;
 	person_pos_.pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
 	person_pos_.header.frame_id = "/base_link";
+	last_pub_pos_ = person_pos_;
 	
 	//Set a callback to occur at a regular rate
   double dt = 1.0/loop_rate_;
@@ -233,9 +237,28 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	double current_var  = std::min(var_increase_rate_*dt, max_var_);
 	setVariance(person_pos_, current_var);
 
+	// person_pos_ is in the frame "map" which is constant.  Lie and say the pose was acquired right now
+	person_pos_.header.stamp = ros::Time::now();
+
+	// Low-pass filter
+	PoseWithCovarianceStamped pub_pos;
+	pub_pos.header = person_pos_.header;
+	pub_pos.pose.covariance = person_pos_.pose.covariance;
+	pub_pos.pose.pose.orientation = person_pos_.pose.pose.orientation;
+	
+	pub_pos.pose.pose.position.x =
+	alpha_*person_pos_.pose.pose.position.x + (1.0-alpha_)*last_pub_pos_.pose.pose.position.x;
+	pub_pos.pose.pose.position.y =
+	alpha_*person_pos_.pose.pose.position.y + (1.0-alpha_)*last_pub_pos_.pose.pose.position.y;
+	pub_pos.pose.pose.position.z =
+	alpha_*person_pos_.pose.pose.position.z + (1.0-alpha_)*last_pub_pos_.pose.pose.position.z;
+	
+
 	// Publish the goal and a stripped-down version without the covariance
-	goal_cov_pub_.publish( person_pos_ );
-	goal_pub_    .publish( stripCovariance(person_pos_) );
+	goal_cov_pub_.publish( pub_pos );
+	goal_pub_    .publish( stripCovariance(pub_pos) );
+	
+	last_pub_pos_ = pub_pos;
 	
 	ROS_INFO_THROTTLE(2, "[person_tracker] Time since detect = %.2fs, Variance = %.2fm^2", dt, current_var);
 	

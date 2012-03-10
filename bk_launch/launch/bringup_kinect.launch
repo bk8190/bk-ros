@@ -1,7 +1,7 @@
 <!-- Starts the OpenNI Kinect driver and sets up static transforms -->
 <launch>
 	<!-- Kinect driver -->
-	<include file="$(find openni_launch)/launch/openni.launch" >
+	<include file="$(find bk_launch)/launch/openni.launch" >
 		<!--arg name="depth_frame_id" value="/camera/camera_depth_frame" /-->
 		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
 	</include>

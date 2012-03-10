@@ -199,6 +199,7 @@ int main(int argc, char** argv)
 		loop_rate.sleep();
 	}
 	
+	CPhidgetAdvancedServo_setEngaged (servo, 0, 0);
 	CPhidget_close ((CPhidgetHandle)servo);
 	CPhidget_delete((CPhidgetHandle)servo);
 	

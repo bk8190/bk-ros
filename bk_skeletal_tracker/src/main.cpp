@@ -28,16 +28,6 @@
 
 // Transform everything to the map frame, so you have a consistant point of reference
 
-struct player
-{
-	ros::Time           first_detected;
-	ros::Time           last_detected;
-	geometry_msgs::Pose last_pose;
-	XnUserID            last_pid;
-	int                 last_cal;
-};
-
-
 #include <ros/ros.h>
 #include <ros/package.h>
 
@@ -419,6 +409,10 @@ int main(int argc, char **argv)
 	pnh.getParam("camera_frame_id", frame_id_);
 	ROS_INFO("[bk_skeletal_tracker] Frame_id = \"%s\"", frame_id_.c_str());
 	
+	double smoothing_factor;
+	pnh.param("smoothing_factor", smoothing_factor, 0.5);
+	ROS_INFO("[bk_skeletal_tracker] Smoothing factor=%.2f", smoothing_factor);
+	
 	pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
 	skel_pub = nh_.advertise<body_msgs::Skeletons>       ("skeletons", 1);
 
@@ -473,6 +467,8 @@ int main(int argc, char **argv)
 	}
 
 	// Set up the skeleton generator
+	g_UserGenerator.GetSkeletonCap().SetSmoothing(0.8);
+	
 	//g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
 
