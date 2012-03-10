@@ -14,8 +14,8 @@
 		<param name="pan_angle_min"    value="0.0"      />
 		<param name="pan_angle_max"    value="195.0"    />
 		<param name="pan_vel_max"      value="100.0"     />
-		<param name="pan_acc_max"      value="15.0"     />
-		<param name="loop_rate"        value="20.0"     />
+		<param name="pan_acc_max"      value="25.0"     />
+		<param name="loop_rate"        value="30.0"     />
 	</node>
 	
 	<!-- Node that points the Kinect's pan platform at a target -->
@@ -23,7 +23,7 @@
 	output="screen" ns="head_controller" >
 		<remap from="/target_pose" to="/person_tracker/goal_with_covariance"/>
 		<!--remap from="/target_pose" to="/move_base_simple/goal"/-->
-		<param name="rate" value="20.0"/>
+		<param name="rate" value="30.0"/>
 	</node>
 	
   <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen">
