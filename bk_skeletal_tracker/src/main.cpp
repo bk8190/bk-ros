@@ -33,8 +33,9 @@ struct player
 	ros::Time           first_detected;
 	ros::Time           last_detected;
 	geometry_msgs::Pose last_pose;
-	XnUserID            last_pid
-}
+	XnUserID            last_pid;
+	int                 last_cal;
+};
 
 
 #include <ros/ros.h>
@@ -204,6 +205,8 @@ void XN_CALLBACK_TYPE
 User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ROS_INFO("[bk_skeletal_tracker] New User %d", nId);
+
+	// TODO: See if this user was near a recently dropped UID.  If so, load that calibration
 
 	// If we already calibrated on a user, just load that calibration
 	if(false){//g_bhasCal){
