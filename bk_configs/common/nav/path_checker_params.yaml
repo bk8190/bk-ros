@@ -12,5 +12,5 @@ planning:
  lethal_cost: 253
 
 interpolation:
- dx: 0.1
+ dx: 0.01
  dth: 0.1
