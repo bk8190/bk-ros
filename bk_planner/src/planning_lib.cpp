@@ -24,9 +24,6 @@ bool
 BKPlanningThread::doFullReplan()
 {	
 	ROS_INFO("[planning] Doing full replan");
-			
-	// Clear obstacles from the robot's footprint
-	parent_->planner_costmap_->clearRobotFootprint();
 	
 	// Get the robot's current pose
 	PoseStamped start;
@@ -34,6 +31,9 @@ BKPlanningThread::doFullReplan()
 		ROS_ERROR("[planning] Full replan failed (could not get robot's current pose)");
 		return false;
 	}
+
+	// Clear obstacles from the robot's footprint
+	parent_->planner_costmap_->clearRobotFootprint();
 	
 	// Get the goal
 	PoseStamped goal = parent_->getLatestGoal();
@@ -65,7 +65,10 @@ bool
 BKPlanningThread::doPartialReplan()
 {
 	ROS_INFO("[planning] Doing partial replan");
-			
+	
+	// Clear obstacles from the robot's footprint
+	parent_->planner_costmap_->clearRobotFootprint();
+	
 	// If the feeder doesn't have any distance left to travel, do a full replan instead.
 	double dist_left = FeedThreadPtr(feeder_)->getFeederDistLeft();
 	// ROS_INFO("[planning] Feeder has %.2fm left", dist_left);
@@ -141,11 +144,11 @@ BKPlanningThread::planPointToPoint(const PoseStamped& start,
                                    shared_ptr<bk_sbpl::BKSBPLLatticePlanner> lattice_planner )
 {
   // Make sure the start pose is clear
-  if( !path_checker->isPoseClear(start) )
+  /*if( !path_checker->isPoseClear(start) )
   {
   	ROS_INFO("[planning] Start pose blocked!");
   	return false;
-  }
+  }*/
   
   // Make sure the goal pose is clear
   if( !path_checker->isPoseClear(goal) )
@@ -361,8 +364,8 @@ BKPlanningThread::generateFarGoals(const PoseStamped& start,
 	potential_goals.push_back(getPoseOffset(newgoal, -.25*pi, ds));
 	
 	// Add two goals behind the true goal, offset by +-90 degrees
-	potential_goals.push_back(getPoseOffset(newgoal,  .50*pi, ds));
-	potential_goals.push_back(getPoseOffset(newgoal, -.50*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal,  .4*pi, ds*.6));
+	potential_goals.push_back(getPoseOffset(newgoal, -.4*pi, ds*.6));
 	
 	// Add two goals behind the true goal, offset by +-135 degrees
 	//potential_goals.push_back(getPoseOffset(newgoal,  .75*pi, ds));

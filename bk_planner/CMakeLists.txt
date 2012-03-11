@@ -27,6 +27,7 @@ rosbuild_add_library(feeder_thread   src/feeder_thread.cpp)
 rosbuild_add_library(planning_thread src/planning_thread.cpp)
 
 rosbuild_add_executable(bk_planner src/bk_planner.cpp)
+rosbuild_add_executable(covariance_faker src/covariance_faker.cpp)
 
 target_link_libraries(bk_planner path_checker)
 target_link_libraries(bk_planner segment_lib)

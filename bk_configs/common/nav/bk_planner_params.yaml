@@ -1,9 +1,9 @@
 goal_hysteresis: 0.15
 
 planning:
- commit_distance: 0.75
+ commit_distance: 0.70
  standoff_distance: 1.20
  short_distance: 1.0
- segs_to_trail: 20
- planner_loop_rate: 5.0
+ segs_to_trail: 3
+ planner_loop_rate: 10.0
  feeder_loop_rate:  10.0

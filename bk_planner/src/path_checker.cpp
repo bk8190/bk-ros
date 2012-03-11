@@ -16,13 +16,12 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 	
 	private_nh_.param("interpolation/dx"      , interp_dx_     , 0.01);
 	private_nh_.param("interpolation/dth"     , interp_dth_    , 3.141/32.0);
-	
-	private_nh_.param("planning/obstacle_cost", obstacle_cost_ , 150);
-	private_nh_.param("planning/lethal_cost"  , lethal_cost_   , 254);
 
 	ROS_INFO("[path checker] Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
 	ROS_INFO("[path checker] Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
-	ROS_INFO("[path checker] dx= %.2f dth=%.2f obs cost=%d, lethal cost=%d", interp_dx_, interp_dth_, obstacle_cost_, lethal_cost_);
+	ROS_INFO("[path checker] dx= %.2f dth=%.2f", interp_dx_, interp_dth_);
+	
+	ROS_INFO("[path_checker] LETHAL_OBSTACLE=%d", costmap_2d::LETHAL_OBSTACLE);
 }
 
 
@@ -72,37 +71,40 @@ PathChecker::assignSegVelocity(p_nav::PathSegment& seg)
 	}
 }
 
-
 bool
 PathChecker::isPoseClear(const PoseStamped& pose)
 {
-	double x = pose.pose.position.x;
-	double y = pose.pose.position.y;
-	
 	// Create a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
+	base_local_planner::CostmapModel model(map);
+	
+	return isPoseClear(model, pose);
+}
 
-	// Coordinates in cells
-	unsigned int x_c, y_c;
-	bool inbounds = map.worldToMap(x, y, x_c, y_c);
-	
-	if( !inbounds ) {
-		ROS_INFO("OOB point found");
+bool
+PathChecker::isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose)
+{
+
+	if( pose.header.frame_id.compare(costmap_->getGlobalFrameID()) != 0 )
+	{
+		ROS_WARN("[path_checker] Tried to compare poses in different frames (\"%s\", \"%s\")", pose.header.frame_id.c_str(), costmap_->getGlobalFrameID().c_str());
 		return false;
 	}
 	
-	unsigned char cost = map.getCost(x_c, y_c);
+	std::vector<geometry_msgs::Point> oriented_footprint;
 	
-	if( cost < obstacle_cost_ )
-	{
-		return true;
-	}
-	else
-	{
-		ROS_INFO("Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
-		return false;
-	}
+	double x = pose.pose.position.x;
+	double y = pose.pose.position.y;
+	double t = tf::getYaw(pose.pose.orientation);
+	costmap_->getOrientedFootprint(x, y, t, oriented_footprint);
+	
+	geometry_msgs::Point point;
+	point.x = x;
+	point.y = y;
+	point.z = 0;
+	
+	return model.footprintCost(point, oriented_footprint, 0.0, 0.0) > 0;
 }
 
 vector<PoseStamped>
@@ -111,29 +113,18 @@ PathChecker::getGoodPoses(const vector<PoseStamped>& poses)
 	// Create a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
+	base_local_planner::CostmapModel model(map);
 	
-	double       x,   y  ;
-	unsigned int x_c, y_c;
-	bool         inbounds;
-	
+	// Examine the poses one by one
 	vector<PoseStamped> cleared;
-	
-	for( int ipose = 0; ipose<poses.size(); ipose++ )
+	for( unsigned int ipose = 0; ipose<poses.size(); ipose++ )
 	{
-		x = poses.at(ipose).pose.position.x;
-		y = poses.at(ipose).pose.position.y;
-		
-		// Convert to cell coordinates, check if in bounds
-		inbounds = map.worldToMap(x,y, x_c,y_c);
-		
-		// Add this pose to the list of cleared poses if in-bounds and under the obstacle threshold
-		if( inbounds && (map.getCost(x_c,y_c) < obstacle_cost_) )
-		{
+		if( isPoseClear(model, poses.at(ipose)) ) {
 			cleared.push_back(poses.at(ipose));
 		}
 	}
 	
-	//ROS_INFO("[path checker] %d/%d poses cleared.", cleared.size(), poses.size());
+	ROS_INFO("[path checker] %lu/%lu poses cleared.", cleared.size(), poses.size());
 	return cleared;
 }
 
@@ -146,18 +137,18 @@ PathChecker::isSegClear(const p_nav::PathSegment& seg)
 	bool clear = true;
 	
 	// Check points interpolated along the segment
-	int i=0;
+	unsigned int i=0;
 	for(i ; i<interp.size(); i++)
 	{
 		if( !isPoseClear(interp.at(i)) )
 		{
-			ROS_INFO("Obstacle at point %d on seg", i);
+			ROS_INFO("Obstacle at point %u on seg", i);
 			clear = false;
 			break;
 		}
 	}
 	
-	ROS_INFO("isSegClear: %d points checked", i+1);
+	ROS_INFO("isSegClear: %u points checked", i+1);
 	
 	// No colisions found
 	return clear;
@@ -172,10 +163,10 @@ PathChecker::getClosestDist(const p_nav::PathSegment& seg)
 }
 
 // Returns indices of all segments colliding with obstacles
-std::vector<int>
+std::vector<unsigned int>
 PathChecker::getBlockedSegs(p_nav::Path& path)
 {
-	std::vector<int> indices;
+	std::vector<unsigned int> indices;
 	indices.clear();
 	
 	for( unsigned int i=0; i<path.segs.size(); i++ ) {
@@ -185,7 +176,6 @@ PathChecker::getBlockedSegs(p_nav::Path& path)
 	}
 	return indices;
 }
-
 // Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
 bool
 PathChecker::isPathClear(const p_nav::Path path)
@@ -225,7 +215,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 	
 				cost = map.getCost(x_c, y_c);
 	
-				if( cost > obstacle_cost_ )
+				if( cost > costmap_2d::INSCRIBED_INFLATED_OBSTACLE )
 				{
 					ROS_INFO("[path checker] Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
 					return false;
@@ -237,71 +227,42 @@ PathChecker::isPathClear(const p_nav::Path path)
 	return true;
 }
 
-
-// Checks through the costmap, makes sure it doesn't run into any obstacle cells
-// Checks the entire robot footprint
+// Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
 bool
 PathChecker::isPathClear2(const p_nav::Path path)
 {
-	ROS_WARN("This function is screwy");
-	ros::Time t1 = ros::Time::now();
-	ros::Duration t;
-	
 	// Get a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
+	base_local_planner::CostmapModel model(map);
 	
 	std::vector<PoseStamped> interp;
-	std::vector<geometry_msgs::Point> footprint;
-	geometry_msgs::Pose pose;
+	geometry_msgs::PoseStamped  pose;
 	double x, y;
-	unsigned int x_c, y_c;
-	bool inbounds;
-	unsigned char cost;
 	
 	// Iterate over all segments
-	for( int iseg=0; iseg<path.segs.size(); iseg++ )
+	for( unsigned int iseg=0; iseg<path.segs.size(); iseg++ )
 	{
+		// Interpolate that segment and iterate over all poses
 		interp = segment_lib::interpSegment(path.segs.at(iseg), interp_dx_, interp_dth_);
-		
-		// Iterate over all interpolated poses
-		for( int ipose=0; ipose<interp.size(); ipose++ )
+		for( unsigned int ipose=0; ipose<interp.size(); ipose++ )
 		{
-			pose = interp.at(ipose).pose;
-			costmap_->getOrientedFootprint (pose.position.x, pose.position.y, tf::getYaw(pose.orientation), footprint);
-			
-			for( int ipoint = 0; ipoint<footprint.size(); ipoint++ )
-			{
-				x = footprint.at(ipoint).x;
-				y = footprint.at(ipoint).y;
+				pose = interp.at(ipose);
+				x    = pose.pose.position.x;
+				y    = pose.pose.position.y;
+				
+				if( !isPoseClear(model, pose) ) {
+					ROS_INFO("[path checker] Obstacle found at (%.2f,%.2f) in segment %d/%d", x, y, iseg, path.segs.size());
+					return false;
+				}
 		
-				// Coordinates in cells
-				inbounds = map.worldToMap(x, y, x_c, y_c);
-
-				if( !inbounds ) {
-					t = ros::Time::now() - t1;
-					ROS_INFO("Cleared robot footprint in %.6f seconds", t.toSec());
-					ROS_INFO("OOB point found at (%.2f,%.2f)", x, y);
-					return false;
-				}
-
-				cost = map.getCost(x_c, y_c);
-
-				if( cost > lethal_cost_ )
-				{
-					t = ros::Time::now() - t1;
-					ROS_INFO("Cleared robot footprint in %.6f seconds", t.toSec());
-					ROS_INFO("Obstacle found at (%.2f,%.2f), value %hu", x, y, cost);
-					return false;
-				}
-			}//footprint
-		}//pose
+		}// pose
 	}//segment
 	
-	t = ros::Time::now() - t1;
-	ROS_INFO("Cleared robot footprint in %.6f seconds", t.toSec());
+	// No collisions found
 	return true;
 }
+
 // Returns the lowest allowed velocity contained in the path
 // Equivalent to min{ all_segs.max_vel }
 double

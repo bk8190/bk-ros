@@ -3,6 +3,7 @@
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
+#include <base_local_planner/costmap_model.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <segment_lib/segment_lib.h>
@@ -11,6 +12,7 @@ namespace path_checker{
 	
 	namespace p_nav = precision_navigation_msgs;
 	using geometry_msgs::PoseStamped;
+	using geometry_msgs::Pose;
 	using std::vector;
 	
 	class PathChecker
@@ -27,6 +29,7 @@ namespace path_checker{
 			
 			// Checks if a single pose is clear
 			bool isPoseClear(const PoseStamped& pose);
+			bool isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose);
 
 			// Returns only the poses not in collision
 			vector<PoseStamped> getGoodPoses(const vector<PoseStamped>& poses);
@@ -35,16 +38,13 @@ namespace path_checker{
 			bool isSegClear(const p_nav::PathSegment& seg);
 
 			// Checks for obstacles along the path.  Returns a list of all colliding segment indices
-			std::vector<int> getBlockedSegs(p_nav::Path& path);
+			std::vector<unsigned int> getBlockedSegs(p_nav::Path& path);
 			
 			// Returns the closest obstacle to the robot as its footprint moves along the segment
 			double getClosestDist(const p_nav::PathSegment& seg);
 			
 			// Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
-			bool isPathClear(const p_nav::Path path);
-			
-			// Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
-			// Checks the entire robot footprint
+			bool isPathClear (const p_nav::Path path);
 			bool isPathClear2(const p_nav::Path path);
 			
 			// Searches around the goal point for a valid pose
@@ -63,7 +63,6 @@ namespace path_checker{
 			geometry_msgs::Twist max_accel_;
 			
 			double interp_dx_, interp_dth_;
-			int obstacle_cost_, lethal_cost_;
 
 	};//class
 

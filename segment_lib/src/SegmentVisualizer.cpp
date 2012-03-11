@@ -25,11 +25,21 @@ SegmentVisualizer::~SegmentVisualizer()
 
 void SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Path& path)
 {
+	ros::Time now = ros::Time::now();
+	
+	precision_navigation_msgs::Path p2 = path;
+	
+	p2.header.stamp = now;
+	
+	for( unsigned int i=0; i<p2.segs.size(); i++ ) {
+		p2.segs.at(i).header.stamp = now;
+	}
+
 	// Discretize the path
-	nav_msgs::Path vis_path = interpPath(path, .01, pi/32);
+	nav_msgs::Path vis_path = interpPath(p2, .01, pi/32);
 	
 	// Publish markers path, and pose array visualizations.
-	publishMarkerVisualization(path);
+	publishMarkerVisualization(p2);
 	publishPathVisualization(vis_path);
 	publishPoseVisualization(vis_path);
 }
