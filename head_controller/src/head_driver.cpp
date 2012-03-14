@@ -183,9 +183,8 @@ int main(int argc, char** argv)
 	
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
-	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
-	ros::Duration(0.2).sleep();
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
+	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
 
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	ros::Duration(0.5).sleep();
@@ -199,7 +198,6 @@ int main(int argc, char** argv)
 			CPhidgetAdvancedServo_getVelocity    (servo, 0, &curr_vel);
 			CPhidgetAdvancedServo_getAcceleration(servo, 0, &curr_acc);
 			
-			ROS_INFO("%f",curr_vel);
 			std_msgs::Header h;
 			h.stamp    = ros::Time::now();
 			h.frame_id = "pan_link";
