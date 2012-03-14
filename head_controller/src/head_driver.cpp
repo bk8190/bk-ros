@@ -108,10 +108,11 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh("~");
 	tf::TransformBroadcaster br;
 	
+	// Publish the state of the servo for diagnostics
 	ros::Publisher head_des_pos_pub = nh.advertise<Twist>("head_des_pos"  , 1);
-	ros::Publisher head_pos_pub   = nh.advertise<Twist>("head_pos"  , 1);
-	ros::Publisher head_speed_pub = nh.advertise<Twist>("head_speed", 1);
-	ros::Publisher head_accel_pub = nh.advertise<Twist>("head_accel", 1);
+	ros::Publisher head_pos_pub     = nh.advertise<Twist>("head_pos"  , 1);
+	ros::Publisher head_speed_pub   = nh.advertise<Twist>("head_speed", 1);
+	ros::Publisher head_accel_pub   = nh.advertise<Twist>("head_accel", 1);
 	
 	// We control a servo that determines the link between parent_frame and child_frame
 	std::string parent_frame, child_frame;
@@ -135,80 +136,66 @@ int main(int argc, char** argv)
 	ROS_INFO("[head_driver] Loop rate is %.2fHz", loop_rate_dbl);
 	ros::Rate loop_rate = ros::Rate(loop_rate_dbl);
 	
-	//Declare an advanced servo handle
+	//Declare an advanced servo handle and create the advanced servo object
 	CPhidgetAdvancedServoHandle servo = 0;
-
-	//create the advanced servo object
 	CPhidgetAdvancedServo_create(&servo);
 	
 	//Set the handlers to be run when the device is plugged in or opened from software, unplugged or closed from software, or generates an error.
 	CPhidget_set_OnAttach_Handler((CPhidgetHandle)servo, AttachHandler, NULL);
 	CPhidget_set_OnDetach_Handler((CPhidgetHandle)servo, DetachHandler, NULL);
 	CPhidget_set_OnError_Handler ((CPhidgetHandle)servo, ErrorHandler , NULL);
-	//CPhidgetAdvancedServo_set_OnPositionChange_Handler(servo, PositionChangeHandler, NULL);
 	
 	//open the device for connections
 	CPhidget_open((CPhidgetHandle)servo, -1);
 
 	int result;
 	const char *err;
-	
 	// Wait for the servo to be attached
-	ROS_INFO("Waiting for Phidget to be attached....");
+	ROS_INFO("[head_driver] Waiting for Phidget to be attached....");
 	if((result = CPhidget_waitForAttachment((CPhidgetHandle)servo, 10000)))
 	{
 		CPhidget_getErrorDescription(result, &err);
-		ROS_INFO("Problem waiting for attachment: %s\n", err);
+		ROS_INFO("[head_driver] Problem waiting for attachment: %s\n", err);
 		return 0;
 	}
 	
 	//Display the properties of the attached device
 	display_properties(servo);
 	
+	//Set up the servo's velocity and acceleration limits
 	double servo_min_accel, servo_max_accel;
 	CPhidgetAdvancedServo_getAccelerationMin(servo, 0, &servo_min_accel);
 	CPhidgetAdvancedServo_getAccelerationMax(servo, 0, &servo_max_accel);
-	ROS_INFO("Servo accel limits: %.2f < x < %.2f", servo_min_accel, servo_max_accel);
-	
+	ROS_INFO("[head_driver] Servo accel limits: %.2f < x < %.2f", servo_min_accel, servo_max_accel);
 	
 	if( pan_acc_max > servo_max_accel ){
-		ROS_WARN("Servo accel to high, clamping to acceptable value.");
+		ROS_WARN("[head_driver] Servo accel to high, clamping to acceptable value.");
 		pan_acc_max = servo_max_accel;
 	}
 	else if( pan_acc_max < servo_min_accel ){
-		ROS_WARN("Servo accel to low, clamping to acceptable value.");
+		ROS_WARN("[head_driver] Servo accel to low, clamping to acceptable value.");
 		pan_acc_max = servo_min_accel;
 	}
 	
-	//Set up some initial acceleration and velocity values
-	// TODO: Currently, is overwritng with the defaults.
-	CPhidgetAdvancedServo_setAcceleration   (servo, 0, pan_acc_max);
-	CPhidgetAdvancedServo_setVelocityLimit  (servo, 0, pan_vel_max);
+	CPhidgetAdvancedServo_setAcceleration  (servo, 0, pan_acc_max);
+	CPhidgetAdvancedServo_setVelocityLimit (servo, 0, pan_vel_max);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
-	
-	ros::Duration(0.5).sleep();
 	
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
 	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
+	ros::Duration(0.2).sleep();
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
 
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
-	ros::Duration(1.0).sleep();
+	ros::Duration(0.5).sleep();
 	
 	double curr_pos, curr_vel, curr_acc;
 	tf::Transform transform;
-	
 	while( ros::ok() )
 	{
-		// Send the commanded angle to the servo
-		//valid range is -23 to 232, but for most motors ~30-210
-		ROS_INFO_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
-		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
-		
-		//Get current motor position, publish an updated transform
+		//Get current motor position, publish the current kinematics for diagnostics
 		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK) {
-//			ROS_INFO_THROTTLE(1,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
 			CPhidgetAdvancedServo_getVelocity    (servo, 0, &curr_vel);
 			CPhidgetAdvancedServo_getAcceleration(servo, 0, &curr_acc);
 			
@@ -238,6 +225,11 @@ int main(int argc, char** argv)
 			ROS_ERROR_THROTTLE(1,"[head_driver] Couldn't read servo position");
 		}
 		
+		// Send the commanded angle to the servo
+		//valid range is -23 to 232, but for most motors ~30-210
+		ROS_INFO_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
+		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
+		
 		// Publish a transform encorporating the actual position of the servo
 		// No translation, one degree of rotation (pan).
 		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
@@ -245,8 +237,8 @@ int main(int argc, char** argv)
 		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
 			
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
-		ros::spinOnce();
 		loop_rate.sleep();
+		ros::spinOnce();
 	}
 	
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 0);

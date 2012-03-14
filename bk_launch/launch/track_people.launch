@@ -18,10 +18,10 @@
 		output="screen" launch-prefix="$(arg launch_prefix)">
 		
 		<!-- Paramters for person tracker -->
-		<param name="loop_rate"       value="20.0" />
+		<param name="loop_rate"       value="30.0" />
 		<param name="goal_hysteresis" value="0.4"  />
 		<param name="detect_timeout"  value="2.0"  />
-		<param name="alpha"           value="0.3"  />
+		<param name="alpha"           value="0.2"  />
 			
 		<!-- Paramter file for sound player -->
 		<rosparam file="$(find bk_configs)/common/vision/person_tracker_sounds.yaml"
