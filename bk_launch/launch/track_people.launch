@@ -3,7 +3,7 @@
 
 	<!-- Setup the debugging prefix -->
 	<arg name="debug" default="false"/>
-	<arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/>
+	<arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run -args"/>
 	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
 
 	<!-- Start the Kinect as well as nodes that publish skeleton information !-->
@@ -17,10 +17,10 @@
 	<node pkg="person_tracker" type="person_tracker" respawn="false" name="person_tracker"
 		output="screen" launch-prefix="$(arg launch_prefix)">
 		
-		<!-- Paramter file for person tracker -->
+		<!-- Paramters for person tracker -->
 		<param name="loop_rate"       value="20.0" />
 		<param name="goal_hysteresis" value="0.4"  />
-		<param name="detect_timeout"  value="2.1"  />
+		<param name="detect_timeout"  value="2.0"  />
 		<param name="alpha"           value="0.3"  />
 			
 		<!-- Paramter file for sound player -->

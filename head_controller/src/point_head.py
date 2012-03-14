@@ -55,7 +55,7 @@ class PointHeadNode():
 				rospy.logwarn(inst)
 				continue
 
-			rospy.loginfo("[point_head] Setting Target pan: " + str(target_pan*180/3.141) + " degrees")
+			rospy.logdebug("[point_head] Setting Target pan: " + str(target_pan*180/3.141) + " degrees")
 			
 			self.head_pan_pub.publish(target_pan)
 			self.last_target_point = self.target_point

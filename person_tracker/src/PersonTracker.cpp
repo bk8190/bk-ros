@@ -87,7 +87,7 @@ PersonTracker::getPersonPosition()
 	return person_pos_;
 }
 
-// Searches through the joints in the skeleton, and returns the first one with good confidence
+// Searches through the joints in the skeleton, returns the first one with good confidence
 bool
 PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, double confidence_thresh, body_msgs::SkeletonJoint& body_part, string& body_part_name)
 {
@@ -146,7 +146,6 @@ PersonTracker::getFirstGoodJoint(const body_msgs::Skeleton& skel, double confide
 	}
 	
 	return false;
-
 }
 
 bool
@@ -215,7 +214,7 @@ PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 				
 				setVariance(temp_pose, 0.0);
 				
-				// Transform the goal to a global, fixed frame.  Otherwise it will be at most detect_timeout old which is really bad in an odometric frame
+				// Transform the goal to a global, fixed frame.
 				PoseWithCovarianceStamped transformed_pose;
 				if( poseToGlobalFrame(temp_pose, transformed_pose) )
 				{
@@ -240,20 +239,21 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	// person_pos_ is in the frame "map" which is constant.  Lie and say the pose was acquired right now
 	person_pos_.header.stamp = ros::Time::now();
 
-	// Low-pass filter
+	// Low-pass filter on the person position
 	PoseWithCovarianceStamped pub_pos;
 	pub_pos.header = person_pos_.header;
 	pub_pos.pose.covariance = person_pos_.pose.covariance;
 	pub_pos.pose.pose.orientation = person_pos_.pose.pose.orientation;
 	
-	pub_pos.pose.pose.position.x =
-	alpha_*person_pos_.pose.pose.position.x + (1.0-alpha_)*last_pub_pos_.pose.pose.position.x;
-	pub_pos.pose.pose.position.y =
-	alpha_*person_pos_.pose.pose.position.y + (1.0-alpha_)*last_pub_pos_.pose.pose.position.y;
-	pub_pos.pose.pose.position.z =
-	alpha_*person_pos_.pose.pose.position.z + (1.0-alpha_)*last_pub_pos_.pose.pose.position.z;
+	pub_pos.pose.pose.position.x = alpha_ *person_pos_  .pose.pose.position.x
+	                        + (1.0-alpha_)*last_pub_pos_.pose.pose.position.x;
+	                        
+	pub_pos.pose.pose.position.y = alpha_ *person_pos_  .pose.pose.position.y
+	                        + (1.0-alpha_)*last_pub_pos_.pose.pose.position.y;
+	                        
+	pub_pos.pose.pose.position.z = alpha_ *person_pos_  .pose.pose.position.z
+	                        + (1.0-alpha_)*last_pub_pos_.pose.pose.position.z;
 	
-
 	// Publish the goal and a stripped-down version without the covariance
 	goal_cov_pub_.publish( pub_pos );
 	goal_pub_    .publish( stripCovariance(pub_pos) );
@@ -283,5 +283,5 @@ int main (int argc, char** argv)
 	PersonTracker::PersonTracker pt("person_tracker");
 	
 	ros::spin();
-	return(0);
+	return 0;
 }

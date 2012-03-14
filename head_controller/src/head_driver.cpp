@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <tf/tf.h>
 #include <std_msgs/Float64.h>
+#include <geometry_msgs/Twist.h>
 #include <tf/transform_broadcaster.h>
 #include <stdio.h>
 #include <phidget21.h>
@@ -8,6 +9,9 @@
 const double pi = 3.1415926;
 double desired_pan_ = 0.0;
 double actual_pan_ = 0.0;
+
+using geometry_msgs::Twist;
+using geometry_msgs::Vector3;
 
 double pan_ang_min_ = 0.0, pan_ang_max_ = 0.0, pan_ang_center_ = 0.0;
 
@@ -104,6 +108,11 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh("~");
 	tf::TransformBroadcaster br;
 	
+	ros::Publisher head_des_pos_pub = nh.advertise<Twist>("head_des_pos"  , 1);
+	ros::Publisher head_pos_pub   = nh.advertise<Twist>("head_pos"  , 1);
+	ros::Publisher head_speed_pub = nh.advertise<Twist>("head_speed", 1);
+	ros::Publisher head_accel_pub = nh.advertise<Twist>("head_accel", 1);
+	
 	// We control a servo that determines the link between parent_frame and child_frame
 	std::string parent_frame, child_frame;
 	nh.param<std::string>("parent_tf_frame", parent_frame , "NULL");
@@ -156,36 +165,77 @@ int main(int argc, char** argv)
 	//Display the properties of the attached device
 	display_properties(servo);
 	
+	double servo_min_accel, servo_max_accel;
+	CPhidgetAdvancedServo_getAccelerationMin(servo, 0, &servo_min_accel);
+	CPhidgetAdvancedServo_getAccelerationMax(servo, 0, &servo_max_accel);
+	ROS_INFO("Servo accel limits: %.2f < x < %.2f", servo_min_accel, servo_max_accel);
+	
+	
+	if( pan_acc_max > servo_max_accel ){
+		ROS_WARN("Servo accel to high, clamping to acceptable value.");
+		pan_acc_max = servo_max_accel;
+	}
+	else if( pan_acc_max < servo_min_accel ){
+		ROS_WARN("Servo accel to low, clamping to acceptable value.");
+		pan_acc_max = servo_min_accel;
+	}
+	
 	//Set up some initial acceleration and velocity values
 	// TODO: Currently, is overwritng with the defaults.
 	CPhidgetAdvancedServo_setAcceleration   (servo, 0, pan_acc_max);
 	CPhidgetAdvancedServo_setVelocityLimit  (servo, 0, pan_vel_max);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
 	
+	ros::Duration(0.5).sleep();
+	
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
 	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
-	
+
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	ros::Duration(1.0).sleep();
 	
-	double curr_pos;
+	double curr_pos, curr_vel, curr_acc;
 	tf::Transform transform;
 	
 	while( ros::ok() )
 	{
 		// Send the commanded angle to the servo
 		//valid range is -23 to 232, but for most motors ~30-210
-		ROS_INFO_THROTTLE(3,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
+		ROS_INFO_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
 		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
 		
 		//Get current motor position, publish an updated transform
 		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK) {
-			ROS_INFO_THROTTLE(3,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
+//			ROS_INFO_THROTTLE(1,"[head_driver] Current  angle: %.2f (%.2f in servo frame)", fromServoFrame(curr_pos), curr_pos);
+			CPhidgetAdvancedServo_getVelocity    (servo, 0, &curr_vel);
+			CPhidgetAdvancedServo_getAcceleration(servo, 0, &curr_acc);
+			
+			ROS_INFO("%f",curr_vel);
+			std_msgs::Header h;
+			h.stamp    = ros::Time::now();
+			h.frame_id = "pan_link";
+			
+			Vector3 zero;
+			zero.x=0; zero.y=0; zero.z=0;
+			Twist twist;
+			twist.linear = zero; twist.angular = zero;
+			
+			twist.angular.z = desired_pan_;
+			head_des_pos_pub.publish(twist);
+			
+			twist.angular.z = fromServoFrame(curr_pos);
+			head_pos_pub.publish(twist);
+			
+			twist.angular.z = curr_vel;
+			head_speed_pub.publish(twist);
+			
+			twist.angular.z = curr_acc;
+			head_accel_pub.publish(twist);
 		}
 		else {
-			ROS_ERROR_THROTTLE(3,"[head_driver] Couldn't read servo position");
+			ROS_ERROR_THROTTLE(1,"[head_driver] Couldn't read servo position");
 		}
 		
 		// Publish a transform encorporating the actual position of the servo
