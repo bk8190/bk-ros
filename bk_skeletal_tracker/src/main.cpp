@@ -310,7 +310,7 @@ void glutDisplay (void)
 	getSkels(pmaps,skels);
 	ros::Time tstamp=ros::Time::now();
 
-	ROS_INFO_THROTTLE(5,"[bk_skeletal_tracker] Skels size %d ",pmaps.size());
+	//ROS_INFO_THROTTLE(5,"[bk_skeletal_tracker] Skels size %d ",pmaps.size());
 	if(pmaps.size())
 	{
 		skels.header.stamp    = tstamp;
