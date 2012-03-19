@@ -33,11 +33,11 @@ double getVariance(const PoseWithCovarianceStamped& p)
 }
 
 PersonTracker::PersonTracker(string name) :
-	nh_           (name),
-	tf_           (ros::Duration(15)),
+	nh_           (name         ),
+	tf_           (nh_, ros::Duration(15), true),
 	sound_player_ (nh_, "sounds"),
-	last_detect_  (ros::Time(0)),
-	new_goal_     (false)
+	last_detect_  (ros::Time(0) ),
+	new_goal_     (false        )
 {
 	nh_.param("loop_rate", loop_rate_, 2.0); // default 2Hz
 	double temp;
@@ -162,29 +162,34 @@ PersonTracker::poseToGlobalFrame(const PoseWithCovarianceStamped& pose_msg, Pose
 }
 
 bool
-PersonTracker::poseToGlobalFrame(const PoseStamped& pose_msg, PoseStamped& transformed)
+PersonTracker::poseToGlobalFrame(PoseStamped pose_msg, PoseStamped& transformed)
 {
 	std::string global_frame = "/map";
-	tf::Stamped<tf::Pose> pose_tf, global_tf;
-	poseStampedMsgToTF(pose_msg, pose_tf);
+
+	pose_msg.header.stamp = ros::Time::now() - ros::Duration(0.10);
+	
+	//ROS_INFO_THROTTLE(2,"[person_tracker] Trying to transform at time %.2f", pose_msg.header.stamp.toSec());
+
+	/*if( tf_.canTransform(global_frame, pose_msg.header.frame_id, pose_msg.header.stamp ) ){
+		ROS_ERROR_THROTTLE(2,"[person_tracker] canTransform returned false");
+	}*/
 
 	try {
-		tf_.transformPose(global_frame, pose_tf, global_tf);
+		tf_.transformPose(global_frame, pose_msg, transformed);
 	}
 	catch(tf::TransformException& ex) {
 		ROS_WARN_THROTTLE(2,"[person_tracker] Failed to transform goal pose from \"%s\" to \"%s\" frame: %s",
-		pose_tf.frame_id_.c_str(), global_frame.c_str(), ex.what());
+		pose_msg.header.frame_id.c_str(), global_frame.c_str(), ex.what());
 		return false;
 	}
 
-	tf::poseStampedTFToMsg(global_tf, transformed);
 	return true;
 }
 
 void
 PersonTracker::skeletonCB(const body_msgs::Skeletons& skel_msg)
 {
-	ROS_INFO_THROTTLE(5,"[person tracker] Got data, %lu skeletons.", skel_msg.skeletons.size());
+	//ROS_INFO_THROTTLE(5,"[person tracker] Got data, %lu skeletons.", skel_msg.skeletons.size());
 
 	body_msgs::SkeletonJoint body_part;
 	string                   body_part_name;

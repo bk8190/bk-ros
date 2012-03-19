@@ -77,16 +77,18 @@ class PointHeadNode():
 	def transform_target_point(self, target):
 		# Set the pan reference frame to the head_pan_frame defined above
 		pan_ref_frame = self.head_pan_frame
+		#rospy.Time common_time(0)
 		
 		# Make sure the TF is available
 		try:
 			#self.tf.waitForTransform(pan_ref_frame, target.header.frame_id, rospy.Time(), rospy.Duration(5.0))
-			self.tf.getLatestCommonTime(pan_ref_frame, target.header.frame_id)
+			common_time = self.tf.getLatestCommonTime(pan_ref_frame, target.header.frame_id)
 		except tf.Exception:
 			rospy.logwarn("[point_head] TF could not get transform from \"" + pan_ref_frame + "\" to \"" + target.header.frame_id + "\"")
 			raise
 
 		# Transform target point to pan reference frame & retrieve the pan angle
+		target.header.stamp = common_time;
 		pan_target = self.tf.transformPoint(pan_ref_frame, target)
 		pan_angle = math.atan2(pan_target.point.y, pan_target.point.x)
 
