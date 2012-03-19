@@ -104,7 +104,10 @@ PathChecker::isPoseClear(base_local_planner::CostmapModel& model, const PoseStam
 	point.y = y;
 	point.z = 0;
 	
-	return model.footprintCost(point, oriented_footprint, 0.0, 0.0) > 0;
+	double cost = model.footprintCost(point, oriented_footprint, 0.0, 0.0);
+	//ROS_INFO("Pose has cost %.2f", cost);
+	
+	return  cost > -0.01;
 }
 
 vector<PoseStamped>
