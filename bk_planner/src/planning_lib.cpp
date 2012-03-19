@@ -16,7 +16,7 @@ bool BKPlanningThread::isTargetBehind(const PoseStamped& target)
 	
 	ROS_INFO("[isTargetBehind] Transformed pose is (%.2f,%.2f)", transformed_target.pose.position.x, transformed_target.pose.position.y);
 	
-	return transformed_target.pose.position.x < 0.2;
+	return transformed_target.pose.position.x < -2.0;
 }
 
 
