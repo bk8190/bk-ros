@@ -4,8 +4,8 @@ accel_lim:
  max_acc_th: 0.05
 
 speed_lim:
- max_spd_x: 0.2
- max_spd_th: 0.15
+ max_spd_x: 0.15
+ max_spd_th: 0.10
 
 planning:
  obstacle_cost: 190
