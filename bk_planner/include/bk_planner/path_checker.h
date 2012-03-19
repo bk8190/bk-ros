@@ -29,7 +29,9 @@ namespace path_checker{
 			
 			// Checks if a single pose is clear
 			bool isPoseClear(const PoseStamped& pose);
+			bool isPoseClear(const PoseStamped& pose, double alpha);
 			bool isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose);
+			bool isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose, double alpha);
 
 			// Returns only the poses not in collision
 			vector<PoseStamped> getGoodPoses(const vector<PoseStamped>& poses);

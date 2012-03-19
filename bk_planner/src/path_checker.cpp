@@ -72,19 +72,34 @@ PathChecker::assignSegVelocity(p_nav::PathSegment& seg)
 }
 
 bool
-PathChecker::isPoseClear(const PoseStamped& pose)
+PathChecker::isPoseClear(const PoseStamped& pose) {
+	return isPoseClear(pose, 1.0);
+}
+
+bool
+PathChecker::isPoseClear(const PoseStamped& pose, double alpha)
 {
 	// Create a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
 	base_local_planner::CostmapModel model(map);
 	
-	return isPoseClear(model, pose);
+	return isPoseClear(model, pose, alpha);
 }
 
 bool
-PathChecker::isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose)
+PathChecker::isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose) {
+	return isPoseClear(model, pose, 1.0);
+}
+
+bool
+PathChecker::isPoseClear(base_local_planner::CostmapModel& model, const PoseStamped& pose, double alpha)
 {
+	if( alpha < 0.0 || alpha > 1.0 ){
+		ROS_WARN("[path_checker] Invalid value of alpha (%.2f), it must be 0<x<1", alpha);
+		alpha = std::min(alpha,1.0);
+		alpha = std::max(alpha,0.0);
+	}
 
 	if( pose.header.frame_id.compare(costmap_->getGlobalFrameID()) != 0 )
 	{
@@ -92,17 +107,21 @@ PathChecker::isPoseClear(base_local_planner::CostmapModel& model, const PoseStam
 		return false;
 	}
 	
-	std::vector<geometry_msgs::Point> oriented_footprint;
-	
-	double x = pose.pose.position.x;
-	double y = pose.pose.position.y;
-	double t = tf::getYaw(pose.pose.orientation);
-	costmap_->getOrientedFootprint(x, y, t, oriented_footprint);
-	
 	geometry_msgs::Point point;
-	point.x = x;
-	point.y = y;
+	point.x = pose.pose.position.x;
+	point.y = pose.pose.position.y;
 	point.z = 0;
+	
+	// Get the oriented footprint of the robot at "pose"
+	std::vector<geometry_msgs::Point> oriented_footprint;
+	costmap_->getOrientedFootprint(point.x, point.y, tf::getYaw(pose.pose.orientation), oriented_footprint);
+	
+	// Shrink the footprint to alpha times its original size
+	for( unsigned int i=0; i<oriented_footprint.size(); i++ )
+	{
+		oriented_footprint.at(i).x = oriented_footprint.at(i).x*alpha + point.x*(1-alpha);
+		oriented_footprint.at(i).y = oriented_footprint.at(i).y*alpha + point.y*(1-alpha);
+	}
 	
 	double cost = model.footprintCost(point, oriented_footprint, 0.0, 0.0);
 	//ROS_INFO("Pose has cost %.2f", cost);
@@ -183,7 +202,7 @@ PathChecker::getBlockedSegs(p_nav::Path& path)
 bool
 PathChecker::isPathClear(const p_nav::Path path)
 {
-	//return isPathClear2(path);
+	return isPathClear2(path);
 	
 	// Get a copy of the costmap
 	costmap_2d::Costmap2D map;
@@ -197,12 +216,12 @@ PathChecker::isPathClear(const p_nav::Path path)
 	unsigned char cost;
 	
 	// Iterate over all segments
-	for( int iseg=0; iseg<path.segs.size(); iseg++ )
+	for( unsigned int iseg=0; iseg<path.segs.size(); iseg++ )
 	{
 		interp = segment_lib::interpSegment(path.segs.at(iseg), interp_dx_, interp_dth_);
 		
 		// Iterate over all interpolated poses
-		for( int ipose=0; ipose<interp.size(); ipose++ )
+		for( unsigned int ipose=0; ipose<interp.size(); ipose++ )
 		{
 				pose = interp.at(ipose).pose;
 				x = pose.position.x;
@@ -212,7 +231,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 				inbounds = map.worldToMap(x, y, x_c, y_c);
 	
 				if( !inbounds ) {
-					ROS_INFO("OOB point found at (%.2f,%.2f)", x, y);
+					ROS_INFO("[path checker] OOB point found at (%.2f,%.2f)", x, y);
 					return false;
 				}
 	
@@ -234,6 +253,8 @@ PathChecker::isPathClear(const p_nav::Path path)
 bool
 PathChecker::isPathClear2(const p_nav::Path path)
 {
+	double alpha = 0.8;
+
 	// Get a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
@@ -254,8 +275,8 @@ PathChecker::isPathClear2(const p_nav::Path path)
 				x    = pose.pose.position.x;
 				y    = pose.pose.position.y;
 				
-				if( !isPoseClear(model, pose) ) {
-					ROS_INFO("[path checker] Obstacle found at (%.2f,%.2f) in segment %d/%d", x, y, iseg, path.segs.size());
+				if( !isPoseClear(model, pose, alpha) ) {
+					ROS_INFO("[path checker] Obstacle found at (%.2f,%.2f) in segment %lu/%lu", x, y, iseg, path.segs.size());
 					return false;
 				}
 		
