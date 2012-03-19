@@ -82,7 +82,7 @@ BKFeederThread::run()
 				// Check if the path is clear.  If so, send it to precision steering.
 				if( parent_->path_checker_->isPathClear(feeder_path_) )
 				{
-					ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
+					//ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
 					executePath();
 				}
 				else

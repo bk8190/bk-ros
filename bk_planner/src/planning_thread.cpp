@@ -149,9 +149,9 @@ BKPlanningThread::startRecovery()
 {
 	ROS_INFO("[planning] Starting recovery");
 	
-	if(parent_->gotNewGoal()) {
+	//if(parent_->gotNewGoal()) {
 		setPlannerState(NEED_FULL_REPLAN);
-	}
+	//}
 }
 
 void

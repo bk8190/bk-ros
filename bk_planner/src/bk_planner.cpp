@@ -73,7 +73,8 @@ BKPlanner::terminateThreads()
 	feeder_thread_  ->join();
 }
 
-double dist( const PoseStamped& p1, const PoseStamped& p2 )
+double
+dist( const PoseStamped& p1, const PoseStamped& p2 )
 {
 	return sqrt(
 	 ((p1.pose.position.x - p2.pose.position.x)
@@ -113,7 +114,6 @@ BKPlanner::goalCB(const PoseWithCovarianceStamped::ConstPtr& goal_cov_ptr)
 	if( d > goal_hysteresis_ || time_since_goal > goal_timeout_ )
 	{
 		setNewGoal(new_goal);
-		got_new_goal_ = true;
 		last_accepted_goal_ = ros::Time::now();
 	}
 }
@@ -174,16 +174,6 @@ BKPlanner::getLatestGoal()
 	
 	got_new_goal_ = false;
 	return latest_goal_;
-	
-	/*
-	PoseStamped transformed_goal;
-	if( poseToGlobalFrame(latest_goal_, transformed_goal) ) {
-		return transformed_goal;
-	}
-	else {
-		ROS_ERROR("[getLatestGoal] Failed to transform!");
-		return latest_goal_;
-	}*/
 }
 
 // Get the robot's current pose

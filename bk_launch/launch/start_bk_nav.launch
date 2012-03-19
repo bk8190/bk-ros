@@ -21,8 +21,8 @@
 		<!-- Costmap parameters specific to global or local -->
 		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_local_params.yaml"
 			command="load" ns="local_costmap"  />
-		<rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_global_params.yaml" 
-			command="load" ns="global_costmap" />
+		<!--rosparam file="$(find bk_configs)/$(optenv ROBOT sim)/nav/costmap_global_params.yaml" 
+			command="load" ns="global_costmap" /-->
 		
 		<!-- Lattice planner parameters -->
 		<rosparam file="$(find bk_configs)/common/nav/sbpl_global_params.yaml"
@@ -45,7 +45,7 @@
 		<remap from="plan_visualization" to="plan_visualization" />
 	</node>
 	
-	<!-- Node allows planner to be controlled from rviz (for debugging) -->
+	<!-- Node allows planner to be controlled from rviz for debugging -->
 	<node pkg="bk_planner" type="covariance_faker" name="covariance_faker">
 		<remap from="pose"     to="/move_base_simple/goal"               />
 		<remap from="pose_cov" to="/person_tracker/goal_with_covariance" />
