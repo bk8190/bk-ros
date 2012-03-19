@@ -113,6 +113,8 @@ BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costmap_2d:
     private_nh.param("primitive_filename",primitive_filename_,string(""));
     private_nh.param("force_scratch_limit",force_scratch_limit_,500);
 
+		ROS_INFO("[bk_sbpl_lattice_planner] Using primitive file \"%s\"", primitive_filename_.c_str());
+
     double nominalvel_mpersecs, timetoturn45degsinplace_secs;
     private_nh.param("nominalvel_mpersecs", nominalvel_mpersecs, 0.4);
     private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
