@@ -2,6 +2,7 @@
 #define BK_PLANNER_H_
 
 #include <ros/ros.h>
+#include <algorithm>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 
@@ -140,6 +141,11 @@ namespace bk_planner {
 		// The planner periodically checks if it is faster just to scrap the current path and replan
 		ros::Time last_scrapped_path_;
 		ros::Duration scrap_path_timeout_;
+		
+		// State variables for recovery
+		ros::Time time_started_recovery_;
+		ros::Time next_recovery_action_;
+		int recovery_counter_;
 		
 		double short_dist_;
 		double loop_rate_;

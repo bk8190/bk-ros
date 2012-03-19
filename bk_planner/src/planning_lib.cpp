@@ -339,6 +339,13 @@ BKPlanningThread::generateNearGoals(const PoseStamped& start,
 	return cleared_goals;
 }
 
+PoseStamped last_robot_pose_;
+
+bool poseCompare (PoseStamped i,PoseStamped j)
+{
+	return dist(i,last_robot_pose_) < dist(j,last_robot_pose_);
+}
+
 vector<PoseStamped>
 BKPlanningThread::generateFarGoals(const PoseStamped& start,
                                    const PoseStamped& goal,
@@ -360,22 +367,41 @@ BKPlanningThread::generateFarGoals(const PoseStamped& start,
 	potential_goals.push_back(getPoseOffset(newgoal,  0.00  , ds));
 	
 	// Add two goals behind the true goal, offset by +-45 degrees
-	potential_goals.push_back(getPoseOffset(newgoal,  .25*pi, ds));
-	potential_goals.push_back(getPoseOffset(newgoal, -.25*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal,  .2*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal, -.2*pi, ds));
 	
-	// Add two goals behind the true goal, offset by +-90 degrees
-	potential_goals.push_back(getPoseOffset(newgoal,  .4*pi, ds*.6));
-	potential_goals.push_back(getPoseOffset(newgoal, -.4*pi, ds*.6));
+	// Add two goals behind the true goal, offset by +-70 degrees
+	potential_goals.push_back(getPoseOffset(newgoal,  .4*pi, ds*.7));
+	potential_goals.push_back(getPoseOffset(newgoal, -.4*pi, ds*.7));
 	
 	// Add two goals behind the true goal, offset by +-135 degrees
-	//potential_goals.push_back(getPoseOffset(newgoal,  .75*pi, ds));
-	//potential_goals.push_back(getPoseOffset(newgoal, -.75*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal,  .8*pi, ds));
+	potential_goals.push_back(getPoseOffset(newgoal, -.8*pi, ds));
+	
+	potential_goals.push_back(getPoseOffset(newgoal,  .1*pi, ds*1.3));
+	potential_goals.push_back(getPoseOffset(newgoal, -.1*pi, ds*1.3));
 	
 	// Add a goal 180 degrees offset
 	//potential_goals.push_back(getPoseOffset(newgoal, 1.00*pi, ds));
 	
 	// Eliminate goals in collision
 	vector<PoseStamped> cleared_goals = path_checker->getGoodPoses(potential_goals);
+	
+	// Sort goals by distance to the robot
+	parent_->getRobotPose(last_robot_pose_);
+	sort (cleared_goals.begin(), cleared_goals.end(), poseCompare);
+	
+	// Keep only the first 4 goals to keep the planning time reasonable
+	if( getPlannerState() == NEED_PARTIAL_REPLAN ) {
+		while( cleared_goals.size() > 4 )	{
+			cleared_goals.erase(cleared_goals.end());
+		}
+	}
+	/*else if( getPlannerState() == NEED_FULL_REPLAN ) {
+		while( cleared_goals.size() > 7 )	{
+			cleared_goals.erase(cleared_goals.end());
+		}
+	}*/
 	
 	// Store the candidate goals for visualization
 	pub_goals_.poses.clear();
