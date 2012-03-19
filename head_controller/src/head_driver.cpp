@@ -94,10 +94,7 @@ int display_properties(CPhidgetAdvancedServoHandle phid)
 
 	CPhidgetAdvancedServo_getMotorCount (phid, &numMotors);
 
-	ROS_INFO("[head_driver] %s", ptr);
-	ROS_INFO("[head_driver] Serial #: %10d", serialNo);
-	ROS_INFO("[head_driver] Version : %8d" , version);
-	ROS_INFO("[head_driver] # Motors: %d"  , numMotors);
+	ROS_INFO("[head_driver] %s, Serial: %10d, Version: %8d, # Motors: %d", ptr, serialNo, version, numMotors);
 
 	return 0;
 }
@@ -225,7 +222,7 @@ int main(int argc, char** argv)
 		
 		// Send the commanded angle to the servo
 		//valid range is -23 to 232, but for most motors ~30-210
-		ROS_INFO_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
+		//ROS_INFO_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
 		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
 		
 		// Publish a transform encorporating the actual position of the servo
