@@ -9,12 +9,12 @@ bool BKPlanningThread::isTargetBehind(const PoseStamped& target)
 		parent_->tf_.transformPose("base_link", target, transformed_target);
 	}
 	catch(tf::TransformException& ex) {
-		ROS_ERROR("[isTargetBehind] Failed to transform target pose from \"%s\" to \"base_link\" (%s)",
+		ROS_WARN("[isTargetBehind] Failed to transform target pose from \"%s\" to \"base_link\" (%s)",
 		target.header.frame_id.c_str(), ex.what());
 		return false;
 	}
 	
-	ROS_INFO("[isTargetBehind] Transformed pose is (%.2f,%.2f)", transformed_target.pose.position.x, transformed_target.pose.position.y);
+	//ROS_INFO("[isTargetBehind] Transformed pose is (%.2f,%.2f)", transformed_target.pose.position.x, transformed_target.pose.position.y);
 	
 	return transformed_target.pose.position.x < -2.0;
 }
@@ -419,9 +419,14 @@ BKPlanningThread::generatePotentialGoals(const PoseStamped& start,
                                          const PoseStamped& goal,
                                          shared_ptr<path_checker::PathChecker> path_checker)
 {
-	
 	double d = dist(start,goal);
 	vector<PoseStamped> cleared_goals;
+
+	// Optionally, just return the true goal (useful for directly testing point-point planning)
+	if( override_goal_generation_ ) {
+		cleared_goals.push_back(goal);
+		return cleared_goals;
+	}
 
 	if( d < short_dist_ )
 	{

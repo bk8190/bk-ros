@@ -19,9 +19,14 @@ BKPlanningThread::BKPlanningThread(BKPlanner* parent):
 	parent_->priv_nh_.param("planning/standoff_distance" , standoff_distance_ ,1.1);
 	parent_->priv_nh_.param("planning/short_distance"    , short_dist_        ,1.1);
 	parent_->priv_nh_.param("planning/planner_loop_rate" , loop_rate_         ,1.0);
+	parent_->priv_nh_.param("planning/override_goal_gen" , override_goal_generation_ ,false);
 	ROS_INFO("[planning] Commit   distance %.2f", commit_distance_  );
 	ROS_INFO("[planning] Standoff distance %.2f", standoff_distance_);
 	ROS_INFO("[planning] Short    distance %.2f", short_dist_       );
+	
+	if( override_goal_generation_ ){
+		ROS_WARN("[planning] Ignoring goal generation");
+	}
 	
 	goal_pub_ = parent->nh_.advertise<PoseStamped>("target_goal", 1);
 	
@@ -95,19 +100,19 @@ BKPlanningThread::run()
 				path_clear = parent_->path_checker_->isPathClear(planner_path_);
 				segs_left  = planner_path_.segs.size()>0;
 		
-				// Commit path segments if the path is clear and we have a good plan
+				// Commit path segments if the path is clear and we have a non-empty path
 				if( path_clear && segs_left ) {
 					ROS_INFO_THROTTLE(5, "[planning] Planner state good.");
 					commitPathSegments();
 					FeedThreadPtr(feeder_)->setFeederEnabled(true);
 				}
 				else if(segs_left) {
-					// We found obstacles, signla a replan
-					ROS_INFO_THROTTLE(2, "[planning] Found obstacles.");
+					// We found obstacles, signal a replan
+					ROS_INFO_THROTTLE(1, "[planning] Found obstacles.");
 					escalatePlannerState(NEED_PARTIAL_REPLAN);
 				}
 				else {
-					ROS_INFO_THROTTLE(5, "[planning] Nothing more to pass down.");
+					ROS_INFO_THROTTLE(7, "[planning] Nothing more to pass down.");
 				}
 				
 				// Check if there is a new goal. Note that this is done AFTER committing path segments.
@@ -117,18 +122,18 @@ BKPlanningThread::run()
 			break;	
 			
 			default:
-				ROS_ERROR("[planning] Planning is in a bad state right now... State = %d",s);
+				ROS_ERROR("[planning] Bad state = %d",s);
 			break;
 		}
 	
 		
 		// We are planning in the odometry frame, which constantly is shifting.  Lie and say the plan was created right now to avoid using an old transform.
 		if( planner_path_.segs.size() > 0 ){
-			planner_path_.segs.back().header.stamp = ros::Time::now();
-			segment_lib::reFrame(planner_path_);
+			//planner_path_.segs.back().header.stamp = ros::Time::now();
+			//segment_lib::reFrame(planner_path_);
 			
 			// Also reframe the candidate goals for visualization
-			pub_goals_.header.stamp = planner_path_.header.stamp;
+			pub_goals_.header.stamp    = planner_path_.header.stamp;
 			pub_goals_.header.frame_id = planner_path_.header.frame_id;
 		}
 		else{
@@ -144,6 +149,7 @@ BKPlanningThread::run()
 	}
 }
 
+// Starts recovery process, initializes recovery state variables
 void
 BKPlanningThread::startRecovery()
 {
@@ -196,6 +202,7 @@ BKPlanningThread::doRecovery()
 		// Try to make a full replan.  If it succeeds, get out of recovery.
 		if(parent_->gotNewGoal()) {
 			if( doFullReplan() ) {
+				ROS_INFO("[planning] Yay, we got out of recovery.");
 				setPlannerState(GOOD);
 			}
 		}
