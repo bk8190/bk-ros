@@ -41,9 +41,12 @@ PathChecker::assignPathVelocity(p_nav::Path& path)
 void
 PathChecker::assignSegVelocity(p_nav::PathSegment& seg)
 {
-	// herp de derp
-	seg.max_speeds.linear.x  = max_speed_.linear.x;
-	seg.max_speeds.angular.z = max_speed_.angular.z;
+	// First time processing this segment, speed will be zero
+	if( seg.max_speeds.linear.x == 0 )
+	{
+		seg.max_speeds.linear.x  = max_speed_.linear.x;
+		seg.max_speeds.angular.z = max_speed_.angular.z;
+	}
 	
 	switch(seg.seg_type)
 	{
@@ -53,6 +56,7 @@ PathChecker::assignSegVelocity(p_nav::PathSegment& seg)
 			
 			// HACK: If the length is negative, set it positive but set the max speed negative
 			if( seg.seg_length < 0 ){
+				//ROS_INFO("[path_checker] Found reverse segment");
 				seg.seg_length = fabs(seg.seg_length);
 				seg.max_speeds.linear.x *= -1.0;
 			}
@@ -203,7 +207,7 @@ bool
 PathChecker::isPathClear(const p_nav::Path path)
 {
 	return isPathClear2(path);
-	
+	/*
 	// Get a copy of the costmap
 	costmap_2d::Costmap2D map;
 	costmap_->getCostmapCopy(map);
@@ -246,7 +250,7 @@ PathChecker::isPathClear(const p_nav::Path path)
 		}// pose
 	}//segment
 	
-	return true;
+	return true;*/
 }
 
 // Checks through the costmap, makes sure it doesn't run into any unknown/obstacle cells
