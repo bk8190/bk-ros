@@ -222,7 +222,7 @@ BKPlanningThread::planApproximateToGoal(const PoseStamped& start,
 	double d = dist(start,goal);
 	
 	// See if the target is close.  If so, activate a special short-distance planner.
-	if( d <= short_dist_ && getPlannerState() == NEED_FULL_REPLAN )
+	if( d <= short_dist_ && getPlannerState() == NEED_FULL_REPLAN && !override_goal_generation_)
 	{
 		found_goal = planShortDistance(start, goal, path, path_checker);
 	
