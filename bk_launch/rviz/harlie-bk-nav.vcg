@@ -2,13 +2,24 @@ Background\ ColorR=0
 Background\ ColorG=0
 Background\ ColorB=0
 Fixed\ Frame=/map
-Target\ Frame=/base_laser1_link
+Target\ Frame=<Fixed Frame>
 Committed\ path.Alpha=1
 Committed\ path.ColorR=0
 Committed\ path.ColorG=0.172549
 Committed\ path.ColorB=1
 Committed\ path.Enabled=1
 Committed\ path.Topic=/feeder_visualization/path
+Detected\ Person.Alpha=1
+Detected\ Person.ColorR=0.152941
+Detected\ Person.ColorG=1
+Detected\ Person.ColorB=0
+Detected\ Person.Enabled=1
+Detected\ Person.Head\ Length=0.3
+Detected\ Person.Head\ Radius=0.5
+Detected\ Person.Shaft\ Length=0.5
+Detected\ Person.Shaft\ Radius=0.2
+Detected\ Person.Shape=0
+Detected\ Person.Topic=/person_tracker/goal
 Footprint.Alpha=1
 Footprint.ColorR=0
 Footprint.ColorG=0
@@ -16,26 +27,22 @@ Footprint.ColorB=0
 Footprint.Enabled=1
 Footprint.Topic=/bk_planner/local_costmap/robot_footprint
 Goal\ candidates.ColorR=1
-Goal\ candidates.ColorG=0.1
+Goal\ candidates.ColorG=0.101961
 Goal\ candidates.ColorB=0
 Goal\ candidates.Enabled=1
 Goal\ candidates.Topic=/candidate_poses
-Grid.Alpha=0.5
-Grid.Cell\ Size=1
-Grid.ColorR=0.5
-Grid.ColorG=0.5
-Grid.ColorB=0.5
-Grid.Enabled=0
-Grid.Line\ Style=0
-Grid.Line\ Width=0.03
-Grid.Normal\ Cell\ Count=0
-Grid.OffsetX=0
-Grid.OffsetY=0
-Grid.OffsetZ=0
-Grid.Plane=0
-Grid.Plane\ Cell\ Count=10
-Grid.Reference\ Frame=<Fixed Frame>
-Laser\ Scan.Alpha=1
+Ideal\ State.Alpha=1
+Ideal\ State.ColorR=0
+Ideal\ State.ColorG=0.992157
+Ideal\ State.ColorB=1
+Ideal\ State.Enabled=1
+Ideal\ State.Head\ Length=0.1
+Ideal\ State.Head\ Radius=0.15
+Ideal\ State.Shaft\ Length=0.3
+Ideal\ State.Shaft\ Radius=0.06
+Ideal\ State.Shape=0
+Ideal\ State.Topic=/ideal_pose
+Laser\ Scan.Alpha=0.3
 Laser\ Scan.Billboard\ Size=0.05
 Laser\ Scan.Color\ Transformer=Flat Color
 Laser\ Scan.Decay\ Time=0
@@ -43,7 +50,7 @@ Laser\ Scan.Enabled=1
 Laser\ Scan.Position\ Transformer=XYZ
 Laser\ Scan.Selectable=1
 Laser\ Scan.Style=3
-Laser\ Scan.Topic=/base_laser1_scan
+Laser\ Scan.Topic=/base_scan
 Laser\ Scan..AxisAutocompute\ Value\ Bounds=1
 Laser\ Scan..AxisAxis=0
 Laser\ Scan..AxisMax\ Value=3.4843
@@ -63,23 +70,19 @@ Laser\ Scan..IntensityMin\ ColorG=0
 Laser\ Scan..IntensityMin\ ColorB=0
 Laser\ Scan..IntensityMin\ Intensity=0
 Laser\ Scan..IntensityUse\ full\ RGB\ spectrum=0
-Local\ inflated.Alpha=0.3
+Local\ inflated.Alpha=0.15
 Local\ inflated.ColorR=1
 Local\ inflated.ColorG=0.6
 Local\ inflated.ColorB=0
 Local\ inflated.Enabled=1
 Local\ inflated.Topic=/bk_planner/local_costmap/inflated_obstacles
-Local\ obstacles.Alpha=0.3
+Local\ obstacles.Alpha=0.2
 Local\ obstacles.ColorR=1
 Local\ obstacles.ColorG=0
 Local\ obstacles.ColorB=0.121569
 Local\ obstacles.Enabled=1
 Local\ obstacles.Topic=/bk_planner/local_costmap/obstacles
-Map\ axes.Enabled=0
-Map\ axes.Length=1
-Map\ axes.Radius=0.1
-Map\ axes.Reference\ Frame=<Fixed Frame>
-Map.Alpha=0.7
+Map.Alpha=0.5
 Map.Draw\ Behind=1
 Map.Enabled=1
 Map.Topic=/map
@@ -87,35 +90,31 @@ MarkerArray.Enabled=0
 MarkerArray.Marker\ Array\ Topic=/feeder_visualization/markers
 Odometry.Angle\ Tolerance=0.0001
 Odometry.ColorR=1
-Odometry.ColorG=0.1
+Odometry.ColorG=0.0980392
 Odometry.ColorB=0
 Odometry.Enabled=1
 Odometry.Keep=1
 Odometry.Position\ Tolerance=0.0001
 Odometry.Topic=/odom
-Planner\ grid.Alpha=0.5
-Planner\ grid.Cell\ Size=1
-Planner\ grid.ColorR=0.5
-Planner\ grid.ColorG=0.5
-Planner\ grid.ColorB=0.5
-Planner\ grid.Enabled=0
-Planner\ grid.Line\ Style=0
-Planner\ grid.Line\ Width=0.03
-Planner\ grid.Normal\ Cell\ Count=0
-Planner\ grid.OffsetX=0
-Planner\ grid.OffsetY=0
-Planner\ grid.OffsetZ=0
-Planner\ grid.Plane=0
-Planner\ grid.Plane\ Cell\ Count=10
-Planner\ grid.Reference\ Frame=<Fixed Frame>
+Planner\ goal.Alpha=1
+Planner\ goal.ColorR=1
+Planner\ goal.ColorG=0.654902
+Planner\ goal.ColorB=0
+Planner\ goal.Enabled=1
+Planner\ goal.Head\ Length=0.2
+Planner\ goal.Head\ Radius=0.2
+Planner\ goal.Shaft\ Length=0.4
+Planner\ goal.Shaft\ Radius=0.1
+Planner\ goal.Shape=0
+Planner\ goal.Topic=/target_goal
 TF.All\ Enabled=1
-TF.Enabled=0
-TF.Frame\ Timeout=15
-TF.Marker\ Scale=1
-TF.Show\ Arrows=1
+TF.Enabled=1
+TF.Frame\ Timeout=10
+TF.Marker\ Scale=0.5
+TF.Show\ Arrows=0
 TF.Show\ Axes=1
-TF.Show\ Names=1
-TF.Update\ Interval=0.05
+TF.Show\ Names=0
+TF.Update\ Interval=0.1
 Uncommitted\ path.Alpha=1
 Uncommitted\ path.ColorR=0.1
 Uncommitted\ path.ColorG=1
@@ -125,8 +124,8 @@ Uncommitted\ path.Topic=/planning_visualization/path
 Tool\ 2D\ Nav\ GoalTopic=move_base_simple/goal
 Tool\ 2D\ Pose\ EstimateTopic=initialpose
 Camera\ Type=rviz::FixedOrientationOrthoViewController
-Camera\ Config=46.5077 -9.60873 1.81886 -8.9906 -0.557523 0.434935 0.434935 0.557523
-Property\ Grid\ State=selection=MarkerArray.Enabled;expanded=.Global Options,TF.Enabled.TF.StatusTopStatus,TF.Enabled.TF.Tree,Map axes.Enabled.Map axes.StatusTopStatus,Grid.Enabled.Grid.StatusTopStatus,Planner grid.Enabled.Planner grid.StatusTopStatus,MarkerArray.Enabled.MarkerArray.StatusTopStatus,MarkerArray.Enabled.MarkerArray.Namespaces,Uncommitted path.Enabled;scrollpos=0,0;splitterpos=133,266;ispageselected=1
+Camera\ Config=225.873 0.584309 3.44799 -1.93494 0.657735 -0.259587 -0.259588 -0.657734
+Property\ Grid\ State=selection=;expanded=.Global Options,TF./base_footprint/base_footprint,TF./base_laser_link/base_laser_link,TF./base_link/base_link,TF./map/map,TF./odom/odom,TF.Enabled.TF.Tree,TF./mapTree/map,TF./odomTree/odom,TF./base_footprintTree/base_footprint,TF./base_linkTree/base_link,TF./base_laser_linkTree/base_laser_link,MarkerArray.Enabled.MarkerArray.Namespaces,Planner goal.Enabled.Planner goal.Shape Properties,Ideal State.Enabled.Ideal State.Shape Properties;scrollpos=0,0;splitterpos=132,266;ispageselected=1
 [Display0]
 Name=TF
 Package=rviz
@@ -136,50 +135,56 @@ Name=Map
 Package=rviz
 ClassName=rviz::MapDisplay
 [Display2]
-Name=Map axes
-Package=rviz
-ClassName=rviz::AxesDisplay
-[Display3]
-Name=Grid
-Package=rviz
-ClassName=rviz::GridDisplay
-[Display4]
-Name=Planner grid
-Package=rviz
-ClassName=rviz::GridDisplay
-[Display5]
 Name=Laser Scan
 Package=rviz
 ClassName=rviz::LaserScanDisplay
-[Display6]
+[Display3]
 Name=Local obstacles
 Package=rviz
 ClassName=rviz::GridCellsDisplay
-[Display7]
+[Display4]
 Name=Local inflated
 Package=rviz
 ClassName=rviz::GridCellsDisplay
-[Display8]
+[Display5]
 Name=Footprint
 Package=rviz
 ClassName=rviz::PolygonDisplay
-[Display9]
+[Display6]
 Name=Odometry
 Package=rviz
 ClassName=rviz::OdometryDisplay
-[Display10]
+[Display7]
 Name=MarkerArray
 Package=rviz
 ClassName=rviz::MarkerArrayDisplay
-[Display11]
+[Display8]
 Name=Uncommitted path
 Package=rviz
 ClassName=rviz::PathDisplay
-[Display12]
+[Display9]
 Name=Committed path
 Package=rviz
 ClassName=rviz::PathDisplay
-[Display13]
+[Display10]
 Name=Goal candidates
 Package=rviz
 ClassName=rviz::PoseArrayDisplay
+[Display11]
+Name=Detected Person
+Package=rviz
+ClassName=rviz::PoseDisplay
+[Display12]
+Name=Planner goal
+Package=rviz
+ClassName=rviz::PoseDisplay
+[Display13]
+Name=Ideal State
+Package=rviz
+ClassName=rviz::PoseDisplay
+[TF.]
+base_footprintEnabled=1
+base_laser_linkEnabled=1
+base_linkEnabled=1
+mapEnabled=1
+odomEnabled=1
