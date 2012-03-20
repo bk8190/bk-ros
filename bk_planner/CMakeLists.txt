@@ -17,11 +17,6 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-#uncomment if you have defined messages
-#rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
-
 rosbuild_add_library(path_checker    src/path_checker.cpp)
 rosbuild_add_library(feeder_thread   src/feeder_thread.cpp)
 rosbuild_add_library(planning_thread src/planning_thread.cpp)
@@ -29,18 +24,16 @@ rosbuild_add_library(planning_thread src/planning_thread.cpp)
 rosbuild_add_executable(bk_planner src/bk_planner.cpp)
 rosbuild_add_executable(covariance_faker src/covariance_faker.cpp)
 
+target_link_libraries(planning_thread SegmentVisualizer)
+target_link_libraries(feeder_thread   SegmentVisualizer)
+
 target_link_libraries(bk_planner path_checker)
 target_link_libraries(bk_planner segment_lib)
 target_link_libraries(bk_planner SegmentVisualizer)
-
-target_link_libraries(planning_thread SegmentVisualizer)
-target_link_libraries(feeder_thread SegmentVisualizer)
-
 target_link_libraries(bk_planner planning_thread)
 target_link_libraries(bk_planner feeder_thread)
 
 rosbuild_link_boost  (bk_planner thread signals system)
-
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
