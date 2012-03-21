@@ -1,4 +1,4 @@
-goal_hysteresis: 0.15
+goal_hysteresis: 0.40
 
 planning:
  commit_distance: 0.50
