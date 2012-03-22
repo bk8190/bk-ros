@@ -7,4 +7,4 @@ planning:
  segs_to_trail: 3
  planner_loop_rate: 10.0
  feeder_loop_rate:  10.0
- override_goal_gen: false
+ override_goal_gen: true
