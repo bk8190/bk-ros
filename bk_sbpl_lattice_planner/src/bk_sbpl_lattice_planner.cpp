@@ -103,7 +103,7 @@ BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<Costmap2DRO
     ros::NodeHandle nh(name);
     
     //ROS_INFO("Name is %s", name.c_str());
-
+    private_nh.param("smooth_path"        , smooth_path_        , false);
     private_nh.param("planner_type"       , planner_type_       , string("ARAPlanner"));
     private_nh.param("allocated_time"     , allocated_time_     , 10.0);
     private_nh.param("initial_epsilon"    , initial_epsilon_    , 3.0);
@@ -113,7 +113,8 @@ BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<Costmap2DRO
     private_nh.param("force_scratch_limit", force_scratch_limit_, 500);
 
 		ROS_INFO("[bk_sbpl_lattice_planner] Using primitive file \"%s\"", primitive_filename_.c_str());
-
+		if( smooth_path_ ){ ROS_WARN("[bk_sbpl_lattice_planner] Smoothing paths"); }
+		
     double nominalvel_mpersecs, timetoturn45degsinplace_secs;
     private_nh.param("nominalvel_mpersecs"         , nominalvel_mpersecs, 0.4);
     private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
@@ -415,7 +416,8 @@ BKSBPLLatticePlanner::makeSegmentPlan(const PoseStamped& start,
   segmentPlan = segment_lib::combineSegments(segmentPlan);
   
   // Smooth out the plan to eliminate angular discontinuities
-  segmentPlan = segment_lib::smoothPath(segmentPlan);
+  if( smooth_path_ )
+  	segmentPlan = segment_lib::smoothPath(segmentPlan);
 	
   ROS_DEBUG("Plan has %d path segments.\n", (int)segmentPlan.segs.size());
   publishStats(solution_cost, sbpl_path.size(), start, goal);

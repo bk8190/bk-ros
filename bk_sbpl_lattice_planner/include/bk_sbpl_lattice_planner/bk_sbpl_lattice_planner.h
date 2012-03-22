@@ -111,6 +111,8 @@ private:
   std::string primitive_filename_; /** where to find the motion primitives for the current robot */
   int force_scratch_limit_; /** the number of cells that have to be changed in the costmap to force the planner to plan from scratch even if its an incremental planner */
 
+	bool smooth_path_;
+
   unsigned char lethal_obstacle_;
   unsigned char inscribed_inflated_obstacle_;
   unsigned char sbpl_cost_multiplier_;
