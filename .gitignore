@@ -1,0 +1,52 @@
+# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+
+*~
+*.pyc
+
+# Exclude bin, build, lib, and msg_gen directories
+bk_configs/build/
+
+bk_launch/build/
+
+bk_openni_tracker/bin/
+bk_openni_tracker/build/
+
+bk_planner/bin/
+bk_planner/build/
+bk_planner/lib/
+
+bk_sbpl_lattice_planner/build/
+bk_sbpl_lattice_planner/lib/
+bk_sbpl_lattice_planner/msg_gen/
+
+bk_skeletal_tracker/bin/
+bk_skeletal_tracker/build/
+
+body_msgs/build/
+body_msgs/msg_gen/
+
+geometric_shapes_msgs/build/
+geometric_shapes_msgs/msg_gen/
+
+head_controller/bin
+head_controller/build/
+
+mapping_msgs/build/
+mapping_msgs/msg_gen/
+
+pcl_decimator_bk/bin/
+pcl_decimator_bk/build/
+
+person_tracker/bin/
+person_tracker/build/
+person_tracker/lib/
+
+segment_lib/bin/
+segment_lib/build/
+segment_lib/lib/
+
