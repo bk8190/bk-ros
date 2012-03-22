@@ -112,6 +112,11 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 		seg = path.segs.at(i);
 		disc_seg = interpSegment(seg, 0.01, pi/64);
 		
+		if( disc_seg.size() == 0 ){
+			ROS_WARN("Visualization interpolated a segment with no poses???");
+			continue;
+		}
+		
 		m = visualization_msgs::Marker();
 		m.header.frame_id = last_seg.header.frame_id;
 		m.header.stamp    = last_seg.header.stamp;
