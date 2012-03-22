@@ -169,11 +169,10 @@ p_nav::Path replaceTurnArcs(const p_nav::Path& path)
 // Combines all consecutive turn-in-place segments
 p_nav::Path replaceMultipleTurns(const p_nav::Path& path)
 {
-
 	p_nav::PathSegment currentseg, nextseg, newseg;
 	int end_idx;
-	geometry_msgs::Pose                    start, end;
-	p_nav::Path        newpath;
+	geometry_msgs::PoseStamped start, end;
+	p_nav::Path newpath;
 	newpath.header = path.header;
 	
 	for(unsigned int path_idx = 0; path_idx < path.segs.size(); path_idx++)
@@ -183,7 +182,7 @@ p_nav::Path replaceMultipleTurns(const p_nav::Path& path)
 		// If the current seg is a turn in place
 		if(currentseg.seg_type == p_nav::PathSegment::SPIN_IN_PLACE)
 		{
-			end_idx   = path_idx;
+			end_idx = path_idx;
 			
 			// Look forward and find the last consecutive turn-in-place segs
 			while( end_idx+1 < path.segs.size() // the next seg is in range and the next seg is a spin
@@ -193,12 +192,13 @@ p_nav::Path replaceMultipleTurns(const p_nav::Path& path)
 				//ROS_INFO("Combining seg %d with %d", path_idx, end_idx);
 			}
 			
-			start = interpSegment(currentseg           , 1, .1).front().pose;
-			end   = interpSegment(path.segs.at(end_idx), 1, .1).back().pose;
+			start = getStartPose(currentseg);
+			end   = getEndPose  (path.segs.at(end_idx));
 
 			// Combine all into a single segment
-			newseg = makePathSegment(start.position.x, start.position.y, tf::getYaw(start.orientation),
-					                     end.position.x  , end.position.y  , tf::getYaw(end.orientation));
+			newseg = makePathSegment(
+			           start.pose.position.x, start.pose.position.y, tf::getYaw(start.pose.orientation),
+					       end.pose.position.x  , end.pose.position.y  , tf::getYaw(end.pose.orientation));
 			newseg.header     = currentseg.header;
 			newseg.seg_number = currentseg.seg_number;
 			newpath.segs.push_back(newseg);
