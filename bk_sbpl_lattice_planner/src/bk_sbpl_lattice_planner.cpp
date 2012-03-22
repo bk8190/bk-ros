@@ -41,7 +41,6 @@
 using namespace std;
 using namespace ros;
 
-
 PLUGINLIB_REGISTER_CLASS(BKSBPLLatticePlanner, bk_sbpl_lattice_planner::BKSBPLLatticePlanner, nav_core::BaseGlobalPlanner);
 
 namespace bk_sbpl_lattice_planner{
@@ -77,46 +76,46 @@ BKSBPLLatticePlanner::BKSBPLLatticePlanner()
 }
 
 // Don't know why, but without this function I get linker errors.
-// Maybe because this class was initialized from a base class with virtual members.
+// Maybe because this class was initialized from a base class with virtual members?
 void
-initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
+initialize(std::string name, Costmap2DROS* costmap_ros) {
 	while(ros::ok()){
 		ROS_FATAL("FAILFAILFAILFAILFAIL");
 	}
 }
 void
-BKSBPLLatticePlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
+BKSBPLLatticePlanner::initialize(std::string name, Costmap2DROS* costmap_ros){
 	while(ros::ok()){
 		ROS_FATAL("FAILFAILFAILFAILFAIL");
 	}
 }
     
   
-BKSBPLLatticePlanner::BKSBPLLatticePlanner(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros) 
+BKSBPLLatticePlanner::BKSBPLLatticePlanner(std::string name, boost::shared_ptr<Costmap2DROS> costmap_ros) 
   : initialized_(false){
   initialize(name, costmap_ros);
 }
 
 void
-BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros){
+BKSBPLLatticePlanner::initialize(std::string name, boost::shared_ptr<Costmap2DROS> costmap_ros){
   if(!initialized_){
     ros::NodeHandle private_nh("~/"+name);
     ros::NodeHandle nh(name);
     
     //ROS_INFO("Name is %s", name.c_str());
 
-    private_nh.param("planner_type", planner_type_, string("ARAPlanner"));
-    private_nh.param("allocated_time", allocated_time_, 10.0);
-    private_nh.param("initial_epsilon",initial_epsilon_,3.0);
-    private_nh.param("environment_type", environment_type_, string("XYThetaLattice"));
-    private_nh.param("forward_search", forward_search_, bool(false));
-    private_nh.param("primitive_filename",primitive_filename_,string(""));
-    private_nh.param("force_scratch_limit",force_scratch_limit_,500);
+    private_nh.param("planner_type"       , planner_type_       , string("ARAPlanner"));
+    private_nh.param("allocated_time"     , allocated_time_     , 10.0);
+    private_nh.param("initial_epsilon"    , initial_epsilon_    , 3.0);
+    private_nh.param("environment_type"   , environment_type_   , string("XYThetaLattice"));
+    private_nh.param("forward_search"     , forward_search_     , bool(false));
+    private_nh.param("primitive_filename" , primitive_filename_ , string(""));
+    private_nh.param("force_scratch_limit", force_scratch_limit_, 500);
 
 		ROS_INFO("[bk_sbpl_lattice_planner] Using primitive file \"%s\"", primitive_filename_.c_str());
 
     double nominalvel_mpersecs, timetoturn45degsinplace_secs;
-    private_nh.param("nominalvel_mpersecs", nominalvel_mpersecs, 0.4);
+    private_nh.param("nominalvel_mpersecs"         , nominalvel_mpersecs, 0.4);
     private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
 
     int lethal_obstacle;
@@ -221,8 +220,7 @@ BKSBPLLatticePlanner::costMapCostToSBPLCost(unsigned char newcost){
 
 void
 BKSBPLLatticePlanner::publishStats(int solution_cost, int solution_size, 
-                                      const geometry_msgs::PoseStamped& start, 
-                                      const geometry_msgs::PoseStamped& goal){
+                                   const PoseStamped& start, const PoseStamped& goal){
   // Fill up statistics and publish
   bk_sbpl::SBPLLatticePlannerStats stats;
   stats.initial_epsilon = initial_epsilon_;
@@ -242,9 +240,10 @@ BKSBPLLatticePlanner::publishStats(int solution_cost, int solution_size,
   stats_publisher_.publish(stats);
 }
 
-bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped&     start,
-                                 const geometry_msgs::PoseStamped&        goal,
-                                 std::vector<geometry_msgs::PoseStamped>& plan)
+bool
+BKSBPLLatticePlanner::makePlan(const PoseStamped&        start,
+                               const PoseStamped&        goal,
+                               std::vector<PoseStamped>& plan)
 {
 	while(true){
 		ROS_FATAL("Herp de derp this function doesn't actually exist");
@@ -253,9 +252,9 @@ bool BKSBPLLatticePlanner::makePlan(const geometry_msgs::PoseStamped&     start,
 }
                                  
 bool
-BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        start,
-                                      const geometry_msgs::PoseStamped&        goal,
-                                      precision_navigation_msgs::Path&         segmentPlan)
+BKSBPLLatticePlanner::makeSegmentPlan(const PoseStamped& start,
+                                      const PoseStamped& goal,
+                                      p_nav::Path&                      segmentPlan)
 {
   if(!initialized_){
     ROS_ERROR("Global planner is not initialized");
@@ -414,6 +413,9 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
   
   // Combine some segments together (ex. merge consecutive turn-in-place segments)
   segmentPlan = segment_lib::combineSegments(segmentPlan);
+  
+  // Smooth out the plan to eliminate angular discontinuities
+  segmentPlan = segment_lib::smoothPath(segmentPlan);
 	
   ROS_DEBUG("Plan has %d path segments.\n", (int)segmentPlan.segs.size());
   publishStats(solution_cost, sbpl_path.size(), start, goal);
@@ -423,7 +425,7 @@ BKSBPLLatticePlanner::makeSegmentPlan(const geometry_msgs::PoseStamped&        s
 
 
 void
-BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, const vector<int>& stateIDPath, precision_navigation_msgs::Path& segmentPath, double dx, double dy)
+BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, const vector<int>& stateIDPath, p_nav::Path& segmentPath, double dx, double dy)
 {
 	// Discrete state
 	int x1_c, y1_c, t1_c;
@@ -433,7 +435,7 @@ BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT
 	double x1, y1, t1;
 	double x2, y2, t2;
 
-	precision_navigation_msgs::PathSegment this_seg;
+	p_nav::PathSegment this_seg;
 	bool ret1, ret2;
 	int sourceID, targetID;
 	segmentPath.segs.clear();
@@ -464,9 +466,9 @@ BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT
 		this_seg = segment_lib::makePathSegment(x1+dx,y1+dy,t1, x2+dx,y2+dy,t2); 
 		
 		// Check the endpoints
-		std::vector<geometry_msgs::PoseStamped> interp = segment_lib::interpSegment(this_seg, 1, 1);
+		/*std::vector<PoseStamped> interp = segment_lib::interpSegment(this_seg, 1, 1);
 		geometry_msgs::Pose start_pose = interp.front().pose;
-		geometry_msgs::Pose end_pose   = interp.back().pose;
+		geometry_msgs::Pose end_pose   = interp.back().pose;*/
 		
 		//ROS_INFO("Actually, : (%.2f,%.2f)->(%.2f,%.2f), %.2fpi -> %.2fpi", start_pose.position.x, start_pose.position.y, end_pose.position.x, end_pose.position.y, segment_lib::rect_angle(tf::getYaw(start_pose.orientation))/pi, segment_lib::rect_angle(tf::getYaw(end_pose.orientation)/pi));
 		
@@ -478,7 +480,6 @@ BKSBPLLatticePlanner::ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT
 		this_seg.seg_number        = path_index;
 		segmentPath.segs.push_back(this_seg);
 	}
-	
 }
 
 };//namespace

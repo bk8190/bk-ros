@@ -25,10 +25,14 @@ using namespace std;
 #include <precision_navigation_msgs/PathSegment.h>
 #include <segment_lib/segment_lib.h>
 
+
 namespace bk_sbpl_lattice_planner{
 
 // Shorthand
 namespace bk_sbpl = bk_sbpl_lattice_planner;
+namespace p_nav   = precision_navigation_msgs;
+using geometry_msgs::PoseStamped;
+using costmap_2d::Costmap2DROS;
 
 class BKSBPLLatticePlanner : public nav_core::BaseGlobalPlanner{
 public:
@@ -44,10 +48,10 @@ public:
    * @param  name The name of this planner
    * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use
    */
-  BKSBPLLatticePlanner(std::string name, boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros);
+  BKSBPLLatticePlanner(std::string name, boost::shared_ptr<Costmap2DROS> costmap_ros);
   
   // Do not use
-  BKSBPLLatticePlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
+  BKSBPLLatticePlanner(std::string name, Costmap2DROS* costmap_ros);
 
 
   /**
@@ -55,11 +59,10 @@ public:
    * @param  name The name of this planner
    * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use
    */
-  void initialize(std::string name, 
-                          boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros);
+  void initialize(std::string name, boost::shared_ptr<Costmap2DROS> costmap_ros);
                           
   // Do not use
-  void initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
+  void initialize(std::string name, Costmap2DROS* costmap_ros);
   
   /**
    * @brief Given a goal pose in the world, compute a plan
@@ -68,28 +71,28 @@ public:
    * @param plan The plan... filled by the planner
    * @return True if a valid plan was found, false otherwise
    */
-  bool makePlan(const geometry_msgs::PoseStamped&        start, 
-                const geometry_msgs::PoseStamped&        goal , 
-                std::vector<geometry_msgs::PoseStamped>& plan );
+  bool makePlan(const PoseStamped&        start, 
+                const PoseStamped&        goal , 
+                std::vector<PoseStamped>& plan );
                         
-	bool makeSegmentPlan(const geometry_msgs::PoseStamped&        start      ,
-                       const geometry_msgs::PoseStamped&        goal       ,
-                       precision_navigation_msgs::Path&         segmentPlan);
+	bool makeSegmentPlan(const PoseStamped& start      ,
+                       const PoseStamped& goal       ,
+                       p_nav::Path&       segmentPlan);
                         
   ~BKSBPLLatticePlanner(){};
 
 
 	void ConvertStateIDPathintoSegmentPath(EnvironmentNAVXYTHETALAT* env, 
 	                                       const vector<int>& stateIDPath,
-	                                       precision_navigation_msgs::Path& segmentPath,
+	                                       p_nav::Path& segmentPath,
 	                                       double dx,
 	                                       double dy );
 	
 private:
   unsigned char costMapCostToSBPLCost(unsigned char newcost);
   void publishStats(int solution_cost, int solution_size, 
-                    const geometry_msgs::PoseStamped& start, 
-                    const geometry_msgs::PoseStamped& goal);
+                    const PoseStamped& start, 
+                    const PoseStamped& goal);
 
   bool initialized_;
 
@@ -113,7 +116,7 @@ private:
   unsigned char sbpl_cost_multiplier_;
 
 
-  boost::shared_ptr<costmap_2d::Costmap2DROS> costmap_ros_; /**< manages the cost map for us */
+  boost::shared_ptr<Costmap2DROS> costmap_ros_; /**< manages the cost map for us */
   costmap_2d::Costmap2D cost_map_;        /**< local copy of the costmap underlying cost_map_ros_ */
 
   ros::Publisher plan_pub_;
