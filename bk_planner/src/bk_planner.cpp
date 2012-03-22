@@ -111,7 +111,7 @@ BKPlanner::goalCB(const PoseWithCovarianceStamped::ConstPtr& goal_cov_ptr)
 	// 2) enough time has elapsed since the last time (goal_timeout_)
 	double d = dist(latest_goal_, new_goal);
 	ros::Duration time_since_goal = last_accepted_goal_ - ros::Time::now();
-	if( d > goal_hysteresis_ || time_since_goal > goal_timeout_ )
+	if( d > goal_hysteresis_ || time_since_goal > goal_timeout_ || planner_->override_goal_generation_ )
 	{
 		setNewGoal(new_goal);
 		last_accepted_goal_ = ros::Time::now();

@@ -126,6 +126,9 @@ namespace bk_planner {
 		// You can grab the mutex if you need to make multiple calls to these functions
 		recursive_mutex          committed_path_mutex_;
 	
+		// If true, the planner ignores candidate goal generation and just returns the true goal.  Useful for directly testing point-point planning
+		bool override_goal_generation_;
+		
 	private:
 		// Non-owning references to the other threads
 		// Whenever we want to dereference these we need to take ownership
@@ -137,8 +140,6 @@ namespace bk_planner {
 		double commit_distance_;
 		// If planner can not get exactly to the target, it will try to get this far away
 		double standoff_distance_;
-		// If true, the planner ignores candidate goal generation and just returns the true goal.  Useful for directly testing point-point planning
-		bool override_goal_generation_;
 		
 		// The planner periodically checks if it is faster just to scrap the current path and replan
 		ros::Time last_scrapped_path_;
