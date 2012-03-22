@@ -108,7 +108,7 @@ namespace segment_lib {
 	vector<PoseStamped> interpArcSegment(const PathSegment& seg, double dtheta);
 	vector<PoseStamped> interpSpinSegment(const PathSegment& seg, double dtheta);
 	
-	PoseStamped getEndPose(const PathSegment& seg);
+	PoseStamped getEndPose  (const PathSegment& seg);
 	PoseStamped getStartPose(const PathSegment& seg);
 	
 	// Returns whether or not seg specifies backward motion
