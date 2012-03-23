@@ -11,6 +11,17 @@ SegmentVisualizer::SegmentVisualizer(std::string name):
 	vis_markers_pub_  = nh_.advertise<visualization_msgs::MarkerArray> ("markers", 0);
 	vis_path_pub_     = nh_.advertise<nav_msgs::Path> ("path", 0);
 	vis_posearray_pub_= nh_.advertise<geometry_msgs::PoseArray> ("pose_array", 0);
+	
+	precision_navigation_msgs::Path empty_path;
+	empty_path.header.frame_id = "map";
+	empty_path.header.stamp    = ros::Time::now();
+	publishVisualization(empty_path);
+	
+	marker_lifetime_ = ros::Duration(5.0);
+	
+	// Displaying markers is expensive for Rviz, so restrict them to a reasonable rate
+	min_pub_interval_ = ros::Duration(0.5);
+	last_pub_time_ = ros::Time::now();
 }
 
 SegmentVisualizer::~SegmentVisualizer()
@@ -23,12 +34,18 @@ SegmentVisualizer::~SegmentVisualizer()
 	publishPathVisualization(nav_msgs::Path());
 }
 
-void SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Path& path)
+void
+SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Path& path)
 {
 	ros::Time now = ros::Time::now();
 	
-	precision_navigation_msgs::Path p2 = path;
+	if( now - last_pub_time_ < min_pub_interval_ ) {
+		return;
+	}
 	
+	last_pub_time_ = now;
+	
+	precision_navigation_msgs::Path p2 = path;
 	p2.header.stamp = now;
 	
 	for( unsigned int i=0; i<p2.segs.size(); i++ ) {
@@ -44,13 +61,15 @@ void SegmentVisualizer::publishVisualization(const precision_navigation_msgs::Pa
 	publishPoseVisualization(vis_path);
 }
 
-void SegmentVisualizer::publishPathVisualization(const nav_msgs::Path& vis_path)
+void
+SegmentVisualizer::publishPathVisualization(const nav_msgs::Path& vis_path)
 {
 	// Just publish the path
 	vis_path_pub_.publish(vis_path);
 }
 
-void SegmentVisualizer::publishPoseVisualization(const nav_msgs::Path& vis_path)
+void
+SegmentVisualizer::publishPoseVisualization(const nav_msgs::Path& vis_path)
 {
 	// Break up the path and publish the constituent poses
 	geometry_msgs::PoseArray poses;
@@ -69,6 +88,7 @@ void SegmentVisualizer::publishPoseVisualization(const nav_msgs::Path& vis_path)
 	
 	vis_posearray_pub_.publish(poses);
 }
+
 
 void
 SegmentVisualizer::removePreviousMarkers()
@@ -121,6 +141,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 		m.header.frame_id = last_seg.header.frame_id;
 		m.header.stamp    = last_seg.header.stamp;
 		m.ns              = name_;
+		m.lifetime        = marker_lifetime_;
 		m.action          = visualization_msgs::Marker::ADD;
 		m.points.clear();
 		m.colors.clear();
@@ -132,6 +153,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				
 				// Add a label
 				m.id    = ++marker_uid_;
+				m.lifetime  = marker_lifetime_;
 				m.type  = visualization_msgs::Marker::TEXT_VIEW_FACING;
 				perp_angle = tf::getYaw(seg.init_tan_angle) + pi/2;
 				m.pose.position.x = seg.ref_point.x + .05*cos(perp_angle);
@@ -148,6 +170,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				
 				// Add a marker at the start point
 				m.id              = ++marker_uid_;
+				m.lifetime        = marker_lifetime_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = seg.ref_point.x;
 				m.pose.position.y = seg.ref_point.y;
@@ -165,6 +188,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				
 				// Add the line
 				m.id      = ++marker_uid_;
+				m.lifetime = marker_lifetime_;
 				m.type    = visualization_msgs::Marker::LINE_STRIP;
 				m.pose.position.x = 0.0;
 				m.pose.position.y = 0.0;
@@ -194,6 +218,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 			
 				// Add a label
 				m.id    = ++marker_uid_;
+				m.lifetime  = marker_lifetime_;
 				m.type  = visualization_msgs::Marker::TEXT_VIEW_FACING;
 				perp_angle = tf::getYaw(seg.init_tan_angle) + pi/2;
 				m.pose.position.x = seg.ref_point.x + .09*cos(perp_angle);
@@ -211,6 +236,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 			
 				// Add the vertex
 				m.id              = ++marker_uid_;
+				m.lifetime        = marker_lifetime_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = seg.ref_point.x;
 				m.pose.position.y = seg.ref_point.y;
@@ -227,23 +253,25 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				vis_markers_.markers.push_back(m);
 				
 				// Add direction arrows
-				m.id      = ++marker_uid_;
-				m.type    = visualization_msgs::Marker::ARROW;
-				m.pose    = disc_seg.front().pose;
-				m.scale.x = 1.0;
-				m.scale.y = 0.10;
-				m.scale.z = 0.10;
-				m.color.a = 1.0;
-				m.color.r = 1.0;
-				m.color.g = 0.0;
-				m.color.b = 0.0;
+				m.id        = ++marker_uid_;
+				m.lifetime  = marker_lifetime_;
+				m.type      = visualization_msgs::Marker::ARROW;
+				m.pose      = disc_seg.front().pose;
+				m.scale.x   = 1.0;
+				m.scale.y   = 0.10;
+				m.scale.z   = 0.10;
+				m.color.a   = 1.0;
+				m.color.r   = 1.0;
+				m.color.g   = 0.0;
+				m.color.b   = 0.0;
 				vis_markers_.markers.push_back(m);
 				
-				m.id      = ++marker_uid_;
-				m.pose    = disc_seg.back().pose;
-				m.scale.z *= 0.8;
-				m.color.r = 0.0;
-				m.color.g = 1.0;
+				m.id        = ++marker_uid_;
+				m.lifetime  = marker_lifetime_;
+				m.pose      = disc_seg.back().pose;
+				m.scale.z  *= 0.8;
+				m.color.r   = 0.0;
+				m.color.g   = 1.0;
 				vis_markers_.markers.push_back(m);
 				
 				
@@ -254,6 +282,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				
 				// Add a circle around the center
 				/*m.id              = ++marker_uid_;
+				m.lifetime           = marker_lifetime_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = seg.ref_point.x;
 				m.pose.position.y = seg.ref_point.y;
@@ -270,8 +299,9 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				vis_markers_.markers.push_back(m);*/
 			
 				// Add a label
-				m.id  = ++marker_uid_;
-				m.type  = visualization_msgs::Marker::TEXT_VIEW_FACING;
+				m.id              = ++marker_uid_;
+				m.lifetime        = marker_lifetime_;
+				m.type            = visualization_msgs::Marker::TEXT_VIEW_FACING;
 				perp_angle        = tf::getYaw(seg.init_tan_angle) + pi/2;
 				m.pose.position.x = disc_seg.front().pose.position.x + .05*cos(perp_angle);
 				m.pose.position.y = disc_seg.front().pose.position.y + .05*sin(perp_angle);
@@ -288,6 +318,7 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 			
 				// Add the start point
 				m.id              = ++marker_uid_;
+				m.lifetime        = marker_lifetime_;
 				m.type            = visualization_msgs::Marker::CYLINDER;
 				m.pose.position.x = disc_seg.front().pose.position.x;
 				m.pose.position.y = disc_seg.front().pose.position.y;
@@ -305,8 +336,9 @@ void SegmentVisualizer::publishMarkerVisualization(const precision_navigation_ms
 				
 			
 				// Add the boundary line
-				m.id      = ++marker_uid_;
-				m.type    = visualization_msgs::Marker::LINE_STRIP;
+				m.id              = ++marker_uid_;
+				m.lifetime        = marker_lifetime_;
+				m.type            = visualization_msgs::Marker::LINE_STRIP;
 				m.pose.position.x = 0.0;
 				m.pose.position.y = 0.0;
 				m.pose.position.z = 0.2;
