@@ -25,6 +25,10 @@ class SegmentVisualizer
 		std::string name_;
 		
 		int marker_uid_;
+		ros::Duration marker_lifetime_;
+		
+		ros::Duration min_pub_interval_;
+		ros::Time     last_pub_time_;
 		
 		// Keep track of the last-sent markers
 		visualization_msgs::MarkerArray vis_markers_;
