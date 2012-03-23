@@ -230,7 +230,7 @@ int main(int argc, char** argv)
 		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
 		transform.setRotation( tf::Quaternion(fromServoFrame(curr_pos)*pi/180, 0.0, 0.0) );
 		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
-			
+		
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		loop_rate.sleep();
 		ros::spinOnce();
