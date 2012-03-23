@@ -33,6 +33,12 @@ geometry_msgs::Quaternion averageAngles(geometry_msgs::Quaternion q1, geometry_m
 	return tf::createQuaternionMsgFromYaw( angle );
 }
 
+geometry_msgs::Quaternion subtractAngles(geometry_msgs::Quaternion q1, geometry_msgs::Quaternion q2)
+{
+	double angle = tf::getYaw(q1) - tf::getYaw(q2);
+	return tf::createQuaternionMsgFromYaw( angle );
+}
+
 
 // Resamples the path's segments
 p_nav::Path
@@ -106,7 +112,25 @@ smoothPath(const p_nav::Path& path)
 		newseg.header     = currseg.header;
 		newseg.seg_number = currseg.seg_number;
 		
-		smoothpath.segs.push_back(newseg);
+		// Make sure the smoothing didn't mess anything up too badly
+		double start_ang_diff = tf::getYaw(subtractAngles(getStartPose(currseg).pose.orientation, getStartPose(newseg).pose.orientation));
+		double end_ang_diff = tf::getYaw(subtractAngles(getEndPose(currseg).pose.orientation, getEndPose(newseg).pose.orientation));
+		double angle_threshold = 3.141/16;
+		
+		double length_difference = (newseg.seg_length - currseg.seg_length)/currseg.seg_length;
+		double length_threshold = .10;
+		
+		if( fabs(length_difference) > length_threshold
+		 || fabs(start_ang_diff   ) > angle_threshold
+		 || fabs(end_ang_diff     ) > angle_threshold )
+		{
+			ROS_WARN("Smoothing produced weird results at segment %lu/%lu", i+1, path.segs.size());
+			ROS_WARN("length_difference=%.2f, angle diffs %.2fpi, %.2fpi", length_difference, start_ang_diff/3.141, end_ang_diff/3.141);
+			smoothpath.segs.push_back(currseg);
+		}
+		else {		
+			smoothpath.segs.push_back(newseg);
+		}
 	}
 	return smoothpath;
 }
