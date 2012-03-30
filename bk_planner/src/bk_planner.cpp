@@ -126,7 +126,7 @@ BKPlanner::poseToGlobalFrame(const PoseStamped& pose, PoseStamped& transformed)
 	poseStampedMsgToTF(pose, pose_tf);
 
 	try {
-		tf_.transformPose(global_frame, ros::Time::now()-ros::time::Duration(0.3), pose_tf, global_frame, global_tf);
+		tf_.transformPose(global_frame, ros::Time::now()-ros::Time::Duration(0.3), pose_tf, global_frame, global_tf);
 	}
 	catch(tf::TransformException& ex) {
 	//(target_frame, target_time, pin, fixed_frame, pout) 
