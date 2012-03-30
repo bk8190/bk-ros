@@ -46,8 +46,8 @@
 	</node>
 	
 	<!-- Node allows planner to be controlled from rviz for debugging -->
-	<node pkg="bk_planner" type="covariance_faker" name="covariance_faker">
-		<remap from="pose"     to="/move_base_simple/goal"               />
+	<node pkg="bk_planner" type="covariance_faker" name="covariance_faker_rviz_to_person_tracker">
+		<remap from="pose"     to="/goal"               />
 		<remap from="pose_cov" to="/person_tracker/goal_with_covariance" />
 	</node>
 	
