@@ -126,9 +126,10 @@ BKPlanner::poseToGlobalFrame(const PoseStamped& pose, PoseStamped& transformed)
 	poseStampedMsgToTF(pose, pose_tf);
 
 	try {
-		tf_.transformPose(global_frame, pose_tf, global_tf);
+		tf_.transformPose(global_frame, ros::Time(0), pose_tf, global_frame, global_tf);
 	}
 	catch(tf::TransformException& ex) {
+	//(target_frame, target_time, pin, fixed_frame, pout) 
 		ROS_ERROR("[poseToGlobalFrame] Failed to transform goal pose from \"%s\" to \"%s\" frame: %s",
 		pose_tf.frame_id_.c_str(), global_frame.c_str(), ex.what());
 		return false;
