@@ -14,13 +14,13 @@
 	<node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true"
 	 args="-0.00 0 1.5572 0.017453 0.1047198 -0.017453 base_link pan_link 100" />
 	
-	<!-- Image viewer -->
-	<node pkg="image_view" type="image_view" name="depth_image_viewer">
+	<!-- Image viewers -->
+	<!--node pkg="image_view" type="image_view" name="depth_image_viewer">
 		<remap from="image" to="/camera/depth/image_rect"/>
 	</node>
 	<node pkg="image_view" type="image_view" name="rgb_image_viewer">
 		<remap from="image" to="/camera/rgb/image_rect_color"/>
-	</node>
+	</node-->
 	
 	<!-- Create a downsampled version of the depth cloud -->
 	<!--node pkg="pcl_decimator_bk" type="pcl_decimator_bk" name="pcl_decimator_bk">
