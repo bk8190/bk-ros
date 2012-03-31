@@ -110,6 +110,7 @@ int main(int argc, char** argv)
 	ros::Publisher head_pos_pub     = nh.advertise<Twist>("head_pos"  , 1);
 	ros::Publisher head_speed_pub   = nh.advertise<Twist>("head_speed", 1);
 	ros::Publisher head_accel_pub   = nh.advertise<Twist>("head_accel", 1);
+	ros::Publisher head_current_pub = nh.advertise<std_msgs::Float64>("head_current", 1);
 	
 	// We control a servo that determines the link between parent_frame and child_frame
 	std::string parent_frame, child_frame;
@@ -186,7 +187,7 @@ int main(int argc, char** argv)
 	ros::Subscriber angle_sub_ = nh.subscribe("/pan_command", 1, &panAngleCallback);
 	ros::Duration(0.5).sleep();
 	
-	double curr_pos, curr_vel, curr_acc;
+	double curr_pos, curr_vel, curr_acc, curr_curr;
 	tf::Transform transform;
 	while( ros::ok() )
 	{
@@ -194,6 +195,7 @@ int main(int argc, char** argv)
 		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK) {
 			CPhidgetAdvancedServo_getVelocity    (servo, 0, &curr_vel);
 			CPhidgetAdvancedServo_getAcceleration(servo, 0, &curr_acc);
+			CPhidgetAdvancedServo_getCurrent     (servo, 0, &curr_curr);
 			
 			std_msgs::Header h;
 			h.stamp    = ros::Time::now();
@@ -215,6 +217,10 @@ int main(int argc, char** argv)
 			
 			twist.angular.z = curr_acc;
 			head_accel_pub.publish(twist);
+			
+			std_msgs::Float64 f;
+			f.data = curr_curr;
+			head_current_pub.publish(f);
 		}
 		else {
 			ROS_ERROR_THROTTLE(1,"[head_driver] Couldn't read servo position");
