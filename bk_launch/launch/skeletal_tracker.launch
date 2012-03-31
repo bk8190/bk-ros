@@ -4,11 +4,9 @@
 	<!--include file="$(find bk_launch)/launch/bringup_kinect.launch" /-->
 	
 	<!-- Node that tracks skeletons -->
-  <-node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker"
-        output="screen">
+  <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen">
     <param name="camera_frame_id"  value="camera_depth_optical_frame" />
-    
-    <!-- Tells the NITE software how much to smooth skeletons (0.0-1.0). Improvements show in jittery environments -->
-    <!param name="smoothing_factor" value="0.85"/>
+    <param name="smoothing_factor" value="0.85"/>
+    <param name="pub_rate" value="5.0"/>
   </node>
 </launch>

@@ -12,10 +12,7 @@
 
   <review status="experimental" notes="beta"/>
 
- <depend package="mapping_msgs" /> 
- <!--  <depend package="ps_engine" />-->
   <depend package="openni" />
-  <depend package="body_msgs" />
 
   <depend package="image_transport"/>
   <depend package="opencv2"/>

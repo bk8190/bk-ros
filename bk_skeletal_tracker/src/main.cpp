@@ -30,14 +30,17 @@
 
 #include <ros/ros.h>
 #include <ros/package.h>
+#include <boost/format.hpp>
 
-#include <mapping_msgs/PolygonalMap.h>
-#include <geometry_msgs/Polygon.h>
-#include <body_msgs/Skeletons.h>
+#include <geometry_msgs/PointStamped.h>
 
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
 #include <cv_bridge/cv_bridge.h>
+
+//#include "opencv/cxcore.hpp"
+#include "opencv/cv.hpp"
+#include "opencv/highgui.h"
 
 //---------------------------------------------------------------------------
 // OpenNI includes
@@ -79,116 +82,48 @@ XnBool g_bPause          = false;
 // ROS stuff
 ros::Publisher pmap_pub,skel_pub;
 std::string    frame_id_;
-
+double pub_rate_temp_;
 //---------------------------------------------------------------------------
 // Code
 //---------------------------------------------------------------------------
+struct user
+{
+	geometry_msgs::PointStamped center3d;
+	XnUserID uid;
+};
+
 void CleanupExit()
 {
 	g_Context.Shutdown();
 	exit (1);
 }
 
-geometry_msgs::Point vecToPt(XnVector3D pt){
-   geometry_msgs::Point ret;
-   ret.x=pt.X/1000.0;
-   ret.y=-pt.Y/1000.0;
-   ret.z=pt.Z/1000.0;
-   return ret;
-}
-geometry_msgs::Point32 vecToPt3(XnVector3D pt){
-   geometry_msgs::Point32 ret;
-   ret.x=pt.X/1000.0;
-   ret.y=-pt.Y/1000.0;
-   ret.z=pt.Z/1000.0;
-   return ret;
-}
-
-void getSkeletonJoint(XnUserID player, body_msgs::SkeletonJoint &j, XnSkeletonJoint name){
-   XnSkeletonJointPosition joint1;
-   g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, name, joint1);
-   j.position= vecToPt(joint1.position);
-   j.confidence = joint1.fConfidence;
-}
-
-void getSkeleton(XnUserID player,body_msgs::Skeleton &skel)
+void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 {
-   skel.playerid=player;
-   getSkeletonJoint(player, skel.head           ,XN_SKEL_HEAD           );
-   getSkeletonJoint(player, skel.neck           ,XN_SKEL_NECK           );
-   getSkeletonJoint(player, skel.left_shoulder  ,XN_SKEL_LEFT_SHOULDER  );
-   getSkeletonJoint(player, skel.left_elbow     ,XN_SKEL_LEFT_ELBOW     );
-   getSkeletonJoint(player, skel.left_hand      ,XN_SKEL_LEFT_HAND      );
-   getSkeletonJoint(player, skel.right_shoulder ,XN_SKEL_RIGHT_SHOULDER );
-   getSkeletonJoint(player, skel.right_elbow    ,XN_SKEL_RIGHT_ELBOW    );
-   getSkeletonJoint(player, skel.right_hand     ,XN_SKEL_RIGHT_HAND     );
-   getSkeletonJoint(player, skel.torso          ,XN_SKEL_TORSO          );
-   getSkeletonJoint(player, skel.left_hip       ,XN_SKEL_LEFT_HIP       );
-   getSkeletonJoint(player, skel.left_knee      ,XN_SKEL_LEFT_KNEE      );
-   getSkeletonJoint(player, skel.left_foot      ,XN_SKEL_LEFT_FOOT      );
-   getSkeletonJoint(player, skel.right_hip      ,XN_SKEL_RIGHT_HIP      );
-   getSkeletonJoint(player, skel.right_knee     ,XN_SKEL_RIGHT_KNEE     );
-   getSkeletonJoint(player, skel.right_foot     ,XN_SKEL_RIGHT_FOOT     );
+	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
+	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
+
+	// Data is 16-bit user labels
+	cv::Mat tempmat(rows, cols, CV_16U);
+	tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
+	
+	// Convert to 8-bit (we never have more than 8-10 users anyway)
+	tempmat.convertTo(label_image, CV_8U);
 }
 
-void getPolygon(XnUserID player, XnSkeletonJoint eJoint1, XnSkeletonJoint eJoint2, mapping_msgs::PolygonalMap &pmap)
-{
-   XnSkeletonJointPosition joint1, joint2;
-   g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, eJoint1, joint1);
-   g_UserGenerator.GetSkeletonCap().GetSkeletonJointPosition(player, eJoint2, joint2);
-   if (joint1.fConfidence < 0.5 || joint2.fConfidence < 0.5)
-   {
-      return;
-   }
-   geometry_msgs::Polygon p;
-   p.points.push_back(vecToPt3(joint1.position));
-   p.points.push_back(vecToPt3(joint2.position));
-   pmap.polygons.push_back(p);
+void getDepthImage(xn::DepthMetaData& depthMD, cv::Mat& depth_image)
+{	
+	int rows = depthMD.GetUnderlying()->pMap->Res.Y;
+	int cols = depthMD.GetUnderlying()->pMap->Res.X;
+
+	// Data is 16-bit unsigned depths in mm
+	cv::Mat tempmat(rows, cols, CV_16U);
+	tempmat.data = (uchar*) depthMD.GetUnderlying()->pData;
+	
+	// Convert to floating point meters
+	tempmat.convertTo(depth_image, CV_32F);
+	depth_image /= 1000;
 }
-
-void ptdist(geometry_msgs::Polygon p)
-{
-	geometry_msgs::Point32 p1=p.points.back(),p2=p.points.front();
-	ROS_INFO("[bk_skeletal_tracker] Shoulder dist %.02f ", sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y)+(p1.z-p2.z)*(p1.z-p2.z)));
-}
-
-void getSkels(std::vector<mapping_msgs::PolygonalMap> &pmaps, body_msgs::Skeletons &skels)
-{
-	XnUserID aUsers[15];
-	XnUInt16 nUsers = 15;
-	g_UserGenerator.GetUsers(aUsers, nUsers);
-	for (int i = 0; i < nUsers; ++i)
-	{
-		if (g_UserGenerator.GetSkeletonCap().IsTracking(aUsers[i]))
-		{
-			body_msgs::Skeleton skel;
-			getSkeleton(aUsers[i],skel);
-			skels.skeletons.push_back(skel);
-
-			mapping_msgs::PolygonalMap pmap;
-			getPolygon(aUsers[i], XN_SKEL_HEAD          , XN_SKEL_NECK          , pmap);
-			getPolygon(aUsers[i], XN_SKEL_NECK          , XN_SKEL_LEFT_SHOULDER , pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER , XN_SKEL_LEFT_ELBOW    , pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER , XN_SKEL_RIGHT_SHOULDER, pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_ELBOW    , XN_SKEL_LEFT_HAND     , pmap);
-			getPolygon(aUsers[i], XN_SKEL_NECK          , XN_SKEL_RIGHT_SHOULDER, pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_RIGHT_ELBOW   , pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_ELBOW   , XN_SKEL_RIGHT_HAND    , pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_SHOULDER , XN_SKEL_TORSO         , pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_SHOULDER, XN_SKEL_TORSO         , pmap);
-			getPolygon(aUsers[i], XN_SKEL_TORSO         , XN_SKEL_LEFT_HIP      , pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP      , XN_SKEL_LEFT_KNEE     , pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_KNEE     , XN_SKEL_LEFT_FOOT     , pmap);
-			getPolygon(aUsers[i], XN_SKEL_TORSO         , XN_SKEL_RIGHT_HIP     , pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_HIP     , XN_SKEL_RIGHT_KNEE    , pmap);
-			getPolygon(aUsers[i], XN_SKEL_RIGHT_KNEE    , XN_SKEL_RIGHT_FOOT    , pmap);
-			getPolygon(aUsers[i], XN_SKEL_LEFT_HIP      , XN_SKEL_RIGHT_HIP     , pmap);
-			
-			pmaps.push_back(pmap);
-		}
-	}
-}
-
 
 // Callback: New user was detected
 void XN_CALLBACK_TYPE
@@ -199,9 +134,8 @@ User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 	// TODO: See if this user was near a recently dropped UID.  If so, load that calibration
 
 	// If we already calibrated on a user, just load that calibration
-	if(false){//g_bhasCal){
-		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
+	if(g_bhasCal){
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
@@ -219,6 +153,7 @@ User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 void XN_CALLBACK_TYPE
 User_LostUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
+	// TODO: Erase tracker
 	ROS_INFO("[bk_skeletal_tracker] Lost user %d", nId);
 }
 
@@ -230,9 +165,9 @@ UserPose_PoseDetected(xn::PoseDetectionCapability& capability, const XnChar* str
 	g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
 	
 	// If we already calibrated on a user, just load that calibration
-	if(false){//g_bhasCal){
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
-		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
+	if(g_bhasCal){
+		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
@@ -279,55 +214,82 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 // this function is called each frame
 void glutDisplay (void)
 {
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static ros::Rate pub_rate_(pub_rate_temp_);
 
-	// Setup the OpenGL viewpoint
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
 
+	// Update stuff from OpenNI
+	g_Context.WaitAndUpdateAll();
 	xn::SceneMetaData sceneMD;
 	xn::DepthMetaData depthMD;
 	g_DepthGenerator.GetMetaData(depthMD);
-	glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
-
-	glDisable(GL_TEXTURE_2D);
-
-	if (!g_bPause) {
-		// Read next available data
-		g_Context.WaitAndUpdateAll();
-	}
-	
-	// Update the OpenGL display
-	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
-	DrawDepthMap(depthMD, sceneMD);
 	
+	cv::Mat depth_image;
+	getDepthImage(depthMD, depth_image);
 	
-	// Publish some ROS stuff
-	std::vector<mapping_msgs::PolygonalMap> pmaps;
-	body_msgs::Skeletons skels;
-	getSkels(pmaps,skels);
-	ros::Time tstamp=ros::Time::now();
-
-	//ROS_INFO_THROTTLE(5,"[bk_skeletal_tracker] Skels size %d ",pmaps.size());
-	if(pmaps.size())
-	{
-		skels.header.stamp    = tstamp;
-		skels.header.seq      = depthMD.FrameID();
-		skels.header.frame_id = frame_id_;
-		skel_pub.publish(skels);
+	double minval, maxval;
+	cv::minMaxLoc(depth_image, &minval, &maxval);
+	
+	ROS_INFO_STREAM(boost::format("Depth is [%.3f,%.3f]")
+		%minval %maxval );
+	cv::imshow("depth_window", depth_image/8.0);
+	cv::waitKey(5);
 		
-		pmaps.front().header.stamp    = tstamp;
-		pmaps.front().header.seq      = depthMD.FrameID();
-		pmaps.front().header.frame_id = frame_id_;
-		pmap_pub.publish(pmaps[0]);
+	// Convert user pixels to an OpenCV image
+	cv::Mat label_image;
+	getUserLabelImage(sceneMD, label_image);
+	
+	// TODO: Convert users into better format
+	
+	// TODO: Try to associate users with trackers
+	XnUserID aUsers[15];
+	XnUInt16 nUsers = 15;
+	unsigned char this_user;
+	g_UserGenerator.GetUsers(aUsers, nUsers);
+	
+	cv::Mat this_mask;
+	
+	int sum;
+	double percent;
+	
+	for (unsigned int i = 0; i < nUsers; i++)
+	{
+		this_user = aUsers[i];
+		
+		// Bitwise mask of pixels belonging to this user
+		this_mask = (label_image == this_user) / 255;
+		
+		sum = cv::countNonZero(this_mask);
+		percent =  ((float)sum) / ((float)(label_image.rows*label_image.cols));
+		
+		
+		ROS_INFO_STREAM(boost::format("User %d is size %d, %.2f%%")
+			% (unsigned int)this_user % sum % percent );
+		
+		
+		cv::imshow("window", this_mask * 255);
+		cv::waitKey(200);
 	}
 	
-	//TODO: Weed out and stop tracking users with low confidence, and inhibit them for a bit
 	
+	
+	// Draw OpenGL display
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glOrtho(0, depthMD.XRes(), depthMD.YRes(), 0, -1.0, 1.0);
+	glDisable(GL_TEXTURE_2D);
+	DrawDepthMap(depthMD, sceneMD);
 	glutSwapBuffers();
-
+	
+//	cv::imshow("window", label_image*100);
+//	cv::waitKey(5);
+	
+	// Allow for callbacks to occur, and sleep to enforce rate
+	ros::spinOnce();
+	pub_rate_.sleep();
+	ros::spinOnce();
 }
 
 void glutIdle (void)
@@ -405,7 +367,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh_;
 	ros::NodeHandle pnh("~");
 
-	frame_id_ = "derpderpderp";//("camera_depth_frame");
+	frame_id_ = "derpderpderp";
 	pnh.getParam("camera_frame_id", frame_id_);
 	ROS_INFO("[bk_skeletal_tracker] Frame_id = \"%s\"", frame_id_.c_str());
 	
@@ -413,9 +375,8 @@ int main(int argc, char **argv)
 	pnh.param("smoothing_factor", smoothing_factor, 0.5);
 	ROS_INFO("[bk_skeletal_tracker] Smoothing factor=%.2f", smoothing_factor);
 	
-	pmap_pub = nh_.advertise<mapping_msgs::PolygonalMap> ("skeletonpmaps", 1);
-	skel_pub = nh_.advertise<body_msgs::Skeletons>       ("skeletons", 1);
-
+	pnh.param("pub_rate", pub_rate_temp_, 5.0);
+	
 	XnStatus nRetVal = XN_STATUS_OK;
 
 	// Initialize OpenNI with a saved configuration
