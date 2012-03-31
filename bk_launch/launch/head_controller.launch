@@ -31,12 +31,12 @@
 	
 	
 	<!-- Node plots the position, velocity, and acceleration of the head mount -->
-	<node pkg="rxtools" type="rxplot" name="head_status" ns="head_controller/head_driver" args="head_pos/angular/z,head_des_pos/angular/z head_speed/angular/z --period=10 --title=Head_status" />
+	<node pkg="rxtools" type="rxplot" name="head_status" ns="head_controller/head_driver" args="head_pos/angular/z,head_des_pos/angular/z,head_speed/angular/z head_current/data --period=10 --title=Head_status --legend=Position,Goal,Velocity,Amps" />
 	
 	
 	<!-- Node allows pan platform to be controlled from rviz (for debugging) -->
-	<node pkg="bk_planner" type="covariance_faker" name="covariance_faker">
-		<remap from="pose"     to="/move_base_simple/goal"               />
+	<node pkg="bk_planner" type="covariance_faker" name="covariance_faker_head">
+		<remap from="pose"     to="/goal"               />
 		<remap from="pose_cov" to="/person_tracker/goal_with_covariance" />
 	</node>
 	
