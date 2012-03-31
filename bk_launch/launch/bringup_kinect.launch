@@ -6,14 +6,21 @@
 		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
 	</include>
 	
+	<param name="/camera/driver/data_skip" value="5"/>
+	<param name="/camera/driver/depth_ir_offset_x" value="0.8"/>
+	<param name="/camera/driver/depth_ir_offset_y" value="23.6"/>
+	
 	<!-- Static transform from Harlie's base to the pan mount -->
 	<node pkg="tf" type="static_transform_publisher" name="kinect_static_tf_pub" respawn="true"
 	 args="-0.00 0 1.5572 0.017453 0.1047198 -0.017453 base_link pan_link 100" />
 	
 	<!-- Image viewer -->
-	<!--node pkg="image_view" type="image_view" name="depth_image_viewer">
+	<node pkg="image_view" type="image_view" name="depth_image_viewer">
 		<remap from="image" to="/camera/depth/image_rect"/>
-	</node-->
+	</node>
+	<node pkg="image_view" type="image_view" name="rgb_image_viewer">
+		<remap from="image" to="/camera/rgb/image_rect_color"/>
+	</node>
 	
 	<!-- Create a downsampled version of the depth cloud -->
 	<!--node pkg="pcl_decimator_bk" type="pcl_decimator_bk" name="pcl_decimator_bk">
