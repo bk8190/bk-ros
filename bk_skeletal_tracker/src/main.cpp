@@ -122,31 +122,31 @@ void cam_info_cb(const sensor_msgs::CameraInfo::ConstPtr& msg)
 
 void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 {
-  boost::mutex::scoped_lock pos_lock(pos_mutex_);
-  
-  string msg = str(boost::format("Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
-  	% pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
-  	
-  RestampedPositionMeasurement rpm;
-  rpm.pos     = *pos_ptr;
-  rpm.restamp = pos_ptr->header.stamp;
-  rpm.dist    = BIGDIST_M;
-      
-  // Put the incoming position into the position queue. It'll be processed in the next image callback.  
-  map<string, RestampedPositionMeasurement>::iterator it = pos_list_.find(pos_ptr->object_id);
-  if (it == pos_list_.end()) {
-    msg += "New object";
-    pos_list_.insert(pair<string, RestampedPositionMeasurement>(pos_ptr->object_id, rpm));
-  }
-  else if ((pos_ptr->header.stamp - (*it).second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ){
-    msg += "Existing object";
-    (*it).second = rpm;
-  }
-  else {
-    msg += "Old object, not updating";
-  }
-
-  ROS_INFO_STREAM(msg);
+	boost::mutex::scoped_lock pos_lock(pos_mutex_);
+	
+	string msg = str(boost::format("Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
+	                 % pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
+	                 
+	RestampedPositionMeasurement rpm;
+	rpm.pos     = *pos_ptr;
+	rpm.restamp = pos_ptr->header.stamp;
+	rpm.dist    = BIGDIST_M;
+	
+	// Put the incoming position into the position queue. It'll be processed in the next image callback.
+	map<string, RestampedPositionMeasurement>::iterator it = pos_list_.find(pos_ptr->object_id);
+	if (it == pos_list_.end()) {
+		msg += "New object";
+		pos_list_.insert(pair<string, RestampedPositionMeasurement>(pos_ptr->object_id, rpm));
+	}
+	else if ((pos_ptr->header.stamp - (*it).second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ) {
+		msg += "Existing object";
+		(*it).second = rpm;
+	}
+	else {
+		msg += "Old object, not updating";
+	}
+	
+	ROS_INFO_STREAM(msg);
 }
 
 struct user
@@ -165,19 +165,19 @@ void CleanupExit()
 	exit (1);
 }
 
-geometry_msgs::Point vecToPt(XnVector3D pt){
-   geometry_msgs::Point ret;
-   ret.x=pt.X/1000.0;
-   ret.y=-pt.Y/1000.0;
-   ret.z=pt.Z/1000.0;
-   return ret;
+geometry_msgs::Point vecToPt(XnVector3D pt) {
+	geometry_msgs::Point ret;
+	ret.x=pt.X/1000.0;
+	ret.y=-pt.Y/1000.0;
+	ret.z=pt.Z/1000.0;
+	return ret;
 }
-geometry_msgs::Point32 vecToPt32(XnVector3D pt){
-   geometry_msgs::Point32 ret;
-   ret.x=pt.X/1000.0;
-   ret.y=-pt.Y/1000.0;
-   ret.z=pt.Z/1000.0;
-   return ret;
+geometry_msgs::Point32 vecToPt32(XnVector3D pt) {
+	geometry_msgs::Point32 ret;
+	ret.x=pt.X/1000.0;
+	ret.y=-pt.Y/1000.0;
+	ret.z=pt.Z/1000.0;
+	return ret;
 }
 
 
@@ -185,7 +185,7 @@ void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 {
 	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
 	int cols = sceneMD.GetUnderlying()->pMap->Res.X;
-
+	
 	// Data is 16-bit user labels
 	cv::Mat tempmat(rows, cols, CV_16U);
 	tempmat.data = (uchar*) sceneMD.GetUnderlying()->pData;
@@ -195,10 +195,10 @@ void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 }
 
 void getDepthImage(xn::DepthMetaData& depthMD, cv::Mat& depth_image)
-{	
+{
 	int rows = depthMD.GetUnderlying()->pMap->Res.Y;
 	int cols = depthMD.GetUnderlying()->pMap->Res.X;
-
+	
 	// Data is 16-bit unsigned depths in mm
 	cv::Mat tempmat(rows, cols, CV_16U);
 	tempmat.data = (uchar*) depthMD.GetUnderlying()->pData;
@@ -213,11 +213,11 @@ void XN_CALLBACK_TYPE
 User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ROS_INFO("[bk_skeletal_tracker] New User %d", nId);
-
+	
 	// TODO: See if this user was near a recently dropped UID.  If so, load that calibration
-
+	
 	// If we already calibrated on a user, just load that calibration
-	if(g_bhasCal){
+	if(g_bhasCal) {
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
@@ -248,14 +248,14 @@ UserPose_PoseDetected(xn::PoseDetectionCapability& capability, const XnChar* str
 	g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
 	
 	// If we already calibrated on a user, just load that calibration
-	if(g_bhasCal){
+	if(g_bhasCal) {
 		//g_UserGenerator.GetSkeletonCap().LoadCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
 	// Detected pose of first user: start calibration
-	else{
+	else {
 		g_UserGenerator.GetSkeletonCap().RequestCalibration(nId, true);
 	}
 }
@@ -298,8 +298,8 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 void glutDisplay (void)
 {
 	static ros::Rate pub_rate_(pub_rate_temp_);
-
-
+	
+	
 	// Update stuff from OpenNI
 	g_Context.WaitAndUpdateAll();
 	xn::SceneMetaData sceneMD;
@@ -313,17 +313,17 @@ void glutDisplay (void)
 	double minval, maxval;
 	cv::minMaxLoc(depth_image, &minval, &maxval);
 	
-	//ROS_INFO_STREAM(boost::format("Depth is [%.3f,%.3f]")	%minval %maxval );
-		
+	//ROS_INFO_STREAM(boost::format("Depth is [%.3f,%.3f]") %minval %maxval );
+	
 	// Convert user pixels to an OpenCV image
 	cv::Mat label_image;
 	getUserLabelImage(sceneMD, label_image);
 	
-  sensor_msgs::PointCloud cloud;
-  cloud.header.stamp    = ros::Time::now();
-  cloud.header.frame_id = frame_id_;
-  cloud.channels.resize(1);
-  cloud.channels[0].name = "intensity";
+	sensor_msgs::PointCloud cloud;
+	cloud.header.stamp    = ros::Time::now();
+	cloud.header.frame_id = frame_id_;
+	cloud.channels.resize(1);
+	cloud.channels[0].name = "intensity";
 	
 	// TODO: Convert users into better format
 	
@@ -351,7 +351,7 @@ void glutDisplay (void)
 		
 		// Find the area of the silhouette in cartesian space
 		pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
-		           * cam_model_.getDeltaY(1, this_user.meandepth);
+		             * cam_model_.getDeltaY(1, this_user.meandepth);
 		this_user.silhouette_area = this_user.numpixels * pixel_area;
 		
 		// Find the center in 3D
@@ -365,12 +365,12 @@ void glutDisplay (void)
 		p.z = this_user.center3d.point.z;
 		if( this_user.numpixels > 1 )
 		{
-		  cloud.points.push_back(p);
-		  cloud.channels[0].values.push_back(1.0f);
+			cloud.points.push_back(p);
+			cloud.channels[0].values.push_back(1.0f);
 		}
 		
 		ROS_INFO_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
-			% (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
+		                % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 	}
 	
 	// Visualization
@@ -397,7 +397,7 @@ void glutIdle (void)
 	if (!ros::ok()) {
 		CleanupExit();
 	}
-
+	
 	// Display the frame
 	glutPostRedisplay();
 }
@@ -406,31 +406,31 @@ void glutKeyboard (unsigned char key, int x, int y)
 {
 	switch (key)
 	{
-	case 27:
-		CleanupExit();
-	case 'b':
-		// Draw background?
-		g_bDrawBackground = !g_bDrawBackground;
-		break;
-	case 'x':
-		// Draw pixels at all?
-		g_bDrawPixels = !g_bDrawPixels;
-		break;
-	case 's':
-		// Draw Skeleton?
-		g_bDrawSkeleton = !g_bDrawSkeleton;
-		break;
-	case 'i':
-		// Print label?
-		g_bPrintID = !g_bPrintID;
-		break;
-	case 'l':
-		// Print ID & state as label, or only ID?
-		g_bPrintState = !g_bPrintState;
-		break;
-	case'p':
-		g_bPause = !g_bPause;
-		break;
+		case 27:
+			CleanupExit();
+		case 'b':
+			// Draw background?
+			g_bDrawBackground = !g_bDrawBackground;
+			break;
+		case 'x':
+			// Draw pixels at all?
+			g_bDrawPixels = !g_bDrawPixels;
+			break;
+		case 's':
+			// Draw Skeleton?
+			g_bDrawSkeleton = !g_bDrawSkeleton;
+			break;
+		case 'i':
+			// Print label?
+			g_bPrintID = !g_bPrintID;
+			break;
+		case 'l':
+			// Print ID & state as label, or only ID?
+			g_bPrintState = !g_bPrintState;
+			break;
+		case'p':
+			g_bPause = !g_bPause;
+			break;
 	}
 }
 
@@ -442,14 +442,14 @@ void glInit (int * pargc, char ** argv)
 	glutCreateWindow ("User Tracking");
 	//glutFullScreen();
 	glutSetCursor(GLUT_CURSOR_NONE);
-
+	
 	//glutKeyboardFunc(glutKeyboard);
 	glutDisplayFunc(glutDisplay);
 	glutIdleFunc(glutIdle);
-
+	
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
-
+	
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 }
@@ -457,8 +457,8 @@ void glInit (int * pargc, char ** argv)
 #define CHECK_RC(nRetVal, what)   \
 if (nRetVal != XN_STATUS_OK)      \
 {                                 \
-	ROS_ERROR("[bk_skeletal_tracker] %s failed: %s", what, xnGetStatusString(nRetVal));\
-	return nRetVal;                 \
+  ROS_ERROR("[bk_skeletal_tracker] %s failed: %s", what, xnGetStatusString(nRetVal));\
+  return nRetVal;                 \
 }
 
 int main(int argc, char **argv)
@@ -466,7 +466,7 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "bk_skeletal_tracker");
 	ros::NodeHandle nh_;
 	ros::NodeHandle pnh("~");
-
+	
 	frame_id_ = "derpderpderp";
 	pnh.getParam("camera_frame_id", frame_id_);
 	ROS_INFO("[bk_skeletal_tracker] Frame_id = \"%s\"", frame_id_.c_str());
@@ -477,11 +477,11 @@ int main(int argc, char **argv)
 	
 	pnh.param("pub_rate", pub_rate_temp_, 5.0);
 	
-  cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
-  
-  // Subscribe to people tracker filter state
-  ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
-  
+	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
+	
+	// Subscribe to people tracker filter state
+	ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
+	
 	// Subscribe to camera info
 	got_cam_info_ = false;
 	ros::Subscriber cam_info_sub = nh_.subscribe("camera/rgb/camera_info", 1, cam_info_cb);
@@ -495,23 +495,23 @@ int main(int argc, char **argv)
 	
 	
 	XnStatus nRetVal = XN_STATUS_OK;
-
+	
 	// Initialize OpenNI with a saved configuration
 	std::string configFilename = ros::package::getPath("bk_skeletal_tracker") + "/bk_skeletal_tracker.xml";
 	nRetVal = g_Context.InitFromXmlFile(configFilename.c_str());
 	CHECK_RC(nRetVal, "InitFromXml");
-
+	
 	// The configuration should have created a depth generator node
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 	CHECK_RC(nRetVal, "Find depth generator");
-
+	
 	// See if a user generator node exists.  If not, create one.
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
 	if (nRetVal != XN_STATUS_OK) {
-	nRetVal = g_UserGenerator.Create(g_Context);
-	CHECK_RC(nRetVal, "Find user generator");
+		nRetVal = g_UserGenerator.Create(g_Context);
+		CHECK_RC(nRetVal, "Find user generator");
 	}
-
+	
 	// Make sure that the user generator supports skeleton capture
 	if (!g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
 	{
@@ -526,7 +526,7 @@ int main(int argc, char **argv)
 	
 	// Register callbacks to occur on calibration change
 	g_UserGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart, UserCalibration_CalibrationEnd, NULL, hCalibrationCallbacks);
-
+	
 	// If the user generator requires a calibration pose, set up some more callbacks.
 	if (g_UserGenerator.GetSkeletonCap().NeedPoseForCalibration())
 	{
@@ -540,20 +540,20 @@ int main(int argc, char **argv)
 		g_UserGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose);
 		ROS_INFO("[bk_skeletal_tracker] User generator requires calibration pose (%s)", g_strPose);
 	}
-	else{
+	else {
 		ROS_INFO("[bk_skeletal_tracker] No calibration pose required");
 	}
-
+	
 	// Set up the skeleton generator
 	g_UserGenerator.GetSkeletonCap().SetSmoothing(0.8);
 	
 	//g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
-
+	
 	// Kick things off
 	nRetVal = g_Context.StartGeneratingAll();
 	CHECK_RC(nRetVal, "StartGenerating");
-
+	
 	glInit(&argc, argv);
 	glutMainLoop();
 }
