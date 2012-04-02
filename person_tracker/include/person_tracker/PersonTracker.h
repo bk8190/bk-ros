@@ -5,7 +5,7 @@
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 
-#include <person_tracker/PTSounds.h>
+#include <portal_sounds/PTSounds.h>
 
 #include <mapping_msgs/PolygonalMap.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>

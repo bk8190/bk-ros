@@ -22,7 +22,6 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_gensrv()
 
 rosbuild_add_executable(person_tracker src/PersonTracker.cpp)
-rosbuild_add_library(PTSounds src/PTSounds.cpp)
 target_link_libraries(person_tracker PTSounds)
 
 #common commands for building c++ executables and libraries
