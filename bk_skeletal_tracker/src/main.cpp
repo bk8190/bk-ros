@@ -31,8 +31,14 @@
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <boost/format.hpp>
+#include <vector>
+#include <map>
 
+#include <sensor_msgs/PointCloud.h>
 #include <geometry_msgs/PointStamped.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <image_geometry/pinhole_camera_model.h>
+#include <people_msgs/PositionMeasurement.h>
 
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
@@ -56,6 +62,10 @@
 #define GL_WIN_SIZE_X 720
 #define GL_WIN_SIZE_Y 480
 
+using std::string;
+using std::pair;
+using std::map;
+const double BIGDIST_M = 1000000.0;
 //---------------------------------------------------------------------------
 // Globals
 //---------------------------------------------------------------------------
@@ -80,16 +90,73 @@ XnBool g_bPrintState     = true;
 XnBool g_bPause          = false;
 
 // ROS stuff
-ros::Publisher pmap_pub,skel_pub;
+ros::Publisher cloud_pub_;
 std::string    frame_id_;
+
 double pub_rate_temp_;
+image_geometry::PinholeCameraModel cam_model_;
+bool got_cam_info_;
+
+boost::mutex pos_mutex_;
 //---------------------------------------------------------------------------
 // Code
 //---------------------------------------------------------------------------
+struct RestampedPositionMeasurement
+{
+	ros::Time restamp;
+	people_msgs::PositionMeasurement pos;
+	double dist;
+};
+map<string, RestampedPositionMeasurement> pos_list_;
+
+void cam_info_cb(const sensor_msgs::CameraInfo::ConstPtr& msg)
+{
+	if( cam_model_.fromCameraInfo(msg) )
+	{
+		got_cam_info_ = true;
+		ROS_INFO("[bk_skeletal_tracker] Got RGB camera info.");
+	} else {
+		ROS_ERROR("[bk_skeletal_tracker] Couldn't read camera info.");
+	}
+}
+
+void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
+{
+  boost::mutex::scoped_lock pos_lock(pos_mutex_);
+  
+  string msg = str(boost::format("Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
+  	% pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
+  	
+  RestampedPositionMeasurement rpm;
+  rpm.pos     = *pos_ptr;
+  rpm.restamp = pos_ptr->header.stamp;
+  rpm.dist    = BIGDIST_M;
+      
+  // Put the incoming position into the position queue. It'll be processed in the next image callback.  
+  map<string, RestampedPositionMeasurement>::iterator it = pos_list_.find(pos_ptr->object_id);
+  if (it == pos_list_.end()) {
+    msg += "New object";
+    pos_list_.insert(pair<string, RestampedPositionMeasurement>(pos_ptr->object_id, rpm));
+  }
+  else if ((pos_ptr->header.stamp - (*it).second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ){
+    msg += "Existing object";
+    (*it).second = rpm;
+  }
+  else {
+    msg += "Old object, not updating";
+  }
+
+  ROS_INFO_STREAM(msg);
+}
+
 struct user
 {
 	geometry_msgs::PointStamped center3d;
 	XnUserID uid;
+	
+	int    numpixels;
+	double meandepth;
+	double silhouette_area;
 };
 
 void CleanupExit()
@@ -97,6 +164,22 @@ void CleanupExit()
 	g_Context.Shutdown();
 	exit (1);
 }
+
+geometry_msgs::Point vecToPt(XnVector3D pt){
+   geometry_msgs::Point ret;
+   ret.x=pt.X/1000.0;
+   ret.y=-pt.Y/1000.0;
+   ret.z=pt.Z/1000.0;
+   return ret;
+}
+geometry_msgs::Point32 vecToPt32(XnVector3D pt){
+   geometry_msgs::Point32 ret;
+   ret.x=pt.X/1000.0;
+   ret.y=-pt.Y/1000.0;
+   ret.z=pt.Z/1000.0;
+   return ret;
+}
+
 
 void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 {
@@ -230,48 +313,68 @@ void glutDisplay (void)
 	double minval, maxval;
 	cv::minMaxLoc(depth_image, &minval, &maxval);
 	
-	ROS_INFO_STREAM(boost::format("Depth is [%.3f,%.3f]")
-		%minval %maxval );
-	cv::imshow("depth_window", depth_image/8.0);
-	cv::waitKey(5);
+	//ROS_INFO_STREAM(boost::format("Depth is [%.3f,%.3f]")	%minval %maxval );
 		
 	// Convert user pixels to an OpenCV image
 	cv::Mat label_image;
 	getUserLabelImage(sceneMD, label_image);
+	
+  sensor_msgs::PointCloud cloud;
+  cloud.header.stamp    = ros::Time::now();
+  cloud.header.frame_id = frame_id_;
+  cloud.channels.resize(1);
+  cloud.channels[0].name = "intensity";
 	
 	// TODO: Convert users into better format
 	
 	// TODO: Try to associate users with trackers
 	XnUserID aUsers[15];
 	XnUInt16 nUsers = 15;
-	unsigned char this_user;
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 	
-	cv::Mat this_mask;
-	
-	int sum;
-	double percent;
+	cv::Mat    this_mask;
+	XnPoint3D  center_mass;
+	double     pixel_area;
+	cv::Scalar s;
 	
 	for (unsigned int i = 0; i < nUsers; i++)
 	{
-		this_user = aUsers[i];
+		user this_user;
+		this_user.uid = aUsers[i];
 		
 		// Bitwise mask of pixels belonging to this user
-		this_mask = (label_image == this_user) / 255;
+		this_mask = (label_image == this_user.uid);
+		this_user.numpixels = cv::countNonZero(this_mask);
 		
-		sum = cv::countNonZero(this_mask);
-		percent =  ((float)sum) / ((float)(label_image.rows*label_image.cols));
+		// Mean depth
+		this_user.meandepth = cv::mean(depth_image, this_mask)[0];
 		
+		// Find the area of the silhouette in cartesian space
+		pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
+		           * cam_model_.getDeltaY(1, this_user.meandepth);
+		this_user.silhouette_area = this_user.numpixels * pixel_area;
 		
-		ROS_INFO_STREAM(boost::format("User %d is size %d, %.2f%%")
-			% (unsigned int)this_user % sum % percent );
+		// Find the center in 3D
+		g_UserGenerator.GetCoM(this_user.uid, center_mass);
+		this_user.center3d.point = vecToPt(center_mass);
 		
+		// Visualization
+		geometry_msgs::Point32 p;
+		p.x = this_user.center3d.point.x;
+		p.y = this_user.center3d.point.y;
+		p.z = this_user.center3d.point.z;
+		if( this_user.numpixels > 1 )
+		{
+		  cloud.points.push_back(p);
+		  cloud.channels[0].values.push_back(1.0f);
+		}
 		
-		cv::imshow("window", this_mask * 255);
-		cv::waitKey(200);
+		ROS_INFO_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
+			% (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 	}
 	
-	
+	// Visualization
+	cloud_pub_.publish(cloud);
 	
 	// Draw OpenGL display
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -282,9 +385,6 @@ void glutDisplay (void)
 	glDisable(GL_TEXTURE_2D);
 	DrawDepthMap(depthMD, sceneMD);
 	glutSwapBuffers();
-	
-//	cv::imshow("window", label_image*100);
-//	cv::waitKey(5);
 	
 	// Allow for callbacks to occur, and sleep to enforce rate
 	ros::spinOnce();
@@ -376,6 +476,23 @@ int main(int argc, char **argv)
 	ROS_INFO("[bk_skeletal_tracker] Smoothing factor=%.2f", smoothing_factor);
 	
 	pnh.param("pub_rate", pub_rate_temp_, 5.0);
+	
+  cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
+  
+  // Subscribe to people tracker filter state
+  ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
+  
+	// Subscribe to camera info
+	got_cam_info_ = false;
+	ros::Subscriber cam_info_sub = nh_.subscribe("camera/rgb/camera_info", 1, cam_info_cb);
+	ROS_INFO("[bk_skeletal_tracker] Waiting for camera info...");
+	
+	// Get one message and then unsubscribe
+	while( !got_cam_info_ ) {
+		ros::spinOnce();
+	}
+	cam_info_sub.shutdown();
+	
 	
 	XnStatus nRetVal = XN_STATUS_OK;
 
