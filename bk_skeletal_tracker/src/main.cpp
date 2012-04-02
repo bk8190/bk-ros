@@ -125,7 +125,7 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 	boost::mutex::scoped_lock pos_lock(pos_mutex_);
 	
 	string msg = str(boost::format("Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
-	                 % pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
+	            % pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
 	                 
 	RestampedPositionMeasurement rpm;
 	rpm.pos     = *pos_ptr;
@@ -299,7 +299,6 @@ void glutDisplay (void)
 {
 	static ros::Rate pub_rate_(pub_rate_temp_);
 	
-	
 	// Update stuff from OpenNI
 	g_Context.WaitAndUpdateAll();
 	xn::SceneMetaData sceneMD;
@@ -312,8 +311,6 @@ void glutDisplay (void)
 	
 	double minval, maxval;
 	cv::minMaxLoc(depth_image, &minval, &maxval);
-	
-	//ROS_INFO_STREAM(boost::format("Depth is [%.3f,%.3f]") %minval %maxval );
 	
 	// Convert user pixels to an OpenCV image
 	cv::Mat label_image;
@@ -351,7 +348,7 @@ void glutDisplay (void)
 		
 		// Find the area of the silhouette in cartesian space
 		pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
-		             * cam_model_.getDeltaY(1, this_user.meandepth);
+		           * cam_model_.getDeltaY(1, this_user.meandepth);
 		this_user.silhouette_area = this_user.numpixels * pixel_area;
 		
 		// Find the center in 3D
@@ -370,7 +367,7 @@ void glutDisplay (void)
 		}
 		
 		ROS_INFO_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
-		                % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
+		  % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 	}
 	
 	// Visualization
