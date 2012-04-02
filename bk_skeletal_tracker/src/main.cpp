@@ -29,8 +29,11 @@
 // Transform everything to the map frame, so you have a consistant point of reference
 
 #include <ros/ros.h>
+#include <tf/transform_listener.h>
 #include <ros/package.h>
 #include <boost/format.hpp>
+#include <boost/foreach.hpp>
+#define foreach BOOST_FOREACH
 #include <vector>
 #include <map>
 
@@ -63,6 +66,7 @@
 #define GL_WIN_SIZE_Y 480
 
 using std::string;
+using std::vector;
 using std::pair;
 using std::map;
 const double BIGDIST_M = 1000000.0;
@@ -90,13 +94,15 @@ XnBool g_bPrintState     = true;
 XnBool g_bPause          = false;
 
 // ROS stuff
-ros::Publisher cloud_pub_;
+ros::Publisher cloud_pub_, pos_pub_;
 std::string    frame_id_;
+tf::TransformListener* tfl_;
 
 double pub_rate_temp_;
 image_geometry::PinholeCameraModel cam_model_;
 bool got_cam_info_;
 
+double association_dist_, min_dist_, reliability_;
 boost::mutex pos_mutex_;
 //---------------------------------------------------------------------------
 // Code
@@ -107,7 +113,7 @@ struct RestampedPositionMeasurement
 	people_msgs::PositionMeasurement pos;
 	double dist;
 };
-map<string, RestampedPositionMeasurement> pos_list_;
+pair<string, RestampedPositionMeasurement> latest_tracker_;
 
 void cam_info_cb(const sensor_msgs::CameraInfo::ConstPtr& msg)
 {
@@ -133,26 +139,28 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 	rpm.dist    = BIGDIST_M;
 	
 	// Put the incoming position into the position queue. It'll be processed in the next image callback.
-	map<string, RestampedPositionMeasurement>::iterator it = pos_list_.find(pos_ptr->object_id);
-	if (it == pos_list_.end()) {
+	bool found = latest_tracker_.first == pos_ptr->object_id;
+	if (!found) {
+		latest_tracker_ = pair<string, RestampedPositionMeasurement>(pos_ptr->object_id, rpm);
 		msg += "New object";
-		pos_list_.insert(pair<string, RestampedPositionMeasurement>(pos_ptr->object_id, rpm));
+		ROS_WARN_STREAM(msg);
 	}
-	else if ((pos_ptr->header.stamp - (*it).second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ) {
+	else if (true || (pos_ptr->header.stamp - latest_tracker_.second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ) {
+		latest_tracker_.second = rpm;
 		msg += "Existing object";
-		(*it).second = rpm;
+		ROS_INFO_STREAM(msg);
 	}
 	else {
 		msg += "Old object, not updating";
+		ROS_INFO_STREAM(msg);
 	}
-	
-	ROS_INFO_STREAM(msg);
 }
 
 struct user
 {
 	geometry_msgs::PointStamped center3d;
 	XnUserID uid;
+	double distance;
 	
 	int    numpixels;
 	double meandepth;
@@ -298,6 +306,7 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 void glutDisplay (void)
 {
 	static ros::Rate pub_rate_(pub_rate_temp_);
+	ros::Time now_time = ros::Time::now();
 	
 	// Update stuff from OpenNI
 	g_Context.WaitAndUpdateAll();
@@ -317,22 +326,21 @@ void glutDisplay (void)
 	getUserLabelImage(sceneMD, label_image);
 	
 	sensor_msgs::PointCloud cloud;
-	cloud.header.stamp    = ros::Time::now();
+	cloud.header.stamp    = now_time;
 	cloud.header.frame_id = frame_id_;
 	cloud.channels.resize(1);
 	cloud.channels[0].name = "intensity";
 	
-	// TODO: Convert users into better format
-	
-	// TODO: Try to associate users with trackers
+	// Convert users into better format
 	XnUserID aUsers[15];
 	XnUInt16 nUsers = 15;
 	g_UserGenerator.GetUsers(aUsers, nUsers);
 	
-	cv::Mat    this_mask;
-	XnPoint3D  center_mass;
-	double     pixel_area;
-	cv::Scalar s;
+	cv::Mat      this_mask;
+	XnPoint3D    center_mass;
+	double       pixel_area;
+	cv::Scalar   s;
+	vector<user> users;
 	
 	for (unsigned int i = 0; i < nUsers; i++)
 	{
@@ -368,7 +376,75 @@ void glutDisplay (void)
 		
 		ROS_INFO_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
 		  % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
+		
+		// TODO: Screen out unlikely users
+		if( this_user.meandepth > min_dist_ && this_user.numpixels > 1000 ) {
+			users.push_back(this_user);
+		}
 	}
+	
+	
+	// Try to associate the tracker with a user
+  if( latest_tracker_.first != "" )
+  {
+		// Transform the tracker to this time. Note that the pos time is updated but not the restamp.
+		tf::Point pt;
+		tf::pointMsgToTF(latest_tracker_.second.pos.pos, pt);
+		tf::Stamped<tf::Point> loc(pt, latest_tracker_.second.pos.header.stamp, latest_tracker_.second.pos.header.frame_id);
+		try {
+		  tfl_->transformPoint(frame_id_, now_time-ros::Duration(.2), loc, "odom", loc);
+		  latest_tracker_.second.pos.header.stamp = now_time;
+		  latest_tracker_.second.pos.pos.x        = loc[0];
+		  latest_tracker_.second.pos.pos.y        = loc[1];
+		  latest_tracker_.second.pos.pos.z        = loc[2];
+		}
+		catch (tf::TransformException& ex) {
+		  ROS_WARN("Could not transform person to this time");
+		}
+	
+		people_msgs::PositionMeasurement pos;
+		if( users.size() > 0 )
+		{
+			// Find the closest user to the tracker
+			user closest;
+			closest.distance = BIGDIST_M;
+	
+			foreach(user u, users)
+			{
+				u.distance = pow(latest_tracker_.second.pos.pos.x - u.center3d.point.x, 2.0)
+				           + pow(latest_tracker_.second.pos.pos.y - u.center3d.point.y, 2.0);
+				           
+				if( u.distance < closest.distance ) {	closest = u; }
+			}
+			
+			if( closest.distance < association_dist_  )
+			{
+				// Convert to a PositionMeasurement message
+				pos.header.stamp    = now_time;
+				pos.header.frame_id = frame_id_;
+				pos.name            = "openni";
+				pos.object_id       = latest_tracker_.second.pos.object_id;
+				pos.pos.x           = closest.center3d.point.x;
+				pos.pos.y           = closest.center3d.point.y;
+				pos.pos.z           = closest.center3d.point.z;
+		    pos.reliability     = reliability_;
+		    pos.initialization  = 0;
+			
+		    pos.covariance[0] = 0.20; pos.covariance[1] = 0.0;  pos.covariance[2] = 0.0;
+		    pos.covariance[3] = 0.0;  pos.covariance[4] = 0.20; pos.covariance[5] = 0.0;
+		    pos.covariance[6] = 0.0;  pos.covariance[7] = 0.0;  pos.covariance[8] = 0.40;
+		    
+		    pos_pub_.publish(pos);
+		    ROS_INFO_STREAM("Associated with person \"" << pos.object_id << "\"");
+			}
+			else
+				ROS_INFO_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
+		}
+		else
+			ROS_INFO("No users");
+	}
+	else
+		ROS_INFO("No tracker");
 	
 	// Visualization
 	cloud_pub_.publish(cloud);
@@ -463,6 +539,8 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "bk_skeletal_tracker");
 	ros::NodeHandle nh_;
 	ros::NodeHandle pnh("~");
+	tf::TransformListener tfl;
+	tfl_ = &tfl;
 	
 	frame_id_ = "derpderpderp";
 	pnh.getParam("camera_frame_id", frame_id_);
@@ -472,11 +550,18 @@ int main(int argc, char **argv)
 	pnh.param("smoothing_factor", smoothing_factor, 0.5);
 	ROS_INFO("[bk_skeletal_tracker] Smoothing factor=%.2f", smoothing_factor);
 	
+	pnh.param("min_dist", min_dist_, .3);
+	pnh.param("association_dist", association_dist_, 0.5);
+	pnh.param("reliability", reliability_, 0.5);
 	pnh.param("pub_rate", pub_rate_temp_, 5.0);
 	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	
+	// Advertise a position measure message.
+	pos_pub_ = nh_.advertise<people_msgs::PositionMeasurement>("/people_tracker_measurements",1);
+    
 	// Subscribe to people tracker filter state
+	latest_tracker_.first = "";
 	ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
 	
 	// Subscribe to camera info

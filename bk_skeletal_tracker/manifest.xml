@@ -12,8 +12,9 @@
 
   <review status="experimental" notes="beta"/>
 
+	<depend package="tf"/>
   <depend package="openni" />
-
+	
   <depend package="sensor_msgs"/>
   <depend package="people_msgs"/>
   <depend package="image_transport"/>
