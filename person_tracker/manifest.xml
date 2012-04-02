@@ -16,7 +16,8 @@
   <depend package="body_msgs"/>
   <depend package="geometry_msgs"/>
   
-  <depend package="sound_play"/>
+  <depend package="portal_sounds"/>
+
 </package>
 
 

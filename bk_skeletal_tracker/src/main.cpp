@@ -84,6 +84,7 @@ XnChar g_strPose[20] = "";
 // Have we successfully calibrated a user? If so, which user?
 XnBool      g_bhasCal = false;
 XnUserID    first_calibrated_user_;
+double smoothing_factor_;
 
 // Controls what is drawn to the screen
 XnBool g_bDrawBackground = true;
@@ -102,7 +103,8 @@ double pub_rate_temp_;
 image_geometry::PinholeCameraModel cam_model_;
 bool got_cam_info_;
 
-double association_dist_, min_dist_, reliability_;
+double association_dist_, min_dist_, min_area_, max_area_, reliability_;
+double variance_xy_;
 boost::mutex pos_mutex_;
 //---------------------------------------------------------------------------
 // Code
@@ -354,14 +356,30 @@ void glutDisplay (void)
 		// Mean depth
 		this_user.meandepth = cv::mean(depth_image, this_mask)[0];
 		
+		this_user.silhouette_area = 0;
+		
 		// Find the area of the silhouette in cartesian space
+		for( int i=0; i<this_mask.rows; i++)
+		{
+			for( int j=0; j<this_mask.cols; j++ )
+			{
+				if( this_mask.at<uchar>(i,j) != 0 )
+				{
+					pixel_area = cam_model_.getDeltaX(1, depth_image.at<float>(i,j))
+								     * cam_model_.getDeltaY(1, depth_image.at<float>(i,j));
+					this_user.silhouette_area += pixel_area;
+				}
+			}
+		}
+		
+		/*
 		pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
 		           * cam_model_.getDeltaY(1, this_user.meandepth);
 		this_user.silhouette_area = this_user.numpixels * pixel_area;
 		
 		// Find the center in 3D
 		g_UserGenerator.GetCoM(this_user.uid, center_mass);
-		this_user.center3d.point = vecToPt(center_mass);
+		this_user.center3d.point = vecToPt(center_mass);*/
 		
 		// Visualization
 		geometry_msgs::Point32 p;
@@ -377,8 +395,9 @@ void glutDisplay (void)
 		ROS_INFO_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
 		  % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 		
-		// TODO: Screen out unlikely users
-		if( this_user.meandepth > min_dist_ && this_user.numpixels > 1000 ) {
+		// Screen out unlikely users
+		if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ ) {
+			ROS_INFO("Accepted user");
 			users.push_back(this_user);
 		}
 	}
@@ -430,9 +449,9 @@ void glutDisplay (void)
 		    pos.reliability     = reliability_;
 		    pos.initialization  = 0;
 			
-		    pos.covariance[0] = 0.20; pos.covariance[1] = 0.0;  pos.covariance[2] = 0.0;
-		    pos.covariance[3] = 0.0;  pos.covariance[4] = 0.20; pos.covariance[5] = 0.0;
-		    pos.covariance[6] = 0.0;  pos.covariance[7] = 0.0;  pos.covariance[8] = 0.40;
+		    pos.covariance[0] = variance_xy_; pos.covariance[1] = 0.0;          pos.covariance[2] = 0.0;
+		    pos.covariance[3] = 0.0;          pos.covariance[4] = variance_xy_; pos.covariance[5] = 0.0;
+		    pos.covariance[6] = 0.0;          pos.covariance[7] = 0.0;          pos.covariance[8] = 0.40;
 		    
 		    pos_pub_.publish(pos);
 		    ROS_INFO_STREAM("Associated with person \"" << pos.object_id << "\"");
@@ -458,6 +477,9 @@ void glutDisplay (void)
 	glDisable(GL_TEXTURE_2D);
 	DrawDepthMap(depthMD, sceneMD);
 	glutSwapBuffers();
+	
+	ros::Duration actual_loop_time = ros::Time::now() - now_time;
+	ROS_DEBUG_STREAM(boost::format("[bk_skeletal_tracker] Loop took %f seconds.") % (actual_loop_time.toSec()) );
 	
 	// Allow for callbacks to occur, and sleep to enforce rate
 	ros::spinOnce();
@@ -544,16 +566,24 @@ int main(int argc, char **argv)
 	
 	frame_id_ = "derpderpderp";
 	pnh.getParam("camera_frame_id", frame_id_);
-	ROS_INFO("[bk_skeletal_tracker] Frame_id = \"%s\"", frame_id_.c_str());
 	
-	double smoothing_factor;
-	pnh.param("smoothing_factor", smoothing_factor, 0.5);
-	ROS_INFO("[bk_skeletal_tracker] Smoothing factor=%.2f", smoothing_factor);
+	pnh.param("smoothing_factor", smoothing_factor_, 0.5);
+	pnh.param("reliability"     , reliability_     , 0.5);
+	pnh.param("pub_rate"        , pub_rate_temp_   , 5.0);
+	pnh.param("min_dist"        , min_dist_        , 0.1);
+	pnh.param("association_dist", association_dist_, 1.0);
+	pnh.param("min_area"        , min_area_        , 0.0);
+	pnh.param("max_area"        , max_area_        , 1.0);
+	pnh.param("variance_xy"     , variance_xy_     , 0.3);
 	
-	pnh.param("min_dist", min_dist_, .3);
-	pnh.param("association_dist", association_dist_, 0.5);
-	pnh.param("reliability", reliability_, 0.5);
-	pnh.param("pub_rate", pub_rate_temp_, 5.0);
+	
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Pub rate        = %f"    ) % pub_rate_temp_);
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Frame_id        = \"%s\"") % frame_id_);
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Smoothing factor= %.2f"  ) % smoothing_factor_);
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Min distance    = %.2f"  ) % min_dist_);
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Ass. distance   = %.2f"  ) % association_dist_);
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Area bounds     = [%.2f,%.2f]" ) % min_area_ %max_area_);
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] x, y variance   = %.2f"  ) % variance_xy_);
 	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	
@@ -627,7 +657,7 @@ int main(int argc, char **argv)
 	}
 	
 	// Set up the skeleton generator
-	g_UserGenerator.GetSkeletonCap().SetSmoothing(0.8);
+	g_UserGenerator.GetSkeletonCap().SetSmoothing(smoothing_factor_);
 	
 	//g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 	g_UserGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_UPPER);
