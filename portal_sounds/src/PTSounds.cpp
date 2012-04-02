@@ -63,7 +63,7 @@ void PTSoundPlayer::update()
 		{
 			case state_tracking:
 				playLockedOnSound();
-				next_scheduled_time_ = ros::Time::now() + ros::Duration(60);
+				next_scheduled_time_ = ros::Time::now() + ros::Duration(45);
 				break;
 				
 			case state_searching:
