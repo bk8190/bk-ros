@@ -8,9 +8,10 @@ PTSoundPlayer::PTSoundPlayer(ros::NodeHandle parent, string name):
 	nh_           (parent, name),
 	sound_client_ (nh_, "/robotsound")
 {
-	nh_.param<string>("sound_directory", directory_, "");
+	ROS_INFO_STREAM("[PTSounds] Started in namespace \"" << nh_.getNamespace() << "\"");
 	
-	ROS_INFO("[PTSounds] Looking for mp3 files in \"%s\"", directory_.c_str());
+	nh_.param<string>("sound_directory", directory_, "");
+	ROS_INFO_STREAM("[PTSounds] Looking for mp3 files in \"" << directory_ << "\"");
 }
 
 void PTSoundPlayer::setState( State new_state )
