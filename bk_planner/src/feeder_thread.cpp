@@ -431,7 +431,7 @@ BKFeederThread::getFeederDistLeft()
 	
 	if( p.segs.at(start_idx).seg_type == p_nav::PathSegment::SPIN_IN_PLACE )
 	{
-		d *= 2;
+		d *= 1.5;
 	}
 	
 	// Length of the rest
@@ -443,7 +443,7 @@ BKFeederThread::getFeederDistLeft()
 			
 			if( p.segs.at(i).seg_type == p_nav::PathSegment::SPIN_IN_PLACE )
 			{
-				d2 *= 3;
+				d2 *= 1.5;
 			}
 			d += d2;
 		}
