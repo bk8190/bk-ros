@@ -132,7 +132,7 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 {
 	boost::mutex::scoped_lock pos_lock(pos_mutex_);
 	
-	string msg = str(boost::format("Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
+	string msg = str(boost::format("[bk_skeletal_tracker] Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
 	            % pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
 	                 
 	RestampedPositionMeasurement rpm;
@@ -145,16 +145,16 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 	if (!found) {
 		latest_tracker_ = pair<string, RestampedPositionMeasurement>(pos_ptr->object_id, rpm);
 		msg += "New object";
-		ROS_WARN_STREAM(msg);
+		ROS_DEBUG_STREAM(msg);
 	}
 	else if (true || (pos_ptr->header.stamp - latest_tracker_.second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ) {
 		latest_tracker_.second = rpm;
 		msg += "Existing object";
-		ROS_INFO_STREAM(msg);
+		ROS_DEBUG_STREAM(msg);
 	}
 	else {
 		msg += "Old object, not updating";
-		ROS_INFO_STREAM(msg);
+		ROS_DEBUG_STREAM(msg);
 	}
 }
 
@@ -375,11 +375,11 @@ void glutDisplay (void)
 		/*
 		pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
 		           * cam_model_.getDeltaY(1, this_user.meandepth);
-		this_user.silhouette_area = this_user.numpixels * pixel_area;
+		this_user.silhouette_area = this_user.numpixels * pixel_area;*/
 		
 		// Find the center in 3D
 		g_UserGenerator.GetCoM(this_user.uid, center_mass);
-		this_user.center3d.point = vecToPt(center_mass);*/
+		this_user.center3d.point = vecToPt(center_mass);
 		
 		// Visualization
 		geometry_msgs::Point32 p;
@@ -392,12 +392,12 @@ void glutDisplay (void)
 			cloud.channels[0].values.push_back(1.0f);
 		}
 		
-		ROS_INFO_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
+		ROS_DEBUG_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
 		  % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 		
 		// Screen out unlikely users
 		if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ ) {
-			ROS_INFO("Accepted user");
+			ROS_DEBUG("Accepted user");
 			users.push_back(this_user);
 		}
 	}
@@ -454,16 +454,16 @@ void glutDisplay (void)
 		    pos.covariance[6] = 0.0;          pos.covariance[7] = 0.0;          pos.covariance[8] = 0.40;
 		    
 		    pos_pub_.publish(pos);
-		    ROS_INFO_STREAM("Associated with person \"" << pos.object_id << "\"");
+		    ROS_DEBUG_STREAM(boost::format("Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d)") % pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid);
 			}
 			else
-				ROS_INFO_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
+				ROS_DEBUG_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
 		}
 		else
-			ROS_INFO("No users");
+			ROS_DEBUG("No users");
 	}
 	else
-		ROS_INFO("No tracker");
+		ROS_DEBUG("No tracker");
 	
 	// Visualization
 	cloud_pub_.publish(cloud);
