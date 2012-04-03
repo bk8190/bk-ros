@@ -6,13 +6,13 @@
 	<!-- Node that tracks skeletons -->
   <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen">
     <param name="camera_frame_id"  value="camera_depth_optical_frame" />
-    <param name="smoothing_factor" value="0.80"/>
+    <param name="smoothing_factor" value="0.90"/>
     <param name="pub_rate" value="5.0"/>
     
     <param name="reliability" value="0.5"/>
     
+    <param name="variance_xy" value="0.2"/>
     <!-- When publishing positions, use this variance -->
-    <param name="variance_xy" value="0.4"/>
     
     <!-- User must be at least this far from camera -->
     <param name="min_dist" value="0.3"/>
@@ -21,7 +21,7 @@
     <param name="association_dist" value="0.5"/> 
     
     <!-- Constraints on acceptable silhouette area of users -->
-    <param name="min_area" value="0.2"/>
+    <param name="min_area" value="0.1"/>
     <param name="max_area" value="0.9"/>
   </node>
 </launch>
