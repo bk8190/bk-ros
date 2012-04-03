@@ -83,6 +83,7 @@ BKFeederThread::run()
 				if( parent_->path_checker_->isPathClear(feeder_path_) )
 				{
 					//ROS_INFO_THROTTLE(5,"[feeder] Executing path.");
+					ROS_DEBUG_STREAM("[feeder] I have " << getFeederDistLeft() << "m left");
 					executePath();
 				}
 				else
