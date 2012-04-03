@@ -443,7 +443,7 @@ BKFeederThread::getFeederDistLeft()
 			
 			if( p.segs.at(i).seg_type == p_nav::PathSegment::SPIN_IN_PLACE )
 			{
-				d2 *= 100;
+				d2 *= 3;
 			}
 			d += d2;
 		}
