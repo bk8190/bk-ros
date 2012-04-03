@@ -51,4 +51,7 @@
 		<remap from="pose_cov" to="/person_tracker/goal_with_covariance" />
 	</node>
 	
+	
+	<!-- Launch precision steering nodes -->
+	<include file="$(find precision_steering)/start_precision_steering.launch"/>
 </launch>
