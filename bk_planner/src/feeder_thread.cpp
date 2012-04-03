@@ -113,6 +113,8 @@ BKFeederThread::run()
 void
 BKFeederThread::sendHaltState()
 {
+	ROS_INFO("[feeder] Sending halt state");
+
 	// Clear our path			
 	recursive_mutex::scoped_try_lock l(feeder_path_mutex_);
 	while(!l){
