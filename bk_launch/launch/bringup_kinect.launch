@@ -26,4 +26,9 @@
 	<!--node pkg="pcl_decimator_bk" type="pcl_decimator_bk" name="pcl_decimator_bk">
 		<remap from="/camera/depth/points" to="/camera/depth_registered/points">
 	</node-->
+	
+	
+	<!-- Nodes that control the Kinect's pan mount and associated transforms -->
+	<include file="$(find bk_launch)/launch/skeletal_tracker.launch"/>
+	
 </launch>

@@ -1,4 +1,4 @@
-<!--Points the head at a target -->
+<!-- Nodes that control the Kinect's pan mount and associated transforms -->
 <launch>
   
   <!-- Node that drives the Kinect's pan platform and publishes its transform -->
