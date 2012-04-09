@@ -229,6 +229,7 @@ User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 	// If we already calibrated on a user, just load that calibration
 	if(g_bhasCal) {
 		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
+		g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
@@ -307,7 +308,12 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 // this function is called each frame
 void glutDisplay (void)
 {
-	static ros::Rate pub_rate_(pub_rate_temp_);
+	static ros::Duration pub_interval(1.0/pub_rate_temp_);
+	static ros::Time     last_pub(0.0);
+	static int           num_skipped = 0;
+	
+	num_skipped++;
+	
 	ros::Time now_time = ros::Time::now();
 	
 	// Update stuff from OpenNI
@@ -344,129 +350,137 @@ void glutDisplay (void)
 	cv::Scalar   s;
 	vector<user> users;
 	
-	for (unsigned int i = 0; i < nUsers; i++)
+	if( now_time-last_pub > pub_interval )
 	{
-		user this_user;
-		this_user.uid = aUsers[i];
+		last_pub = now_time;
+		ROS_INFO_STREAM(num_skipped << " refreshes inbetween publishing");
+		num_skipped = 0;
 		
-		// Bitwise mask of pixels belonging to this user
-		this_mask = (label_image == this_user.uid);
-		this_user.numpixels = cv::countNonZero(this_mask);
-		
-		// Mean depth
-		this_user.meandepth = cv::mean(depth_image, this_mask)[0];
-		
-		this_user.silhouette_area = 0;
-		
-		// Find the area of the silhouette in cartesian space
-		for( int i=0; i<this_mask.rows; i++)
+		for (unsigned int i = 0; i < nUsers; i++)
 		{
-			for( int j=0; j<this_mask.cols; j++ )
+			user this_user;
+			this_user.uid = aUsers[i];
+		
+			// Bitwise mask of pixels belonging to this user
+			this_mask = (label_image == this_user.uid);
+			this_user.numpixels = cv::countNonZero(this_mask);
+		
+			// Mean depth
+			this_user.meandepth = cv::mean(depth_image, this_mask)[0];
+		
+			this_user.silhouette_area = 0;
+		
+			// Find the area of the silhouette in cartesian space
+			for( int i=0; i<this_mask.rows; i++)
 			{
-				if( this_mask.at<uchar>(i,j) != 0 )
+				for( int j=0; j<this_mask.cols; j++ )
 				{
-					pixel_area = cam_model_.getDeltaX(1, depth_image.at<float>(i,j))
-								     * cam_model_.getDeltaY(1, depth_image.at<float>(i,j));
-					this_user.silhouette_area += pixel_area;
+					if( this_mask.at<uchar>(i,j) != 0 )
+					{
+						pixel_area = cam_model_.getDeltaX(1, depth_image.at<float>(i,j))
+										   * cam_model_.getDeltaY(1, depth_image.at<float>(i,j));
+						this_user.silhouette_area += pixel_area;
+					}
 				}
 			}
-		}
 		
-		/*
-		pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
-		           * cam_model_.getDeltaY(1, this_user.meandepth);
-		this_user.silhouette_area = this_user.numpixels * pixel_area;*/
+			/*
+			pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
+				         * cam_model_.getDeltaY(1, this_user.meandepth);
+			this_user.silhouette_area = this_user.numpixels * pixel_area;*/
 		
-		// Find the center in 3D
-		g_UserGenerator.GetCoM(this_user.uid, center_mass);
-		this_user.center3d.point = vecToPt(center_mass);
+			// Find the center in 3D
+			g_UserGenerator.GetCoM(this_user.uid, center_mass);
+			this_user.center3d.point = vecToPt(center_mass);
 		
-		// Visualization
-		geometry_msgs::Point32 p;
-		p.x = this_user.center3d.point.x;
-		p.y = this_user.center3d.point.y;
-		p.z = this_user.center3d.point.z;
-		if( this_user.numpixels > 1 )
-		{
-			cloud.points.push_back(p);
-			cloud.channels[0].values.push_back(1.0f);
-		}
-		
-		ROS_DEBUG_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
-		  % (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
-		
-		// Screen out unlikely users
-		if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ ) {
-			ROS_DEBUG("Accepted user");
-			users.push_back(this_user);
-		}
-	}
-	
-	
-	// Try to associate the tracker with a user
-  if( latest_tracker_.first != "" )
-  {
-		// Transform the tracker to this time. Note that the pos time is updated but not the restamp.
-		tf::Point pt;
-		tf::pointMsgToTF(latest_tracker_.second.pos.pos, pt);
-		tf::Stamped<tf::Point> loc(pt, latest_tracker_.second.pos.header.stamp, latest_tracker_.second.pos.header.frame_id);
-		try {
-		  tfl_->transformPoint(frame_id_, now_time-ros::Duration(.2), loc, "odom", loc);
-		  latest_tracker_.second.pos.header.stamp = now_time;
-		  latest_tracker_.second.pos.pos.x        = loc[0];
-		  latest_tracker_.second.pos.pos.y        = loc[1];
-		  latest_tracker_.second.pos.pos.z        = loc[2];
-		}
-		catch (tf::TransformException& ex) {
-		  ROS_WARN("Could not transform person to this time");
-		}
-	
-		people_msgs::PositionMeasurement pos;
-		if( users.size() > 0 )
-		{
-			// Find the closest user to the tracker
-			user closest;
-			closest.distance = BIGDIST_M;
-	
-			foreach(user u, users)
+			// Visualization
+			geometry_msgs::Point32 p;
+			p.x = this_user.center3d.point.x;
+			p.y = this_user.center3d.point.y;
+			p.z = this_user.center3d.point.z;
+			if( this_user.numpixels > 1 )
 			{
-				u.distance = pow(latest_tracker_.second.pos.pos.x - u.center3d.point.x, 2.0)
-				           + pow(latest_tracker_.second.pos.pos.y - u.center3d.point.y, 2.0);
-				           
-				if( u.distance < closest.distance ) {	closest = u; }
+				cloud.points.push_back(p);
+				cloud.channels[0].values.push_back(1.0f);
 			}
-			
-			if( closest.distance < association_dist_  )
+		
+			ROS_DEBUG_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
+				% (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
+		
+			// Screen out unlikely users
+			if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ ) {
+				ROS_DEBUG("Accepted user");
+				users.push_back(this_user);
+			}
+		}
+	
+	
+		// Try to associate the tracker with a user
+		if( latest_tracker_.first != "" )
+		{
+			// Transform the tracker to this time. Note that the pos time is updated but not the restamp.
+			tf::Point pt;
+			tf::pointMsgToTF(latest_tracker_.second.pos.pos, pt);
+			tf::Stamped<tf::Point> loc(pt, latest_tracker_.second.pos.header.stamp, latest_tracker_.second.pos.header.frame_id);
+			try {
+				tfl_->transformPoint(frame_id_, now_time-ros::Duration(.2), loc, "odom", loc);
+				latest_tracker_.second.pos.header.stamp = now_time;
+				latest_tracker_.second.pos.pos.x        = loc[0];
+				latest_tracker_.second.pos.pos.y        = loc[1];
+				latest_tracker_.second.pos.pos.z        = loc[2];
+			}
+			catch (tf::TransformException& ex) {
+				ROS_WARN("Could not transform person to this time");
+			}
+	
+			people_msgs::PositionMeasurement pos;
+			if( users.size() > 0 )
 			{
-				// Convert to a PositionMeasurement message
-				pos.header.stamp    = now_time;
-				pos.header.frame_id = frame_id_;
-				pos.name            = "openni";
-				pos.object_id       = latest_tracker_.second.pos.object_id;
-				pos.pos.x           = closest.center3d.point.x;
-				pos.pos.y           = closest.center3d.point.y;
-				pos.pos.z           = closest.center3d.point.z;
-		    pos.reliability     = reliability_;
-		    pos.initialization  = 0;
+				// Find the closest user to the tracker
+				user closest;
+				closest.distance = BIGDIST_M;
+	
+				foreach(user u, users)
+				{
+					u.distance = pow(latest_tracker_.second.pos.pos.x - u.center3d.point.x, 2.0)
+						         + pow(latest_tracker_.second.pos.pos.y - u.center3d.point.y, 2.0);
+						         
+					if( u.distance < closest.distance ) {	closest = u; }
+				}
 			
-		    pos.covariance[0] = variance_xy_; pos.covariance[1] = 0.0;          pos.covariance[2] = 0.0;
-		    pos.covariance[3] = 0.0;          pos.covariance[4] = variance_xy_; pos.covariance[5] = 0.0;
-		    pos.covariance[6] = 0.0;          pos.covariance[7] = 0.0;          pos.covariance[8] = 0.40;
-		    
-		    pos_pub_.publish(pos);
-		    ROS_DEBUG_STREAM(boost::format("Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d)") % pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid);
+				if( closest.distance < association_dist_  )
+				{
+					// Convert to a PositionMeasurement message
+					pos.header.stamp    = now_time;
+					pos.header.frame_id = frame_id_;
+					pos.name            = "openni";
+					pos.object_id       = latest_tracker_.second.pos.object_id;
+					pos.pos.x           = closest.center3d.point.x;
+					pos.pos.y           = closest.center3d.point.y;
+					pos.pos.z           = closest.center3d.point.z;
+				  pos.reliability     = reliability_;
+				  pos.initialization  = 0;
+			
+				  pos.covariance[0] = variance_xy_; pos.covariance[1] = 0.0;          pos.covariance[2] = 0.0;
+				  pos.covariance[3] = 0.0;          pos.covariance[4] = variance_xy_; pos.covariance[5] = 0.0;
+				  pos.covariance[6] = 0.0;          pos.covariance[7] = 0.0;          pos.covariance[8] = 0.40;
+				  
+				  pos_pub_.publish(pos);
+				  ROS_DEBUG_STREAM(boost::format("Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d)") % pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid);
+				}
+				else
+					ROS_DEBUG_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
 			}
 			else
-				ROS_DEBUG_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
+				ROS_DEBUG("No users");
 		}
 		else
-			ROS_DEBUG("No users");
-	}
-	else
-		ROS_DEBUG("No tracker");
+			ROS_DEBUG("No tracker");
 	
-	// Visualization
-	cloud_pub_.publish(cloud);
+		// Visualization
+		cloud_pub_.publish(cloud);
+	
+	}
 	
 	// Draw OpenGL display
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -481,9 +495,7 @@ void glutDisplay (void)
 	ros::Duration actual_loop_time = ros::Time::now() - now_time;
 	ROS_DEBUG_STREAM(boost::format("[bk_skeletal_tracker] Loop took %f seconds.") % (actual_loop_time.toSec()) );
 	
-	// Allow for callbacks to occur, and sleep to enforce rate
-	ros::spinOnce();
-	pub_rate_.sleep();
+	// Allow callbacks to occur
 	ros::spinOnce();
 }
 
