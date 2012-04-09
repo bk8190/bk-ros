@@ -1,0 +1,17 @@
+<package>
+  <description brief="motion_tests">
+
+     motion_tests
+
+  </description>
+  <author>Bill</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/motion_tests</url>
+  
+  <depend pkg="roscpp">
+  <depend pkg="geometry_msgs">
+
+</package>
+
+
