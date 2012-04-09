@@ -9,8 +9,8 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/motion_tests</url>
   
-  <depend pkg="roscpp">
-  <depend pkg="geometry_msgs">
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
 
 </package>
 

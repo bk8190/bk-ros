@@ -5,8 +5,7 @@
 using std::string;
 using geometry_msgs::Twist;
 
-ros::Publisher cmd_vel_pub_
-ros::Rate      loop_rate_;
+const double pi = 3.1415926;
 
 Twist zeroVelocity()
 {
@@ -21,9 +20,14 @@ Twist zeroVelocity()
 	return t;
 }
 
-void sinInPlace(Twist& t, double elapsed_secs)
+// Takes time (seconds), amplitude (degrees) and period (seconds) and generates a sine wave spin velocity
+Twist sinInPlace(double elapsed_secs, double amplitude, double period)
 {
-
+	Twist t = zeroVelocity();
+	
+	t.angular.z = amplitude*pi/180 * sin(elapsed_secs * 2*pi/period);
+	
+	return t;
 }
 
 int main(int argc, char** argv)
@@ -43,27 +47,24 @@ int main(int argc, char** argv)
 	ros::Rate      loop_rate(25);
 	Twist          cmd_vel;
 	ros::Time      t0 = ros::Time::now();
-	ros::Duration  elapsed_secs;
+	double         elapsed_secs;
 	
 	while(ros::ok())
 	{
-		cmd_vel         = zeroVelocity();
 		elapsed_secs = (ros::Time::now() - t0).toSec();
 		
-		switch(s)
-		{
-			case "sin_in_place":
-				cmd_vel = sinInPlace(elapsed_secs)
-			break;
-		
-			default:
-				ROS_ERROR_STREAM("Unknown option \"" << s << "\"");
-				return 1;
+		if( s ==  "sin_in_place" ) {
+			cmd_vel = sinInPlace(elapsed_secs, 50, 5.0);
 		}
-	
+		else {
+			ROS_ERROR_STREAM("Unknown option \"" << s << "\"");
+			return 1;
+		}
+		
+		ROS_INFO("%5.2f: lin = %5.2f ang = %5.2f", elapsed_secs, cmd_vel.linear.x, cmd_vel.angular.z);
 	
 		cmd_vel_pub.publish(cmd_vel);
-		loop_rate_.sleep();
+		loop_rate.sleep();
 	}
 	
 	return(0);
