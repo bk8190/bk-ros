@@ -7,7 +7,7 @@
 		
 		<remap from="/pan_command" to="/head_controller/pan_command"/>
 		
-		<param name="loop_rate"        value="20.0"        />
+		<param name="loop_rate"        value="40.0"        />
 		<param name="parent_tf_frame"  value="pan_link"    />
 		<param name="child_tf_frame"   value="camera_link" />
 		
@@ -26,7 +26,7 @@
 		
 		<remap from="/target_pose" to="/person_tracker/goal_with_covariance"/>
 		
-		<param name="rate" value="20.0"/>
+		<param name="rate" value="40.0"/>
 	</node>
 	
 	

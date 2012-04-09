@@ -5,6 +5,7 @@
 #include <tf/transform_broadcaster.h>
 #include <stdio.h>
 #include <phidget21.h>
+#include <boost/format.hpp>
 
 const double pi = 3.1415926;
 double desired_pan_ = 0.0;
@@ -240,6 +241,11 @@ int main(int argc, char** argv)
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		loop_rate.sleep();
 		ros::spinOnce();
+		
+		if( loop_rate.cycleTime() > loop_rate.expectedCycleTime() )
+		{
+			ROS_WARN_STREAM(boost::format("[head_driver] Missed update time of %.3fsec, took %.3fsec") % (loop_rate.expectedCycleTime().toSec()) %(loop_rate.cycleTime().toSec()) );
+		}
 	}
 	
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 0);
