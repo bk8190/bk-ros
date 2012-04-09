@@ -353,7 +353,7 @@ void glutDisplay (void)
 	if( now_time-last_pub > pub_interval )
 	{
 		last_pub = now_time;
-		ROS_INFO_STREAM(num_skipped << " refreshes inbetween publishing");
+		ROS_DEBUG_STREAM(num_skipped << " refreshes inbetween publishing");
 		num_skipped = 0;
 		
 		for (unsigned int i = 0; i < nUsers; i++)
