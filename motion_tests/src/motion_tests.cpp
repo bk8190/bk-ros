@@ -1,9 +1,11 @@
 #include <ros/ros.h>
 #include <string>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 using std::string;
 using geometry_msgs::Twist;
+using geometry_msgs::PoseWithCovarianceStamped;
 
 const double pi = 3.1415926;
 
@@ -25,7 +27,16 @@ Twist sinInPlace(double elapsed_secs, double amplitude, double period)
 {
 	Twist t = zeroVelocity();
 	
-	t.angular.z = amplitude*pi/180 * sin(elapsed_secs * 2*pi/period);
+	t.angular.z = amplitude * sin(elapsed_secs * 2*pi/period);
+	
+	return t;
+}
+
+Twist spin(double speed)
+{
+	Twist t = zeroVelocity();
+	
+	t.angular.z = speed;
 	
 	return t;
 }
@@ -42,19 +53,34 @@ int main(int argc, char** argv)
 	
 	string s = argv[1];
 	
+	PoseWithCovarianceStamped p;
+	p.header.frame_id = "odom";
 	
-	ros::Publisher cmd_vel_pub = nh.advertise<Twist>("/cmd_vel", 1);
+	ros::Publisher head_pos_pub = nh.advertise<PoseWithCovarianceStamped>("/person_tracker/goal_with_covariance", 1);
+	
+	ros::Publisher cmd_vel_pub  = nh.advertise<Twist>("/cmd_vel", 1);
 	ros::Rate      loop_rate(25);
 	Twist          cmd_vel;
 	ros::Time      t0 = ros::Time::now();
 	double         elapsed_secs;
 	
+	for( int i=3; i>0; i-- )
+	{
+		ROS_INFO_STREAM("Starting in " << i);
+		ros::Duration(1.0).sleep();
+	}
+	
 	while(ros::ok())
 	{
 		elapsed_secs = (ros::Time::now() - t0).toSec();
+		p.header.stamp = ros::Time::now();
 		
 		if( s ==  "sin_in_place" ) {
-			cmd_vel = sinInPlace(elapsed_secs, 50, 5.0);
+			cmd_vel = sinInPlace(elapsed_secs, .80, 5.0);
+			//cmd_vel = sinInPlace(elapsed_secs, .40, 10.0);
+		}
+		else if( s ==  "spin" ) {
+			cmd_vel = spin(.60);
 		}
 		else {
 			ROS_ERROR_STREAM("Unknown option \"" << s << "\"");
@@ -64,6 +90,7 @@ int main(int argc, char** argv)
 		ROS_INFO("%5.2f: lin = %5.2f ang = %5.2f", elapsed_secs, cmd_vel.linear.x, cmd_vel.angular.z);
 	
 		cmd_vel_pub.publish(cmd_vel);
+		head_pos_pub.publish(p); // Tell the head where to point
 		loop_rate.sleep();
 	}
 	
