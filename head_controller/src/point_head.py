@@ -40,8 +40,10 @@ class PointHeadNode():
 		self.reset_head_position()
 		rospy.loginfo("[point_head] Ready to accept target point")
 		
+		rospy.wait_for_message('/target_pose', PoseWithCovarianceStamped)
+		
 		while not rospy.is_shutdown():
-			rospy.wait_for_message('/target_pose', PoseWithCovarianceStamped)
+			#rospy.wait_for_message('/target_pose', PoseWithCovarianceStamped)
 			if self.target_point == self.last_target_point:
 				rospy.loginfo("[point_head] Stale target point")
 				#continue
