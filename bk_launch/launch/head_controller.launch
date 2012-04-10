@@ -15,8 +15,8 @@
 		<param name="pan_angle_center" value="109.0"       />
 		<param name="pan_angle_min"    value="0.0"         />
 		<param name="pan_angle_max"    value="195.0"       />
-		<param name="pan_vel_max"      value="45.0"        />
-		<param name="pan_acc_max"      value="130.0"       />
+		<param name="pan_vel_max"      value="40.0"        />
+		<param name="pan_acc_max"      value="90.0"       />
 	</node>
 	
 	
