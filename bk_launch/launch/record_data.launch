@@ -1,0 +1,7 @@
+<!-- -->
+<launch>	
+	
+<node pkg="rosbag" type="rosbag" name="rosbag"
+	args="record  --bz2 rosout tf odom ideal_pose bk_planner/local_costmap/robot_footprint bk_planner/local_costmap/obstacles bk_planner/local_costmap/inflated_obstacles visualization_marker_array planning_visualization/path feeder_visualization/path people_tracker_filter_visualization face_detector/faces_cloud kalman_filt_cloud bk_skeletal_tracker/people_cloud" />
+
+</launch>

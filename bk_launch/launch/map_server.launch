@@ -1,0 +1,7 @@
+<!---->
+<launch>
+
+	<!-- Startup the map server -->
+	<node name="map_server" pkg="map_server" type="map_server" args="$(find cwru_maps)/maps/2nd_floor_one_door.yaml" />
+
+</launch>
