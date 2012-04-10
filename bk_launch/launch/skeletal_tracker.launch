@@ -6,7 +6,7 @@
 	<!-- Node that tracks skeletons -->
   <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen">
     <param name="camera_frame_id"  value="camera_depth_optical_frame" />
-    <param name="smoothing_factor" value="0.30"/>
+    <param name="smoothing_factor" value="0.90"/>
     <param name="pub_rate" value="5.0"/>
     
     <param name="reliability" value="0.65"/>
