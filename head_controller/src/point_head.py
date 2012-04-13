@@ -45,7 +45,7 @@ class PointHeadNode():
 		while not rospy.is_shutdown():
 			#rospy.wait_for_message('/target_pose', PoseWithCovarianceStamped)
 			if self.target_point == self.last_target_point:
-				rospy.loginfo("[point_head] Stale target point")
+				rospy.logdebug("[point_head] Stale target point")
 				#continue
 			
 			try:
