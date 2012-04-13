@@ -228,9 +228,9 @@ User_NewUser(xn::UserGenerator& generator, XnUserID nId, void* pCookie)
 	
 	// If we already calibrated on a user, just load that calibration
 	if(g_bhasCal) {
-		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
-		g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
+		//g_UserGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+		g_UserGenerator.GetSkeletonCap().LoadCalibrationData(first_calibrated_user_, 0);
 		ROS_INFO("[bk_skeletal_tracker] Loaded previous calibration of user %d", first_calibrated_user_);
 	}
 	// Detected first user: request calibration pose detection
