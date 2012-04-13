@@ -40,7 +40,7 @@ void panAngleCallback(const std_msgs::Float64& msg)
 {
 	// Low pass filter - avoid jolts
 	static double lpf   = 0.0;
-	const  double alpha = 0.9;
+	const  double alpha = 0.7;
 	lpf = (lpf)*(1.0-alpha) + (msg.data)*(alpha);
 	
 	// Convert to degrees
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
 	double servo_min_accel, servo_max_accel;
 	CPhidgetAdvancedServo_getAccelerationMin(servo, 0, &servo_min_accel);
 	CPhidgetAdvancedServo_getAccelerationMax(servo, 0, &servo_max_accel);
-	ROS_INFO("[head_driver] Servo accel limits: %.2f < x < %.2f", servo_min_accel, servo_max_accel);
+	ROS_INFO_STREAM(boost::format("[head_driver] Servo accel limits: %.2f < x < %.2f") % servo_min_accel % servo_max_accel);
 	
 	if( pan_acc_max > servo_max_accel ){
 		ROS_WARN("[head_driver] Servo accel to high, clamping to acceptable value.");
@@ -190,6 +190,8 @@ int main(int argc, char** argv)
 	CPhidgetAdvancedServo_setAcceleration  (servo, 0, pan_acc_max);
 	CPhidgetAdvancedServo_setVelocityLimit (servo, 0, pan_vel_max);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
+	
+	CPhidgetAdvancedServo_setServoType(servo, 0, PHIDGET_SERVO_HITEC_HS485HB);
 	
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
