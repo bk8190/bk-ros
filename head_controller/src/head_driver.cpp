@@ -38,8 +38,13 @@ double fromServoFrame(double angle)
 
 void panAngleCallback(const std_msgs::Float64& msg)
 {
+	// Low pass filter - avoid jolts
+	static double lpf   = 0.0;
+	const  double alpha = 0.9;
+	lpf = (lpf)*(1.0-alpha) + (msg.data)*(alpha);
+	
 	// Convert to degrees
-	desired_pan_ = (msg.data*180.0/pi);
+	desired_pan_ = (lpf*180.0/pi);
 }
 
 // Called when a Phidget is attached
@@ -165,6 +170,8 @@ int main(int argc, char** argv)
 	//Display the properties of the attached device
 	display_properties(servo);
 	
+	CPhidgetAdvancedServo_setServoType(servo, 0, PHIDGET_SERVO_HITEC_HS485HB);
+	
 	//Set up the servo's velocity and acceleration limits
 	double servo_min_accel, servo_max_accel;
 	CPhidgetAdvancedServo_getAccelerationMin(servo, 0, &servo_min_accel);
@@ -186,8 +193,6 @@ int main(int argc, char** argv)
 	
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
-	
-	CPhidgetAdvancedServo_setServoType(servo, 0, PHIDGET_SERVO_HITEC_HS485HB);
 	
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
 	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
