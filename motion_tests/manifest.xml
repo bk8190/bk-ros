@@ -10,6 +10,8 @@
   <url>http://ros.org/wiki/motion_tests</url>
   
   <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="nav_msgs"/>
   <depend package="geometry_msgs"/>
 
 </package>
