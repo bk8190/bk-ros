@@ -37,6 +37,7 @@
 #include <vector>
 #include <map>
 
+#include <std_msgs/Float64.h>
 #include <sensor_msgs/PointCloud.h>
 #include <geometry_msgs/PointStamped.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -95,7 +96,7 @@ XnBool g_bPrintState     = true;
 XnBool g_bPause          = false;
 
 // ROS stuff
-ros::Publisher cloud_pub_, pos_pub_;
+ros::Publisher cloud_pub_, pos_pub_, has_lock_pub_;
 std::string    frame_id_;
 tf::TransformListener* tfl_;
 
@@ -349,7 +350,8 @@ void glutDisplay (void)
 	double       pixel_area;
 	cv::Scalar   s;
 	vector<user> users;
-	
+	bool has_lock = false;
+		
 	if( now_time-last_pub > pub_interval )
 	{
 		last_pub = now_time;
@@ -448,6 +450,7 @@ void glutDisplay (void)
 					if( u.distance < closest.distance ) {	closest = u; }
 				}
 			
+			
 				if( closest.distance < association_dist_  )
 				{
 					// Convert to a PositionMeasurement message
@@ -466,6 +469,7 @@ void glutDisplay (void)
 				  pos.covariance[6] = 0.0;          pos.covariance[7] = 0.0;          pos.covariance[8] = 0.40;
 				  
 				  pos_pub_.publish(pos);
+				  has_lock = true;
 				  ROS_DEBUG_STREAM(boost::format("Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d)") % pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid);
 				}
 				else
@@ -480,7 +484,11 @@ void glutDisplay (void)
 		// Visualization
 		cloud_pub_.publish(cloud);
 	
+		std_msgs::Float64 b;
+		b.data = (has_lock ? 1.0 : 0.0 );
+		has_lock_pub_.publish(b);
 	}
+	
 	
 	// Draw OpenGL display
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -601,7 +609,9 @@ int main(int argc, char **argv)
 	
 	// Advertise a position measure message.
 	pos_pub_ = nh_.advertise<people_msgs::PositionMeasurement>("/people_tracker_measurements",1);
-    
+  
+  has_lock_pub_ = nh_.advertise<std_msgs::Float64>("bk_skeletal_tracker/has_lock", 0);
+  
 	// Subscribe to people tracker filter state
 	latest_tracker_.first = "";
 	ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
