@@ -7,7 +7,7 @@
 		
 		<remap from="/pan_command" to="/head_controller/pan_command"/>
 		
-		<param name="loop_rate"        value="40.0"        />
+		<param name="loop_rate"        value="20.0"        />
 		<param name="parent_tf_frame"  value="pan_link"    />
 		<param name="child_tf_frame"   value="camera_link" />
 		
@@ -16,7 +16,7 @@
 		<param name="pan_angle_min"    value="0.0"         />
 		<param name="pan_angle_max"    value="180.0"       />
 		<param name="pan_vel_max"      value="40.0"        />
-		<param name="pan_acc_max"      value="90.0"        />
+		<param name="pan_acc_max"      value="40.0"        />
 		<param name="feedforward_kv"   value="-0.00"       />
 	</node>
 	
