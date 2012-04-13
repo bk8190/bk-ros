@@ -28,12 +28,12 @@ double toServoFrame(double angle)
 		angle = pan_ang_max_;
 	}
 	
-	return angle;
+	return pan_ang_max_-angle;
 }
 
 double fromServoFrame(double angle)
 {
-	return angle - pan_ang_center_;
+	return (pan_ang_max_ - angle) - pan_ang_center_;
 }
 
 void panAngleCallback(const std_msgs::Float64& msg)
@@ -119,6 +119,8 @@ int main(int argc, char** argv)
 	nh.param<std::string>("child_tf_frame" , child_frame  , "NULL");
 	ROS_INFO("[head_driver] Broadcasting TF from \"%s\" to \"%s\"",	parent_frame.c_str(), child_frame.c_str());
 	
+	double feedforward_kv;
+	
 	// Constraints on pan velocity and acceleration
 	double pan_vel_max, pan_acc_max;
 	nh.param("pan_angle_center", pan_ang_center_,  90.0);
@@ -126,8 +128,10 @@ int main(int argc, char** argv)
 	nh.param("pan_angle_max"   , pan_ang_max_   , 180.0);
 	nh.param("pan_vel_max"     , pan_vel_max    ,   0.0);
 	nh.param("pan_acc_max"     , pan_acc_max    ,   0.0);
+	nh.param("feedforward_kv"  , feedforward_kv ,   0.0);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
 	ROS_INFO("[head_driver] Angle min: %.2f center: %.2f max: %.2f", pan_ang_min_, pan_ang_center_, pan_ang_max_);
+	ROS_INFO_STREAM(boost::format("[head_driver] Feedforward KV = %.3f") %feedforward_kv);
 	
 	// Control loop rate
 	double loop_rate_dbl;
@@ -182,6 +186,9 @@ int main(int argc, char** argv)
 	
 	// Center the servo, engage the drive.
 	CPhidgetAdvancedServo_setSpeedRampingOn(servo, 0, 1);
+	
+	CPhidgetAdvancedServo_setServoType(servo, 0, PHIDGET_SERVO_HITEC_HS485HB);
+	
 	CPhidgetAdvancedServo_setEngaged (servo, 0, 1);
 	CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(0.0));
 
@@ -229,14 +236,17 @@ int main(int argc, char** argv)
 		
 		// Send the commanded angle to the servo
 		//valid range is -23 to 232, but for most motors ~30-210
-		//ROS_INFO_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
+		ROS_DEBUG_THROTTLE(1,"[head_driver] Commanded angle %.2f (%.2f in servo frame)", desired_pan_, toServoFrame(desired_pan_));
 		CPhidgetAdvancedServo_setPosition(servo, 0, toServoFrame(desired_pan_));
 		
 		// Publish a transform encorporating the actual position of the servo
 		// No translation, one degree of rotation (pan).
 		transform.setOrigin(tf::Vector3(0.0, 0.0, 0.0) );
-		transform.setRotation( tf::Quaternion(fromServoFrame(curr_pos)*pi/180, 0.0, 0.0) );
+		double corrected_pos = fromServoFrame(curr_pos) + curr_vel*feedforward_kv;
+		transform.setRotation( tf::Quaternion(corrected_pos*pi/180, 0.0, 0.0) );
 		br.sendTransform( tf::StampedTransform(transform, ros::Time::now(), parent_frame, child_frame ));
+		
+		ROS_DEBUG_STREAM(boost::format("[head_driver] Position is %.3f, %.3f with FF") %fromServoFrame(curr_pos) %corrected_pos);
 		
 		// Allow callbacks to occur, and sleep to enforce the desired rate.
 		loop_rate.sleep();

@@ -12,11 +12,12 @@
 		<param name="child_tf_frame"   value="camera_link" />
 		
 		<!-- Parameters for the head controller servo -->
-		<param name="pan_angle_center" value="109.0"       />
+		<param name="pan_angle_center" value="90.0"       />
 		<param name="pan_angle_min"    value="0.0"         />
-		<param name="pan_angle_max"    value="195.0"       />
+		<param name="pan_angle_max"    value="180.0"       />
 		<param name="pan_vel_max"      value="40.0"        />
-		<param name="pan_acc_max"      value="90.0"       />
+		<param name="pan_acc_max"      value="90.0"        />
+		<param name="feedforward_kv"   value="-0.00"       />
 	</node>
 	
 	
