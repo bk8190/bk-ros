@@ -1,0 +1,4 @@
+<!---->
+<launch>
+	<node pkg="rxtools" type="rxplot" name="kinect_performance" args="--period=15 /bk_skeletal_tracker/has_lock/data /odom/twist/twist/linear/x,/odom/twist/twist/angular/z /head_controller/head_driver/head_speed/angular/z,/head_controller/head_driver/head_pos/angular/z /head_controller/head_driver/head_current/data --legend=target_lock,vel_x,vel_z,head_speed,head_pos,head_current" />
+</launch>

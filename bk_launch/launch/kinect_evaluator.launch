@@ -1,0 +1,6 @@
+<!-- -->
+<launch>
+	<node pkg="motion_tests" type="kinect_evaluation" name="kinect_evaluation" output="screen">
+		<param name="loop_rate" type="double" value="10.0"/>
+	</node>
+</launch>
