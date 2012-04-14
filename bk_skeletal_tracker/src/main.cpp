@@ -373,10 +373,8 @@ void glutDisplay (void)
 			this_user.silhouette_area = 0;
 		
 			// Find the area of the silhouette in cartesian space
-			for( int i=0; i<this_mask.rows; i++)
-			{
-				for( int j=0; j<this_mask.cols; j++ )
-				{
+			for( int i=0; i<this_mask.rows; i++) {
+				for( int j=0; j<this_mask.cols; j++ ) {
 					if( this_mask.at<uchar>(i,j) != 0 )
 					{
 						pixel_area = cam_model_.getDeltaX(1, depth_image.at<float>(i,j))
@@ -385,34 +383,26 @@ void glutDisplay (void)
 					}
 				}
 			}
-		
-			/*
-			pixel_area = cam_model_.getDeltaX(1, this_user.meandepth)
-				         * cam_model_.getDeltaY(1, this_user.meandepth);
-			this_user.silhouette_area = this_user.numpixels * pixel_area;*/
-		
 			// Find the center in 3D
 			g_UserGenerator.GetCoM(this_user.uid, center_mass);
 			this_user.center3d.point = vecToPt(center_mass);
-		
-			// Visualization
-			geometry_msgs::Point32 p;
-			p.x = this_user.center3d.point.x;
-			p.y = this_user.center3d.point.y;
-			p.z = this_user.center3d.point.z;
-			if( this_user.numpixels > 1 )
-			{
-				cloud.points.push_back(p);
-				cloud.channels[0].values.push_back(1.0f);
-			}
 		
 			ROS_DEBUG_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
 				% (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 		
 			// Screen out unlikely users
-			if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ ) {
+			if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ )
+			{
 				ROS_DEBUG("Accepted user");
 				users.push_back(this_user);
+				
+				// Visualization
+				geometry_msgs::Point32 p;
+				p.x = this_user.center3d.point.x;
+				p.y = this_user.center3d.point.y;
+				p.z = this_user.center3d.point.z;
+				cloud.points.push_back(p);
+				cloud.channels[0].values.push_back(0.0f);
 			}
 		}
 	
@@ -471,6 +461,14 @@ void glutDisplay (void)
 				  pos_pub_.publish(pos);
 				  has_lock = true;
 				  ROS_DEBUG_STREAM(boost::format("Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d)") % pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid);
+				  
+					// Visualization
+					geometry_msgs::Point32 p;
+					p.x = pos.pos.x;
+					p.y = pos.pos.y;
+					p.z = pos.pos.z;
+					cloud.points.push_back(p);
+					cloud.channels[0].values.push_back(1.0f);
 				}
 				else
 					ROS_DEBUG_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
