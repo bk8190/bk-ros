@@ -17,28 +17,24 @@ void personPosCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr&
 {
 	latest_person_.header = msg->header;
 	latest_person_.pose   = msg->pose.pose;
-	
 	ROS_DEBUG("[kinect_evaluation] Got person");
 }
 
 void headSpeedCallback(const geometry_msgs::Twist::ConstPtr& msg)
 {
 	latest_head_speed_ = *msg;
-	
-	ROS_DEBUG("[kinect_evaluation] Got person");
+	ROS_DEBUG("[kinect_evaluation] Got head speed");
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
 	latest_odom_ = *msg;
-	
 	ROS_DEBUG("[kinect_evaluation] Got odom");
 }
 
 void hasLockCallback(const std_msgs::Float64::ConstPtr& msg)
 {
 	has_lock_ = (msg->data) > 0.5;
-	
 	ROS_DEBUG_STREAM("[kinect_evaluation] Got lock = " << (has_lock_ ? "True" : "False") );
 }
 
@@ -83,15 +79,10 @@ int main(int argc, char **argv)
 		  % (total_time.toSec()) % doody_cycle );
 		
 		
-		// Record some data
+		// If we just acquired or dropped the target, record the conditions when it happened
 		if( prev_has_lock != has_lock_ )
 		{
-			if(has_lock_) {
-				ss << "add,";
-			} else {
-				ss << "drop,";
-			}
-			
+			ss << (has_lock_ ? "add" : "drop");
 			ss << boost::format("%.3f,") % total_time.toSec();
 			ss << boost::format("%.3f,") % latest_odom_.twist.twist.linear.x;
 			ss << boost::format("%.3f,") % latest_odom_.twist.twist.angular.z;
@@ -104,9 +95,8 @@ int main(int argc, char **argv)
 		string s = ss.str();
 		ROS_INFO_STREAM(s);
 		
-		// Sleep to enforce loop rate and allow callbacks to occur
-		loop_rate.sleep();
-		ros::spinOnce();
+		loop_rate.sleep(); // Sleep to enforce loop rate
+		ros::spinOnce();   //  Allow callbacks to occur
 		
 		if( loop_rate.cycleTime() > loop_rate.expectedCycleTime() ) {
 			ROS_WARN_STREAM(boost::format("[kinect_evaluation] Missed update rate of %.3f sec, took %.3f sec")
