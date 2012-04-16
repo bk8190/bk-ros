@@ -7,7 +7,7 @@
 		
 		<remap from="/pan_command" to="/head_controller/pan_command"/>
 		
-		<param name="loop_rate"        value="20.0"        />
+		<param name="loop_rate"        value="30.0"        />
 		<param name="parent_tf_frame"  value="pan_link"    />
 		<param name="child_tf_frame"   value="camera_link" />
 		
@@ -15,9 +15,9 @@
 		<param name="pan_angle_center" value="90.0"       />
 		<param name="pan_angle_min"    value="0.0"         />
 		<param name="pan_angle_max"    value="180.0"       />
-		<param name="pan_vel_max"      value="40.0"        />
-		<param name="pan_acc_max"      value="40.0"        />
-		<param name="feedforward_kv"   value="-0.00"       />
+		<param name="pan_vel_max"      value="50.0"        />
+		<param name="pan_acc_max"      value="90.0"        /> <!-- 90 -->
+		<param name="feedforward_kv"   value="-0.05"       />
 	</node>
 	
 	
@@ -32,7 +32,7 @@
 	
 	
 	<!-- Node plots the position, velocity, and acceleration of the head mount -->
-	<node pkg="rxtools" type="rxplot" name="head_status" ns="head_controller/head_driver" args="head_pos/angular/z,head_des_pos/angular/z,head_speed/angular/z head_current/data --period=10 --title=Head_status --legend=Position,Goal,Velocity,Amps" />
+	<node pkg="rxtools" type="rxplot" name="head_status" ns="head_controller/head_driver" args="head_pos/angular/z,head_des_pos/angular/z,head_error/angular/z,head_speed/angular/z head_current/data --period=10 --title=Head_status --legend=Position,Goal,Error,Velocity,Amps" />
 	
 	
 	<!-- Node allows pan platform to be controlled from rviz (for debugging) -->
