@@ -65,7 +65,7 @@ class PointHeadNode():
 
 
 	def update_target_point(self, msg):
-		#rospy.loginfo("[point_head] Got new pose in frame " + msg.header.frame_id )#+ ":\n" +  str(msg.pose.pose.position))
+		rospy.logdebug("[point_head] Got new pose in frame " + msg.header.frame_id )#+ ":\n" +  str(msg.pose.pose.position))
 		self.target_point        = PointStamped()
 		self.target_point.point  = msg.pose.pose.position
 		self.target_point.header = msg.header
@@ -79,7 +79,6 @@ class PointHeadNode():
 	def transform_target_point(self, target):
 		# Set the pan reference frame to the head_pan_frame defined above
 		pan_ref_frame = self.head_pan_frame
-		#rospy.Time common_time(0)
 		
 		# Make sure the TF is available
 		try:
