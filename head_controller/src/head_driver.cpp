@@ -114,6 +114,7 @@ int main(int argc, char** argv)
 	// Publish the state of the servo for diagnostics
 	ros::Publisher head_des_pos_pub = nh.advertise<Twist>("head_des_pos"  , 1);
 	ros::Publisher head_pos_pub     = nh.advertise<Twist>("head_pos"  , 1);
+	ros::Publisher head_error_pub   = nh.advertise<Twist>("head_error", 1);
 	ros::Publisher head_speed_pub   = nh.advertise<Twist>("head_speed", 1);
 	ros::Publisher head_accel_pub   = nh.advertise<Twist>("head_accel", 1);
 	ros::Publisher head_current_pub = nh.advertise<std_msgs::Float64>("head_current", 1);
@@ -207,7 +208,8 @@ int main(int argc, char** argv)
 	while( ros::ok() )
 	{
 		//Get current motor position, publish the current kinematics for diagnostics
-		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK) {
+		if(CPhidgetAdvancedServo_getPosition(servo, 0, &curr_pos) == EPHIDGET_OK)
+		{
 			CPhidgetAdvancedServo_getVelocity    (servo, 0, &curr_vel);
 			CPhidgetAdvancedServo_getAcceleration(servo, 0, &curr_acc);
 			CPhidgetAdvancedServo_getCurrent     (servo, 0, &curr_curr);
@@ -232,6 +234,9 @@ int main(int argc, char** argv)
 			
 			twist.angular.z = curr_acc;
 			head_accel_pub.publish(twist);
+			
+			twist.angular.z = desired_pan_ - fromServoFrame(curr_pos);
+			head_error_pub.publish(twist);
 			
 			std_msgs::Float64 f;
 			f.data = curr_curr;
