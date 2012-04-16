@@ -106,9 +106,7 @@ int main(int argc, char** argv)
 
 	while(ros::ok())
 	{
-		elapsed_secs      = (ros::Time::now() - t0).toSec();
-		pose.header.stamp = ros::Time::now();
-		pose_cov.header   = pose.header;
+		elapsed_secs = (ros::Time::now() - t0).toSec();
 		
 		if( s ==  "sin_in_place" ) {
 			cmd_vel = sinInPlace(elapsed_secs, amplitude, vmax);
@@ -122,15 +120,17 @@ int main(int argc, char** argv)
 		}
 		cmd_vel_pub.publish(cmd_vel);
 		
-		ROS_INFO("%5.2f: lin = %5.2f ang = %5.2f", elapsed_secs, cmd_vel.linear.x, cmd_vel.angular.z);
-		
 		// Tell the head where to point
 		if( pub_person )
 		{
+			pose.header.stamp = ros::Time::now();
+			pose_cov.header   = pose.header;
+			
 			head_pos_pub.publish(pose_cov);
 			head_pos_pub_no_cov.publish(pose);
 		}
 		
+		ROS_INFO("%6.2f: lin = %5.2f ang = %5.2f", elapsed_secs, cmd_vel.linear.x, cmd_vel.angular.z);
 		loop_rate.sleep();
 	}
 	
