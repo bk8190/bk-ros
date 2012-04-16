@@ -1,0 +1,11 @@
+<!-- -->
+<launch>
+	<node pkg="motion_tests" type="motion_tests" name="motion_tests" output="screen" args="sin_in_place">
+		<param name="loop_rate"  type="double" value="20.0"        />
+		<param name="mode"       type="string" value="sin_in_place"/>
+		<param name="pub_person" type="bool"   value="true"        />
+		
+		<param name="amplitude"  type="double" value="1.507"       />
+		<param name="vmax"       type="double" value="0.8"         />
+	</node>
+</launch>
