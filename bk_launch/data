@@ -1,0 +1,11 @@
+speedmax,anglemax,dutycycle
+Notes: Above .5, great flickering if person walks counter to rotation, 
+Person shifting from foot-foot, keeping time with robot
+Tipping point is around .6rad/sec
+0.3, 1, .99
+0.5, 1, .97
+0.6, 1, .94 .87
+0.7, 1, .89, .82
+0.8, 1, .78,
+0.9, 1, .35
+1.0, 1, .20 .15
