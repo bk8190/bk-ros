@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 		}
 		
 		string s = ss.str();
-		ROS_INFO_STREAM(s);
+		ROS_DEBUG_STREAM(s);
 		
 		loop_rate.sleep(); // Sleep to enforce loop rate
 		ros::spinOnce();   //  Allow callbacks to occur
