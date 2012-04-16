@@ -133,8 +133,8 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 {
 	boost::mutex::scoped_lock pos_lock(pos_mutex_);
 	
-	string msg = str(boost::format("[bk_skeletal_tracker] Position measurement \"%s\" (%.2f,%.2f,%.2f) - ")
-	            % pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y % pos_ptr->pos.z);
+	string msg = str(boost::format("[bk_skeletal_tracker] Position measurement \"%s\" (%.2f,%.2f) - ")
+	            % pos_ptr->object_id.c_str() % pos_ptr->pos.x % pos_ptr->pos.y );
 	                 
 	RestampedPositionMeasurement rpm;
 	rpm.pos     = *pos_ptr;
@@ -148,13 +148,9 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 		msg += "New object";
 		ROS_DEBUG_STREAM(msg);
 	}
-	else if (true || (pos_ptr->header.stamp - latest_tracker_.second.pos.header.stamp) > ros::Duration().fromSec(-1.0) ) {
+	else {
 		latest_tracker_.second = rpm;
 		msg += "Existing object";
-		ROS_DEBUG_STREAM(msg);
-	}
-	else {
-		msg += "Old object, not updating";
 		ROS_DEBUG_STREAM(msg);
 	}
 }
@@ -350,10 +346,10 @@ void glutDisplay (void)
 	double       pixel_area;
 	cv::Scalar   s;
 	vector<user> users;
-	bool has_lock = false;
 		
 	if( now_time-last_pub > pub_interval )
 	{
+		bool has_lock = false;
 		last_pub = now_time;
 		ROS_DEBUG_STREAM(num_skipped << " refreshes inbetween publishing");
 		num_skipped = 0;
@@ -410,24 +406,35 @@ void glutDisplay (void)
 		// Try to associate the tracker with a user
 		if( latest_tracker_.first != "" )
 		{
+			/*ROS_DEBUG_STREAM(boost::format("(finding) Before TF: (%.2f,%.2f) frame \"%s\"")
+			  % latest_tracker_.first % latest_tracker_.second.pos.pos.x % latest_tracker_.second.pos.header.frame_id);*/
+		
 			// Transform the tracker to this time. Note that the pos time is updated but not the restamp.
 			tf::Point pt;
 			tf::pointMsgToTF(latest_tracker_.second.pos.pos, pt);
 			tf::Stamped<tf::Point> loc(pt, latest_tracker_.second.pos.header.stamp, latest_tracker_.second.pos.header.frame_id);
 			try {
-				tfl_->transformPoint(frame_id_, now_time-ros::Duration(.2), loc, "odom", loc);
-				latest_tracker_.second.pos.header.stamp = now_time;
-				latest_tracker_.second.pos.pos.x        = loc[0];
-				latest_tracker_.second.pos.pos.y        = loc[1];
-				latest_tracker_.second.pos.pos.z        = loc[2];
+				tfl_->transformPoint(frame_id_, now_time-ros::Duration(.1), loc, latest_tracker_.second.pos.header.frame_id, loc);
+				latest_tracker_.second.pos.header.stamp    = now_time;
+				latest_tracker_.second.pos.header.frame_id = frame_id_;
+				latest_tracker_.second.pos.pos.x = loc[0];
+				latest_tracker_.second.pos.pos.y = loc[1];
+				latest_tracker_.second.pos.pos.z = loc[2];
 			}
 			catch (tf::TransformException& ex) {
-				ROS_WARN("Could not transform person to this time");
+				ROS_ERROR("(finding) Could not transform person to this time");
 			}
 	
+			/*ROS_DEBUG_STREAM(boost::format("(finding) After TF: (%.2f,%.2f) frame \"%s\"")
+			  % latest_tracker_.first % latest_tracker_.second.pos.pos.x  % latest_tracker_.second.pos.header.frame_id);*/
+			  
 			people_msgs::PositionMeasurement pos;
 			if( users.size() > 0 )
 			{
+				std::stringstream users_ss;
+				users_ss << boost::format("(finding) Tracker \"%s\" = (%.2f,%.2f) Users = ") 
+					% latest_tracker_.first % latest_tracker_.second.pos.pos.x   % latest_tracker_.second.pos.pos.y;
+			
 				// Find the closest user to the tracker
 				user closest;
 				closest.distance = BIGDIST_M;
@@ -436,9 +443,15 @@ void glutDisplay (void)
 				{
 					u.distance = pow(latest_tracker_.second.pos.pos.x - u.center3d.point.x, 2.0)
 						         + pow(latest_tracker_.second.pos.pos.y - u.center3d.point.y, 2.0);
-						         
+					
+					users_ss << boost::format("(%.2f,%.2f), ")
+				                % u.center3d.point.x % u.center3d.point.y;
+					
 					if( u.distance < closest.distance ) {	closest = u; }
 				}
+				
+				string users_s = users_ss.str();
+				ROS_DEBUG_STREAM(users_s);
 			
 			
 				if( closest.distance < association_dist_  )
@@ -460,7 +473,8 @@ void glutDisplay (void)
 				  
 				  pos_pub_.publish(pos);
 				  has_lock = true;
-				  ROS_DEBUG_STREAM(boost::format("Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d)") % pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid);
+				  ROS_DEBUG_STREAM(boost::format("(finding) Published measurement for person \"%s\" at (%.2f,%.2f,%.2f) (user %d) distance %.2f")
+				  	%pos.object_id %pos.pos.x %pos.pos.y %pos.pos.z %closest.uid %closest.distance );
 				  
 					// Visualization
 					geometry_msgs::Point32 p;
@@ -471,17 +485,19 @@ void glutDisplay (void)
 					cloud.channels[0].values.push_back(1.0f);
 				}
 				else
-					ROS_DEBUG_STREAM(boost::format("No association (distance %.2f)") %closest.distance );
+					ROS_DEBUG_STREAM(boost::format("(finding) No association (distance %.2f) ")
+						%closest.distance );
 			}
 			else
-				ROS_DEBUG("No users");
+				ROS_DEBUG("(finding) No users");
 		}
 		else
-			ROS_DEBUG("No tracker");
+			ROS_DEBUG("(finding) No tracker");
 	
 		// Visualization
 		cloud_pub_.publish(cloud);
-	
+		
+		ROS_DEBUG_STREAM("(finding) lock = " << (has_lock ? "true" : "false" ) );
 		std_msgs::Float64 b;
 		b.data = (has_lock ? 1.0 : 0.0 );
 		has_lock_pub_.publish(b);
