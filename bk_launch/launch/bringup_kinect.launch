@@ -29,6 +29,6 @@
 	
 	
 	<!-- Nodes that control the Kinect's pan mount and associated transforms -->
-	<include file="$(find bk_launch)/launch/head_controller.launch"/>
+	<!--include file="$(find bk_launch)/launch/head_controller.launch"/-->
 	
 </launch>
