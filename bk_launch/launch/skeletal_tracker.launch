@@ -31,7 +31,7 @@
     <param name="max_area" value="1.5"/>
     
     <param name="match_threshold" value="0.8"/>
-    <param name="hist_h_bins" value="60"/>
-    <param name="hist_s_bins" value="60"/>
+    <param name="hist_h_bins" value="20"/>
+    <param name="hist_s_bins" value="20"/>
   </node>
 </launch>
