@@ -10,6 +10,7 @@
 const double pi = 3.1415926;
 double desired_pan_ = 0.0;
 double actual_pan_ = 0.0;
+double lpf_alpha_;
 
 using geometry_msgs::Twist;
 using geometry_msgs::Vector3;
@@ -40,8 +41,7 @@ void panAngleCallback(const std_msgs::Float64& msg)
 {
 	// Low pass filter - avoid jolts
 	static double lpf   = 0.0;
-	const  double alpha = 0.7;
-	lpf = (lpf)*(1.0-alpha) + (msg.data)*(alpha);
+	lpf = (lpf)*(1.0-lpf_alpha_) + (msg.data)*(lpf_alpha_);
 	
 	// Convert to degrees
 	desired_pan_ = (lpf*180.0/pi);
@@ -135,9 +135,10 @@ int main(int argc, char** argv)
 	nh.param("pan_vel_max"     , pan_vel_max    ,   0.0);
 	nh.param("pan_acc_max"     , pan_acc_max    ,   0.0);
 	nh.param("feedforward_kv"  , feedforward_kv ,   0.0);
+	nh.param("lpf_alpha"       , lpf_alpha_     ,   1.0);
 	ROS_INFO("[head_driver] Accel: %.2f, Velocity: %.2f", pan_acc_max, pan_vel_max);
 	ROS_INFO("[head_driver] Angle min: %.2f center: %.2f max: %.2f", pan_ang_min_, pan_ang_center_, pan_ang_max_);
-	ROS_INFO_STREAM(boost::format("[head_driver] Feedforward KV = %.3f") %feedforward_kv);
+	ROS_INFO_STREAM(boost::format("[head_driver] Feedforward KV = %.3f LPF alpha = %.2f") %feedforward_kv %lpf_alpha_);
 	
 	// Control loop rate
 	double loop_rate_dbl;
