@@ -59,7 +59,6 @@
 #define GL_WIN_SIZE_X 720
 #define GL_WIN_SIZE_Y 480
 
-using PersonCharacteristics::PersonCharacteristics;
 using std::string;
 using std::vector;
 using std::pair;
@@ -81,7 +80,7 @@ XnChar g_strPose[20] = "";
 XnBool      g_bhasCal = false;
 XnUserID    first_calibrated_user_;
 double smoothing_factor_;
-PersonCharacteristics::PersonCharacteristics user_characteristics_;
+PersonCharacteristics user_characteristics_, original_characteristics_;
 
 // Controls what is drawn to the screen
 XnBool g_bDrawBackground = true;
@@ -153,7 +152,7 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 
 struct user
 {
-	PersonCharacteristics::PersonCharacteristics pc;
+	PersonCharacteristics pc;
 	
 	geometry_msgs::PointStamped center3d;
 	XnUserID uid;
@@ -320,8 +319,9 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		cv::Mat rgb = getRGB(imageMD);
 		
 		user_characteristics_.init(rgb, label_image);
+		original_characteristics_.init(rgb, label_image);
 		
-		cv::imshow( "Calibrated user", user_characteristics_.getImage(10) );
+		cv::imshow( "Calibrated user", user_characteristics_.getImage() );
 	}
 	else
 	{
@@ -397,7 +397,7 @@ void glutDisplay (void)
 		ROS_DEBUG_STREAM(num_skipped << " refreshes inbetween publishing");
 		num_skipped = 0;
 		
-		cv::imshow( "Calibrated user", user_characteristics_.getImage(10) );
+		cv::imshow( "Calibrated user", user_characteristics_.getImage() );
 		cv::Mat rgb = getRGB(imageMD);
 		
 		for (unsigned int i = 0; i < nUsers; i++)
@@ -412,14 +412,21 @@ void glutDisplay (void)
 			this_user.pc.init(rgb, this_mask);
 			std::stringstream window_name;
 			window_name << "user_" << ((int)this_user.uid);
-			cv::imshow(window_name.str(), this_user.pc.getImage(10));
+			cv::imshow(window_name.str(), this_user.pc.getImage());
 			
-			double similarity = this_user.pc.compare(user_characteristics_);
-			ROS_INFO_STREAM("User " << ((int)this_user.uid) << " similarity = " << similarity);
+			double similarity  = this_user.pc.compare(user_characteristics_);
+			double sim_to_orig = this_user.pc.compare(original_characteristics_);
 			
-			if( similarity > PersonCharacteristics::match_threshold )
+			ROS_INFO_STREAM(boost::format("User %d: %.2f --- %.2f")
+			  % ((int)this_user.uid) % similarity % sim_to_orig );
+			
+			if( similarity > PersonCharacteristics::getMatchThreshold() )
 			{
 				user_characteristics_.update(rgb, this_mask);
+			}
+			if( sim_to_orig > PersonCharacteristics::getMatchThreshold() )
+			{
+				user_characteristics_ = original_characteristics_;
 			}
 			
 			// Mean depth
@@ -665,7 +672,16 @@ int main(int argc, char **argv)
 	pnh.param("min_area"        , min_area_        , 0.0);
 	pnh.param("max_area"        , max_area_        , 1.0);
 	pnh.param("variance_xy"     , variance_xy_     , 0.3);
-	pnh.param("match_threshold" , PersonCharacteristics::match_threshold , 0.9);
+	
+	double tempdouble;
+	pnh.param("match_threshold" , tempdouble       , 0.9);
+	PersonCharacteristics::setMatchThreshold(tempdouble);
+	
+	int hbins, sbins;
+	pnh.param("hist_h_bins" , hbins       , 30);
+	pnh.param("hist_s_bins" , sbins       , 30);
+	PersonCharacteristics::setHistogramParameters(hbins, sbins);
+	
 	
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Pub rate        = %f"    ) % pub_rate_temp_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Frame_id        = \"%s\"") % frame_id_);
@@ -674,7 +690,7 @@ int main(int argc, char **argv)
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Ass. distance   = %.2f"  ) % association_dist_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Area bounds     = [%.2f,%.2f]" ) % min_area_ %max_area_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] x, y variance   = %.2f"  ) % variance_xy_);
-	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " <<PersonCharacteristics::match_threshold);
+	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " << PersonCharacteristics::getMatchThreshold());
 	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	
