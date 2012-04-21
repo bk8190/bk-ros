@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 	
 	// Give a countdown to start
 	ros::Duration step(1.0);
-	for( Duration t(3.0); t > Duration(0); t -= step ) {
+	for( Duration t(2.0); t > Duration(0); t -= step ) {
 		ROS_INFO_STREAM("Starting in " << (t.toSec()));
 		step.sleep();
 	}
