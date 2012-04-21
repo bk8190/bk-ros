@@ -3,11 +3,17 @@
 	<!-- Kinect driver -->
 	<!--include file="$(find bk_launch)/launch/bringup_kinect.launch" /-->
 	
+	<!-- Setup the debugging prefix -->
+	<arg name="debug" default="false"/>
+	<arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run -args"/>
+	<!--arg if="$(arg debug)" name="launch_prefix" value="xterm -rv -e gdb -ex run -args"/-->
+	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
+
 	<!-- Node that tracks skeletons -->
-  <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen">
+  <node pkg="bk_skeletal_tracker" type="tracker" name="bk_skeletal_tracker" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="camera_frame_id"  value="camera_depth_optical_frame" />
     <param name="smoothing_factor" value="0.90"/>
-    <param name="pub_rate" value="5.0"/>
+    <param name="pub_rate" value="20.0"/>
     
     <param name="reliability" value="0.65"/>
     
@@ -22,6 +28,10 @@
     
     <!-- Constraints on acceptable silhouette area of users -->
     <param name="min_area" value="0.1"/>
-    <param name="max_area" value="0.9"/>
+    <param name="max_area" value="1.5"/>
+    
+    <param name="match_threshold" value="0.8"/>
+    <param name="hist_h_bins" value="60"/>
+    <param name="hist_s_bins" value="60"/>
   </node>
 </launch>
