@@ -44,7 +44,7 @@
 #include "opencv/cv.hpp"
 #include "opencv/highgui.h"
 
-#include "PersonCharacteristics.cpp"
+#include "PersonCal.cpp"
 //---------------------------------------------------------------------------
 // OpenNI includes
 //---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ XnChar g_strPose[20] = "";
 XnBool      g_bhasCal = false;
 XnUserID    first_calibrated_user_;
 double smoothing_factor_;
-PersonCharacteristics user_characteristics_, original_characteristics_;
+PersonCal user_cal_, original_cal_;
 
 // Controls what is drawn to the screen
 XnBool g_bDrawBackground = true;
@@ -152,7 +152,7 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 
 struct user
 {
-	PersonCharacteristics pc;
+	PersonCal pc;
 	
 	geometry_msgs::PointStamped center3d;
 	XnUserID uid;
@@ -305,7 +305,7 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		g_UserGenerator.GetSkeletonCap().SaveCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	
-		// Save the user's characteristics
+		// Save the user's cal
 		
 		// Get mask of this user
 		xn::SceneMetaData sceneMD;
@@ -318,10 +318,10 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		g_ImageGenerator.GetMetaData(imageMD);
 		cv::Mat rgb = getRGB(imageMD);
 		
-		user_characteristics_.init(rgb, label_image);
-		original_characteristics_.init(rgb, label_image);
+		user_cal_.init(rgb, label_image);
+		original_cal_.init(rgb, label_image);
 		
-		cv::imshow( "Calibrated user", user_characteristics_.getImage() );
+		cv::imshow( "Calibrated user", user_cal_.getImage() );
 	}
 	else
 	{
@@ -397,7 +397,10 @@ void glutDisplay (void)
 		ROS_DEBUG_STREAM(num_skipped << " refreshes inbetween publishing");
 		num_skipped = 0;
 		
-		cv::imshow( "Calibrated user", user_characteristics_.getImage() );
+		cv::imshow( "Tracked user", user_cal_.getImage() );
+		cv::waitKey(5);
+		cv::imshow( "Original calibration", original_cal_.getImage() );
+		cv::waitKey(5);
 		cv::Mat rgb = getRGB(imageMD);
 		
 		for (unsigned int i = 0; i < nUsers; i++)
@@ -409,25 +412,10 @@ void glutDisplay (void)
 			this_mask = (label_image == this_user.uid);
 			this_user.numpixels = cv::countNonZero(this_mask);
 			
+			// Compare this user to the target
 			this_user.pc.init(rgb, this_mask);
-			std::stringstream window_name;
-			window_name << "user_" << ((int)this_user.uid);
-			cv::imshow(window_name.str(), this_user.pc.getImage());
-			
-			double similarity  = this_user.pc.compare(user_characteristics_);
-			double sim_to_orig = this_user.pc.compare(original_characteristics_);
-			
-			ROS_INFO_STREAM(boost::format("User %d: %.2f --- %.2f")
-			  % ((int)this_user.uid) % similarity % sim_to_orig );
-			
-			if( similarity > PersonCharacteristics::getMatchThreshold() )
-			{
-				user_characteristics_.update(rgb, this_mask);
-			}
-			if( sim_to_orig > PersonCharacteristics::getMatchThreshold() )
-			{
-				user_characteristics_ = original_characteristics_;
-			}
+			double similarity  = this_user.pc.compare(user_cal_    );
+			double sim_to_orig = this_user.pc.compare(original_cal_);
 			
 			// Mean depth
 			this_user.meandepth = cv::mean(depth_image, this_mask)[0];
@@ -452,9 +440,27 @@ void glutDisplay (void)
 			ROS_DEBUG_STREAM(boost::format("User %d: area %.3fm^2, mean depth %.3fm")
 				% (unsigned int)this_user.uid % this_user.silhouette_area % this_user.meandepth);
 		
-			// Screen out unlikely users
+			// Screen out unlikely users based on area
 			if( this_user.meandepth > min_dist_ && this_user.silhouette_area < max_area_ && this_user.silhouette_area > min_area_ )
 			{
+				ROS_INFO_STREAM(boost::format("User %d   new: %.0f --- orig: %.0f")
+					% ((int)this_user.uid) % (100*similarity) % (100*sim_to_orig) );
+					
+				if( similarity > PersonCal::getMatchThresh() ) {
+					user_cal_.update(rgb, this_mask);
+				}
+				else{
+					if( sim_to_orig > PersonCal::getMatchThresh() ) {
+						ROS_WARN_STREAM("Reset to original calibration");
+						user_cal_ = original_cal_;
+					}
+				}
+			
+				std::stringstream window_name;
+				window_name << "user_" << ((int)this_user.uid);
+				cv::imshow(window_name.str(), this_user.pc.getImage());
+			
+			
 				ROS_DEBUG("Accepted user");
 				users.push_back(this_user);
 				
@@ -675,12 +681,12 @@ int main(int argc, char **argv)
 	
 	double tempdouble;
 	pnh.param("match_threshold" , tempdouble       , 0.9);
-	PersonCharacteristics::setMatchThreshold(tempdouble);
+	PersonCal::setMatchThresh(tempdouble);
 	
 	int hbins, sbins;
 	pnh.param("hist_h_bins" , hbins       , 30);
 	pnh.param("hist_s_bins" , sbins       , 30);
-	PersonCharacteristics::setHistogramParameters(hbins, sbins);
+	PersonCal::setHistogramParameters(hbins, sbins);
 	
 	
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Pub rate        = %f"    ) % pub_rate_temp_);
@@ -690,7 +696,7 @@ int main(int argc, char **argv)
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Ass. distance   = %.2f"  ) % association_dist_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Area bounds     = [%.2f,%.2f]" ) % min_area_ %max_area_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] x, y variance   = %.2f"  ) % variance_xy_);
-	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " << PersonCharacteristics::getMatchThreshold());
+	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " << PersonCal::getMatchThresh());
 	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	

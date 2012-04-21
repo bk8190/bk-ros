@@ -30,8 +30,8 @@ class PersonCal
 			alpha = newalpha;
 		}
 		
-		static double getMatchThreshold(){ return match_threshold; }
-		static void   setMatchThreshold(double newthresh){
+		static double getMatchThresh(){ return match_threshold; }
+		static void   setMatchThresh(double newthresh){
 			CV_Assert(0<newthresh && 1>newthresh);
 			match_threshold = newthresh;
 		}
