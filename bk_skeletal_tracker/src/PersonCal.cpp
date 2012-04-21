@@ -77,6 +77,8 @@ cv::Mat PersonCal::makeHist( cv::Mat rgb, cv::Mat mask )
 	
 	the_hist.at<float>(0,0) = 0;
 	
+	cv::GaussianBlur(the_hist, the_hist, cv::Size(5,5), 2);
+	
 	// Normalize the histogram so it sums to 1
 	cv::normalize( the_hist, the_hist, 0, 1, cv::NORM_MINMAX );
 	

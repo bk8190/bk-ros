@@ -318,10 +318,8 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		g_ImageGenerator.GetMetaData(imageMD);
 		cv::Mat rgb = getRGB(imageMD);
 		
-		user_cal_.init(rgb, label_image);
 		original_cal_.init(rgb, label_image);
-		
-		cv::imshow( "Calibrated user", user_cal_.getImage() );
+		user_cal_ = original_cal_;
 	}
 	else
 	{
@@ -397,10 +395,8 @@ void glutDisplay (void)
 		ROS_DEBUG_STREAM(num_skipped << " refreshes inbetween publishing");
 		num_skipped = 0;
 		
-		cv::imshow( "Tracked user", user_cal_.getImage() );
-		cv::waitKey(5);
+		cv::imshow( "Tracked user"        , user_cal_.getImage() );
 		cv::imshow( "Original calibration", original_cal_.getImage() );
-		cv::waitKey(5);
 		cv::Mat rgb = getRGB(imageMD);
 		
 		for (unsigned int i = 0; i < nUsers; i++)
