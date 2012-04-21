@@ -20,14 +20,6 @@
 *                                                                            *
 *****************************************************************************/
 
-// TODO: Add a meta-reliability layer.  Track each object individually
-// Map varying player IDs (PIDs) to constant UIDs (constant).
-// When a new player appears, check if there is a UID near the detection.
-
-// Clear old UIDs every several seconds
-
-// Transform everything to the map frame, so you have a consistant point of reference
-
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <ros/package.h>
@@ -52,6 +44,7 @@
 #include "opencv/cv.hpp"
 #include "opencv/highgui.h"
 
+#include "PersonCharacteristics.cpp"
 //---------------------------------------------------------------------------
 // OpenNI includes
 //---------------------------------------------------------------------------
@@ -66,6 +59,7 @@
 #define GL_WIN_SIZE_X 720
 #define GL_WIN_SIZE_Y 480
 
+using PersonCharacteristics::PersonCharacteristics;
 using std::string;
 using std::vector;
 using std::pair;
@@ -77,6 +71,7 @@ const double BIGDIST_M = 1000000.0;
 xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
+xn::ImageGenerator g_ImageGenerator;
 
 // Is a pose required for calibration? If so, g_strPose holds its name.
 XnBool g_bNeedPose   = false;
@@ -86,6 +81,7 @@ XnChar g_strPose[20] = "";
 XnBool      g_bhasCal = false;
 XnUserID    first_calibrated_user_;
 double smoothing_factor_;
+PersonCharacteristics::PersonCharacteristics user_characteristics_;
 
 // Controls what is drawn to the screen
 XnBool g_bDrawBackground = true;
@@ -157,6 +153,8 @@ void posCallback(const people_msgs::PositionMeasurementConstPtr& pos_ptr)
 
 struct user
 {
+	PersonCharacteristics::PersonCharacteristics pc;
+	
 	geometry_msgs::PointStamped center3d;
 	XnUserID uid;
 	double distance;
@@ -164,6 +162,7 @@ struct user
 	int    numpixels;
 	double meandepth;
 	double silhouette_area;
+	double similarity; // similarity to target
 };
 
 void CleanupExit()
@@ -188,6 +187,23 @@ geometry_msgs::Point32 vecToPt32(XnVector3D pt) {
 }
 
 
+cv::Mat getRGB(const xn::ImageMetaData& imageMD)
+{
+	CV_Assert(imageMD.PixelFormat() == XN_PIXEL_FORMAT_RGB24);
+	
+	int rows = imageMD.YRes();
+	int cols = imageMD.XRes();
+	cv::Mat rgb(rows, cols, CV_8UC3);
+	//ROS_INFO_STREAM("RGB image is " << rows << "x" << cols);
+	
+	const XnRGB24Pixel* pRgbImage = imageMD.RGB24Data();
+	memcpy( rgb.data, pRgbImage, cols*rows*3*sizeof(uchar) );
+	
+	cv::cvtColor( rgb, rgb, CV_RGB2BGR );
+	
+	return rgb;
+}
+
 void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 {
 	int rows = sceneMD.GetUnderlying()->pMap->Res.Y;
@@ -200,6 +216,7 @@ void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
 	// Convert to 8-bit (we never have more than 8-10 users anyway)
 	tempmat.convertTo(label_image, CV_8U);
 }
+
 
 void getDepthImage(xn::DepthMetaData& depthMD, cv::Mat& depth_image)
 {
@@ -288,6 +305,23 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		first_calibrated_user_ = nId;
 		g_UserGenerator.GetSkeletonCap().SaveCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
+	
+		// Save the user's characteristics
+		
+		// Get mask of this user
+		xn::SceneMetaData sceneMD;
+		cv::Mat label_image;
+		g_UserGenerator.GetUserPixels(0, sceneMD);
+		getUserLabelImage(sceneMD, label_image);
+		label_image = (label_image == nId);
+		
+		xn::ImageMetaData imageMD;
+		g_ImageGenerator.GetMetaData(imageMD);
+		cv::Mat rgb = getRGB(imageMD);
+		
+		user_characteristics_.init(rgb, label_image);
+		
+		cv::imshow( "Calibrated user", user_characteristics_.getImage(10) );
 	}
 	else
 	{
@@ -314,9 +348,18 @@ void glutDisplay (void)
 	ros::Time now_time = ros::Time::now();
 	
 	// Update stuff from OpenNI
-	g_Context.WaitAndUpdateAll();
+//	g_Context.WaitAndUpdateAll();
+	XnStatus status = g_Context.WaitAndUpdateAll();
+	
+	if( status != XN_STATUS_OK ){
+		ROS_ERROR_STREAM("Updating context failed: " << status);
+		return;
+	}
+	
 	xn::SceneMetaData sceneMD;
 	xn::DepthMetaData depthMD;
+	xn::ImageMetaData imageMD;
+	g_ImageGenerator.GetMetaData(imageMD);
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
 	
@@ -347,22 +390,38 @@ void glutDisplay (void)
 	cv::Scalar   s;
 	vector<user> users;
 		
-	if( now_time-last_pub > pub_interval )
+	if( g_bhasCal && now_time-last_pub > pub_interval )
 	{
 		bool has_lock = false;
 		last_pub = now_time;
 		ROS_DEBUG_STREAM(num_skipped << " refreshes inbetween publishing");
 		num_skipped = 0;
 		
+		cv::imshow( "Calibrated user", user_characteristics_.getImage(10) );
+		cv::Mat rgb = getRGB(imageMD);
+		
 		for (unsigned int i = 0; i < nUsers; i++)
 		{
 			user this_user;
 			this_user.uid = aUsers[i];
-		
+			
 			// Bitwise mask of pixels belonging to this user
 			this_mask = (label_image == this_user.uid);
 			this_user.numpixels = cv::countNonZero(this_mask);
-		
+			
+			this_user.pc.init(rgb, this_mask);
+			std::stringstream window_name;
+			window_name << "user_" << ((int)this_user.uid);
+			cv::imshow(window_name.str(), this_user.pc.getImage(10));
+			
+			double similarity = this_user.pc.compare(user_characteristics_);
+			ROS_INFO_STREAM("User " << ((int)this_user.uid) << " similarity = " << similarity);
+			
+			if( similarity > PersonCharacteristics::match_threshold )
+			{
+				user_characteristics_.update(rgb, this_mask);
+			}
+			
 			// Mean depth
 			this_user.meandepth = cv::mean(depth_image, this_mask)[0];
 		
@@ -406,9 +465,6 @@ void glutDisplay (void)
 		// Try to associate the tracker with a user
 		if( latest_tracker_.first != "" )
 		{
-			/*ROS_DEBUG_STREAM(boost::format("(finding) Before TF: (%.2f,%.2f) frame \"%s\"")
-			  % latest_tracker_.first % latest_tracker_.second.pos.pos.x % latest_tracker_.second.pos.header.frame_id);*/
-		
 			// Transform the tracker to this time. Note that the pos time is updated but not the restamp.
 			tf::Point pt;
 			tf::pointMsgToTF(latest_tracker_.second.pos.pos, pt);
@@ -424,9 +480,6 @@ void glutDisplay (void)
 			catch (tf::TransformException& ex) {
 				ROS_ERROR("(finding) Could not transform person to this time");
 			}
-	
-			/*ROS_DEBUG_STREAM(boost::format("(finding) After TF: (%.2f,%.2f) frame \"%s\"")
-			  % latest_tracker_.first % latest_tracker_.second.pos.pos.x  % latest_tracker_.second.pos.header.frame_id);*/
 			  
 			people_msgs::PositionMeasurement pos;
 			if( users.size() > 0 )
@@ -503,6 +556,9 @@ void glutDisplay (void)
 		has_lock_pub_.publish(b);
 	}
 	
+	cv::Mat rgb = getRGB(imageMD);
+	cv::imshow("rgb", rgb);
+	cv::waitKey(5);
 	
 	// Draw OpenGL display
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -609,7 +665,7 @@ int main(int argc, char **argv)
 	pnh.param("min_area"        , min_area_        , 0.0);
 	pnh.param("max_area"        , max_area_        , 1.0);
 	pnh.param("variance_xy"     , variance_xy_     , 0.3);
-	
+	pnh.param("match_threshold" , PersonCharacteristics::match_threshold , 0.9);
 	
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Pub rate        = %f"    ) % pub_rate_temp_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Frame_id        = \"%s\"") % frame_id_);
@@ -618,6 +674,7 @@ int main(int argc, char **argv)
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Ass. distance   = %.2f"  ) % association_dist_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Area bounds     = [%.2f,%.2f]" ) % min_area_ %max_area_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] x, y variance   = %.2f"  ) % variance_xy_);
+	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " <<PersonCharacteristics::match_threshold);
 	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	
@@ -652,6 +709,17 @@ int main(int argc, char **argv)
 	// The configuration should have created a depth generator node
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 	CHECK_RC(nRetVal, "Find depth generator");
+	
+	// The configuration should have created an image generator node
+	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
+	if (nRetVal != XN_STATUS_OK) {
+		nRetVal = g_ImageGenerator.Create(g_Context);
+		ROS_INFO("Creating image generator");
+		CHECK_RC(nRetVal, "Find image generator");
+	} else {
+		ROS_INFO("Found image generator");
+	}
+	g_ImageGenerator.SetPixelFormat(XN_PIXEL_FORMAT_RGB24);
 	
 	// See if a user generator node exists.  If not, create one.
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
