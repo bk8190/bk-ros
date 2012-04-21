@@ -20,8 +20,6 @@ PathChecker::PathChecker(std::string name, boost::shared_ptr<costmap_2d::Costmap
 	ROS_INFO("[path checker] Got max speed (x,th)  =(%.2f,%.2f)", max_speed_.linear.x, max_speed_.angular.z);
 	ROS_INFO("[path checker] Got max accel (x,y,th)=(%.2f,%.2f,%.2f)", max_accel_.linear.x, max_accel_.linear.y, max_accel_.angular.z);
 	ROS_INFO("[path checker] dx= %.2f dth=%.2f", interp_dx_, interp_dth_);
-	
-	ROS_INFO("[path_checker] LETHAL_OBSTACLE=%d", costmap_2d::LETHAL_OBSTACLE);
 }
 
 
