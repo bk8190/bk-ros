@@ -6,7 +6,6 @@ double PersonCal::alpha      = 0.3;
 int    PersonCal::h_bins     = 30;
 int    PersonCal::s_bins     = 32;
 int    PersonCal::hist_scale = 10;
-
 float  PersonCal::h_ranges[] = {0, 180};
 float  PersonCal::s_ranges[] = {0, 256};
 const float* PersonCal::ranges[] = {h_ranges, s_ranges};
@@ -20,8 +19,7 @@ PersonCal::PersonCal():
 
 
 // Constructor takes an RGB image and a mask
-PersonCal::PersonCal( cv::Mat rgb, cv::Mat mask )
-{
+PersonCal::PersonCal( cv::Mat rgb, cv::Mat mask ) {
 	init(rgb, mask);
 }
 
@@ -34,15 +32,13 @@ PersonCal::PersonCal(const PersonCal& other):
 
 
 // Assignment operator
-PersonCal& PersonCal::operator = (const PersonCal& rhs)
-{
+PersonCal& PersonCal::operator = (const PersonCal& rhs) {
 	this->hist        = rhs.hist.clone();
 	this->initialized = rhs.initialized;
 }
 		
 		
-void PersonCal::init( cv::Mat rgb, cv::Mat mask )
-{
+void PersonCal::init( cv::Mat rgb, cv::Mat mask ) {
 	hist = makeHist(rgb, mask);
 	initialized = true;
 }
@@ -54,8 +50,12 @@ void PersonCal::update( cv::Mat image, cv::Mat mask )
 	
 	cv::Mat otherhist = makeHist(image, mask);
 	
-	// Simple LPF
+	// Simple LPF combining my data with the new data
 	hist = (1-alpha)*hist + (alpha)*otherhist;
+	
+	cv::Mat masked;
+	image.copyTo(masked, mask);
+	cv::imshow("masked", masked);
 }
 
 
@@ -77,9 +77,8 @@ cv::Mat PersonCal::makeHist( cv::Mat rgb, cv::Mat mask )
 	
 	the_hist.at<float>(0,0) = 0;
 	
+	// Gaussian blur and normalization
 	cv::GaussianBlur(the_hist, the_hist, cv::Size(5,5), 2);
-	
-	// Normalize the histogram so it sums to 1
 	cv::normalize( the_hist, the_hist, 0, 1, cv::NORM_MINMAX );
 	
 	return the_hist;
@@ -96,9 +95,8 @@ float PersonCal::compare(  const PersonCal& other )
 }
 
 
-bool PersonCal::matches( const PersonCal& other )
-{
-	return this->compare(other) > match_threshold;
+bool PersonCal::matches( const PersonCal& other ) {
+	return (this->compare(other)) > match_threshold;
 }
 
 
@@ -119,14 +117,22 @@ cv::Mat PersonCal::getImage()
 			float binVal = hist.at<float>(h, s);
 			int intensity = cvRound(binVal*255/maxVal);
 			
-			cv::rectangle( histImg, cv::Point(h*hist_scale, s*hist_scale),
-			               cv::Point( (h+1)*hist_scale-1, (s+1)*hist_scale-1 ),
-			               cv::Scalar::all(intensity),
-			               CV_FILLED );
+			int hue = cvRound( (((double)(h+1))/((double)h_bins))*(180.0) );
+			int sat = cvRound( (((double)(s+1))/((double)s_bins))*(256.0) );
+			cv::Scalar color(hue, sat, intensity);
+			
+			cv::Point p1( h   *hist_scale  ,  s   *hist_scale  );
+			cv::Point p2((h+1)*hist_scale-1, (s+1)*hist_scale-1);
+			
+//			cv::rectangle( histImg, p1, p2, cv::Scalar::all(intensity), CV_FILLED );
+			cv::rectangle( histImg, p1, p2, color, CV_FILLED );
 		}
 	}
 	
-	return histImg;
+	cv::Mat retImg;
+	cv::cvtColor(histImg, retImg, CV_HSV2BGR);
+	
+	return retImg;
 }
 
 

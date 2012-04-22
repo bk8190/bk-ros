@@ -42,6 +42,9 @@ class PersonCal
 	private:
 		// Histogram in hue-saturation space
 		cv::Mat hist;
+		
+		// True if "init" or constructor taking arguments was called
+		// Must be true to use update, compare, matches, or getImage
 		bool    initialized;
 		
 		/* Static member variables and functions */
