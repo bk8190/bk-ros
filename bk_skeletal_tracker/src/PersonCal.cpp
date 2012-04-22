@@ -35,6 +35,7 @@ PersonCal::PersonCal(const PersonCal& other):
 PersonCal& PersonCal::operator = (const PersonCal& rhs) {
 	this->hist        = rhs.hist.clone();
 	this->initialized = rhs.initialized;
+	return *this;
 }
 		
 		

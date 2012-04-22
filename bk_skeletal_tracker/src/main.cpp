@@ -43,6 +43,8 @@
 //#include "opencv/cxcore.hpp"
 #include "opencv/cv.hpp"
 #include "opencv/highgui.h"
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
 
 #include "PersonCal.cpp"
 //---------------------------------------------------------------------------
@@ -98,6 +100,9 @@ tf::TransformListener* tfl_;
 double pub_rate_temp_;
 image_geometry::PinholeCameraModel cam_model_;
 bool got_cam_info_;
+cv::Mat latest_rgb_;
+bool got_rgb_;
+double rgb_shift_h, rgb_shift_v, rgb_scale_z;
 
 double association_dist_, min_dist_, min_area_, max_area_, reliability_;
 double variance_xy_;
@@ -186,21 +191,74 @@ geometry_msgs::Point32 vecToPt32(XnVector3D pt) {
 }
 
 
+// A callback for an image
+void imageCB(const sensor_msgs::ImageConstPtr& image_msg)
+{
+	// Convert the image from ROS format to OpenCV format
+	cv_bridge::CvImagePtr cv_ptr;
+	try	{
+		cv_ptr = cv_bridge::toCvCopy(image_msg);
+	}
+	catch (cv_bridge::Exception& e) {
+		ROS_ERROR_STREAM("cv_bridge exception: " << e.what());
+		return;
+	}
+	
+	ROS_INFO_STREAM(boost::format("Callback got an image in format %s, size %dx%d")
+		% cv_ptr->encoding % cv_ptr->image.rows % cv_ptr->image.cols );
+
+	latest_rgb_ = cv_ptr->image.clone();
+	got_rgb_ = true;
+}
+
+inline bool inbounds( const cv::Mat m, const cv::Point2i& p )
+{
+	return p.x > 0  &&  p.y > 0  &&  p.x < m.cols  &&  p.y < m.rows;
+}
+
+/*void getRGB(cv::Mat& rgb, cv::Mat& valid_mask)
+{
+	
+	// Make a matrix the size of the RGB one
+	cv::Size newsize(latest_rgb_.cols, latest_rgb_.rows);
+	rgb.create(newsize, CV_8UC3);
+	
+	cv::Mat m(3, 3, CV_32F, cv::Scalar(0));
+	m.at<float>(0,0) = 1;
+	m.at<float>(1,1) = 1;
+	m.at<float>(2,2) = 1;
+	m.at<float>(0,2) = rgb_shift_h;
+	m.at<float>(1,2) = rgb_shift_v;
+	
+	cv::warpPerspective(latest_rgb_, rgb, m, newsize);
+//	cv::transform(latest_rgb_, shifted, m);
+}*/
+
 cv::Mat getRGB(const xn::ImageMetaData& imageMD)
 {
 	CV_Assert(imageMD.PixelFormat() == XN_PIXEL_FORMAT_RGB24);
-	
+
 	int rows = imageMD.YRes();
 	int cols = imageMD.XRes();
 	cv::Mat rgb(rows, cols, CV_8UC3);
-	//ROS_INFO_STREAM("RGB image is " << rows << "x" << cols);
-	
+
 	const XnRGB24Pixel* pRgbImage = imageMD.RGB24Data();
 	memcpy( rgb.data, pRgbImage, cols*rows*3*sizeof(uchar) );
-	
+
 	cv::cvtColor( rgb, rgb, CV_RGB2BGR );
 	
-	return rgb;
+	cv::Size newsize(rgb.cols, rgb.rows);
+	cv::Mat m(3, 3, CV_32F, cv::Scalar(0));
+	m.at<float>(0,0) = 1;
+	m.at<float>(1,1) = 1;
+	m.at<float>(2,2) = rgb_scale_z;
+	m.at<float>(0,2) = rgb_shift_h;
+	m.at<float>(1,2) = rgb_shift_v;
+	
+	cv::Mat transformed(newsize, CV_8UC3);
+	cv::warpPerspective(rgb, transformed, m, newsize);
+
+	return transformed;
 }
 
 void getUserLabelImage(xn::SceneMetaData& sceneMD, cv::Mat& label_image)
@@ -316,7 +374,10 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		
 		xn::ImageMetaData imageMD;
 		g_ImageGenerator.GetMetaData(imageMD);
-		cv::Mat rgb = getRGB(imageMD);
+		
+		cv::Mat rgb, rgb_mask;
+//		getRGB(rgb, rgb_mask);
+		rgb = getRGB(imageMD);
 		
 		original_cal_.init(rgb, label_image);
 		user_cal_ = original_cal_;
@@ -357,9 +418,9 @@ void glutDisplay (void)
 	xn::SceneMetaData sceneMD;
 	xn::DepthMetaData depthMD;
 	xn::ImageMetaData imageMD;
-	g_ImageGenerator.GetMetaData(imageMD);
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
+	g_ImageGenerator.GetMetaData(imageMD);
 	
 	cv::Mat depth_image;
 	getDepthImage(depthMD, depth_image);
@@ -397,7 +458,10 @@ void glutDisplay (void)
 		
 		cv::imshow( "Tracked user"        , user_cal_.getImage() );
 		cv::imshow( "Original calibration", original_cal_.getImage() );
-		cv::Mat rgb = getRGB(imageMD);
+		
+		cv::Mat rgb, rgb_mask;
+//		getRGB(rgb, rgb_mask);
+		rgb = getRGB(imageMD);
 		
 		for (unsigned int i = 0; i < nUsers; i++)
 		{
@@ -565,7 +629,9 @@ void glutDisplay (void)
 		has_lock_pub_.publish(b);
 	}
 	
-	cv::Mat rgb = getRGB(imageMD);
+	cv::Mat rgb, rgb_mask;
+//	getRGB(rgb, rgb_mask);
+	rgb = getRGB(imageMD);
 	cv::imshow("rgb", rgb);
 	cv::waitKey(5);
 	
@@ -662,6 +728,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle pnh("~");
 	tf::TransformListener tfl;
 	tfl_ = &tfl;
+	image_transport::ImageTransport it(nh_);
 	
 	frame_id_ = "derpderpderp";
 	pnh.getParam("camera_frame_id", frame_id_);
@@ -684,6 +751,10 @@ int main(int argc, char **argv)
 	pnh.param("hist_s_bins" , sbins       , 30);
 	PersonCal::setHistogramParameters(hbins, sbins);
 	
+	pnh.param("rgb_shift_v", rgb_shift_v , 0.0);
+	pnh.param("rgb_shift_h", rgb_shift_h , 0.0);
+	pnh.param("rgb_scale_z", rgb_scale_z , 1.0);
+	
 	
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Pub rate        = %f"    ) % pub_rate_temp_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Frame_id        = \"%s\"") % frame_id_);
@@ -693,6 +764,7 @@ int main(int argc, char **argv)
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Area bounds     = [%.2f,%.2f]" ) % min_area_ %max_area_);
 	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] x, y variance   = %.2f"  ) % variance_xy_);
 	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " << PersonCal::getMatchThresh());
+	ROS_INFO_STREAM("[bk_skeletal_tracker] RGB shift h=" << rgb_shift_h << ", v=" << rgb_shift_v << ", scale=" << rgb_scale_z);
 	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	
@@ -705,13 +777,16 @@ int main(int argc, char **argv)
 	latest_tracker_.first = "";
 	ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
 	
+	// Subscribe to RGB
+//	image_transport::Subscriber image_sub = it.subscribe("in_image", 1, boost::bind(&imageCB, _1) );
+	
 	// Subscribe to camera info
 	got_cam_info_ = false;
 	ros::Subscriber cam_info_sub = nh_.subscribe("camera/rgb/camera_info", 1, cam_info_cb);
 	ROS_INFO("[bk_skeletal_tracker] Waiting for camera info...");
 	
 	// Get one message and then unsubscribe
-	while( !got_cam_info_ ) {
+	while( !got_cam_info_ ){ //|| !got_rgb_ ) {
 		ros::spinOnce();
 	}
 	cam_info_sub.shutdown();
@@ -728,6 +803,7 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 	CHECK_RC(nRetVal, "Find depth generator");
 	
+	
 	// The configuration should have created an image generator node
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
 	if (nRetVal != XN_STATUS_OK) {
@@ -738,6 +814,7 @@ int main(int argc, char **argv)
 		ROS_INFO("Found image generator");
 	}
 	g_ImageGenerator.SetPixelFormat(XN_PIXEL_FORMAT_RGB24);
+	
 	
 	// See if a user generator node exists.  If not, create one.
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
@@ -752,6 +829,14 @@ int main(int argc, char **argv)
 		ROS_INFO("[bk_skeletal_tracker] Supplied user generator doesn't support skeleton");
 		return 1;
 	}
+	
+	bool ret;
+	ret = g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
+	ROS_INFO_STREAM("User generator alt viewpoint: " << (ret?"true":"false") );
+	ret = g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
+	ROS_INFO_STREAM("Depth generator alt viewpoint: " << (ret?"true":"false") );
+	ret = g_ImageGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
+	ROS_INFO_STREAM("Image generator alt viewpoint: " << (ret?"true":"false") );
 	
 	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
 	

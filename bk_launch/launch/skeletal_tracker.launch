@@ -33,5 +33,12 @@
     <param name="match_threshold" value="0.8"/>
     <param name="hist_h_bins" value="20"/>
     <param name="hist_s_bins" value="20"/>
+    
+    <!-- Projective transform for alligning depth and RGB -->
+    <param name="rgb_shift_v" value="-46.0"/>
+    <param name="rgb_shift_h" value="-21.0"/>
+    <param name="rgb_scale_z" value="0.90"/>
+    
+    <remap from="in_image" to="/camera/rgb/image_rect_color"/>
   </node>
 </launch>
