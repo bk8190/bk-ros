@@ -10,9 +10,9 @@ class PersonCal
 	public:
 		PersonCal();
 		PersonCal(const PersonCal& other); // copy constructor
-		PersonCal( cv::Mat rgb, cv::Mat mask );// Constructor takes an RGB image and a mask
-		void init  ( cv::Mat image, cv::Mat mask ); // Initializes this person
-		void update( cv::Mat image, cv::Mat mask ); // Updates this person with new data
+		PersonCal  ( const cv::Mat& rgb  , const cv::Mat& mask );// Constructor takes an RGB image and a mask
+		void init  ( const cv::Mat& image, const cv::Mat& mask ); // Initializes this person
+		void update( const cv::Mat& image, const cv::Mat& mask ); // Updates this person with new data
 		
 		// Returns a metric (0-1) of how well this person matches another
 		float compare( const PersonCal& other );
@@ -21,23 +21,18 @@ class PersonCal
 		// Returns an image representing the histogram.  Each box is scale*scale pixels
 		cv::Mat getImage();
 		
-		// Set static histogram parameters
-		static void setHistogramParameters( int new_hbins, int new_sbins );
-	
-		static double getAlpha(){ return alpha; }
-		static void   setAlpha(double newalpha){
-			CV_Assert(0<alpha && 1>alpha);
-			alpha = newalpha;
-		}
-		
-		static double getMatchThresh(){ return match_threshold; }
-		static void   setMatchThresh(double newthresh){
-			CV_Assert(0<newthresh && 1>newthresh);
-			match_threshold = newthresh;
-		}
-	
 		// Assignment operator
 		PersonCal& operator = (const PersonCal& rhs);
+		
+		/* Static member functions */
+		static void setHistogramParameters( int new_hbins, int new_sbins );
+	
+		static double getAlpha();
+		static void   setAlpha(double newalpha);
+		
+		static double getMatchThresh();
+		static void   setMatchThresh(double newthresh);
+	
 		
 	private:
 		// Histogram in hue-saturation space
@@ -48,7 +43,7 @@ class PersonCal
 		bool    initialized;
 		
 		/* Static member variables and functions */
-		static cv::Mat makeHist( cv::Mat image, cv::Mat mask );
+		static cv::Mat makeHist( const cv::Mat& image, const cv::Mat& mask );
 		
 		// Histogram size
 		static int h_bins;

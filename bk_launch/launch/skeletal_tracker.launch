@@ -36,7 +36,7 @@
     
     <!-- Projective transform for alligning depth and RGB -->
     <param name="rgb_shift_v" value="-46.0"/>
-    <param name="rgb_shift_h" value="-21.0"/>
+    <param name="rgb_shift_h" value="-22.0"/>
     <param name="rgb_scale_z" value="0.90"/>
     
     <remap from="in_image" to="/camera/rgb/image_rect_color"/>

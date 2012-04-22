@@ -211,28 +211,6 @@ void imageCB(const sensor_msgs::ImageConstPtr& image_msg)
 	got_rgb_ = true;
 }
 
-inline bool inbounds( const cv::Mat m, const cv::Point2i& p )
-{
-	return p.x > 0  &&  p.y > 0  &&  p.x < m.cols  &&  p.y < m.rows;
-}
-
-/*void getRGB(cv::Mat& rgb, cv::Mat& valid_mask)
-{
-	
-	// Make a matrix the size of the RGB one
-	cv::Size newsize(latest_rgb_.cols, latest_rgb_.rows);
-	rgb.create(newsize, CV_8UC3);
-	
-	cv::Mat m(3, 3, CV_32F, cv::Scalar(0));
-	m.at<float>(0,0) = 1;
-	m.at<float>(1,1) = 1;
-	m.at<float>(2,2) = 1;
-	m.at<float>(0,2) = rgb_shift_h;
-	m.at<float>(1,2) = rgb_shift_v;
-	
-	cv::warpPerspective(latest_rgb_, rgb, m, newsize);
-//	cv::transform(latest_rgb_, shifted, m);
-}*/
 
 cv::Mat getRGB(const xn::ImageMetaData& imageMD)
 {
@@ -247,6 +225,7 @@ cv::Mat getRGB(const xn::ImageMetaData& imageMD)
 
 	cv::cvtColor( rgb, rgb, CV_RGB2BGR );
 	
+	// Projective transform to allign RGB to user pixels
 	cv::Size newsize(rgb.cols, rgb.rows);
 	cv::Mat m(3, 3, CV_32F, cv::Scalar(0));
 	m.at<float>(0,0) = 1;
@@ -375,8 +354,7 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		xn::ImageMetaData imageMD;
 		g_ImageGenerator.GetMetaData(imageMD);
 		
-		cv::Mat rgb, rgb_mask;
-//		getRGB(rgb, rgb_mask);
+		cv::Mat rgb;
 		rgb = getRGB(imageMD);
 		
 		original_cal_.init(rgb, label_image);

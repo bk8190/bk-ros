@@ -1,6 +1,7 @@
 #include "PersonCal.h"
 
-// Static member initialization
+
+/* Static member functions, variables */
 double PersonCal::match_threshold = 0.9;
 double PersonCal::alpha      = 0.3;
 int    PersonCal::h_bins     = 30;
@@ -9,6 +10,25 @@ int    PersonCal::hist_scale = 10;
 float  PersonCal::h_ranges[] = {0, 180};
 float  PersonCal::s_ranges[] = {0, 256};
 const float* PersonCal::ranges[] = {h_ranges, s_ranges};
+
+double PersonCal::getAlpha(){ return alpha; }
+void   PersonCal::setAlpha(double newalpha){
+	CV_Assert(0<alpha && 1>alpha);
+	alpha = newalpha;
+}
+
+double PersonCal::getMatchThresh(){ return match_threshold; }
+void   PersonCal::setMatchThresh(double newthresh){
+	CV_Assert(0<newthresh && 1>newthresh);
+	match_threshold = newthresh;
+}
+
+void PersonCal::setHistogramParameters( int new_hbins, int new_sbins )
+{
+	h_bins = new_hbins;
+	s_bins = new_sbins;
+}
+/* End static member functions, variables */
 
 
 // Default constructor - init() MUST be called before this object is used
@@ -19,13 +39,13 @@ PersonCal::PersonCal():
 
 
 // Constructor takes an RGB image and a mask
-PersonCal::PersonCal( cv::Mat rgb, cv::Mat mask ) {
+PersonCal::PersonCal( const cv::Mat& rgb, const cv::Mat& mask ) {
 	init(rgb, mask);
 }
 
 
 // copy constructor
-PersonCal::PersonCal(const PersonCal& other):
+PersonCal::PersonCal( const PersonCal& other ):
 	hist       ( other.hist.clone() ),
 	initialized( other.initialized  )
 {}
@@ -39,13 +59,13 @@ PersonCal& PersonCal::operator = (const PersonCal& rhs) {
 }
 		
 		
-void PersonCal::init( cv::Mat rgb, cv::Mat mask ) {
+void PersonCal::init( const cv::Mat& rgb, const cv::Mat& mask ) {
 	hist = makeHist(rgb, mask);
 	initialized = true;
 }
 
 // Updates this person with new data
-void PersonCal::update( cv::Mat image, cv::Mat mask )
+void PersonCal::update( const cv::Mat& image, const cv::Mat& mask )
 {
 	CV_Assert(initialized);
 	
@@ -60,7 +80,7 @@ void PersonCal::update( cv::Mat image, cv::Mat mask )
 }
 
 
-cv::Mat PersonCal::makeHist( cv::Mat rgb, cv::Mat mask )
+cv::Mat PersonCal::makeHist( const cv::Mat& rgb, const cv::Mat& mask )
 {
 	cv::Mat the_hist;
 	
@@ -137,8 +157,4 @@ cv::Mat PersonCal::getImage()
 }
 
 
-void PersonCal::setHistogramParameters( int new_hbins, int new_sbins )
-{
-	h_bins = new_hbins;
-	s_bins = new_sbins;
-}
+
