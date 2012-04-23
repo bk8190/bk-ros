@@ -28,6 +28,8 @@
 #define foreach BOOST_FOREACH
 #include <vector>
 #include <map>
+#include <fstream>
+#include <ctime>
 
 #include <std_msgs/Float64.h>
 #include <sensor_msgs/PointCloud.h>
@@ -91,6 +93,7 @@ XnBool g_bDrawSkeleton   = true;
 XnBool g_bPrintID        = true;
 XnBool g_bPrintState     = true;
 XnBool g_bPause          = false;
+bool   g_bSaveFrame      = false;
 
 // ROS stuff
 ros::Publisher cloud_pub_, pos_pub_, has_lock_pub_;
@@ -188,6 +191,21 @@ geometry_msgs::Point32 vecToPt32(XnVector3D pt) {
 	ret.y=-pt.Y/1000.0;
 	ret.z=pt.Z/1000.0;
 	return ret;
+}
+
+
+void saveMat( const cv::Mat& m, const std::string relative_fname )
+{
+	std::string fname = "/home/bill/dev/captures/" + relative_fname;
+	
+	ROS_WARN_STREAM("[bk_skeletal_tracker] Saving \"" << fname << "\"");
+
+	std::ofstream myfile;
+	myfile.open(fname.c_str());
+	myfile << format(m, "python");
+	myfile.close();
+	
+	cv::imwrite((fname+"_raw.png").c_str(), m);
 }
 
 
@@ -342,7 +360,7 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		g_UserGenerator.GetSkeletonCap().SaveCalibrationData(nId, 0);
 		g_UserGenerator.GetSkeletonCap().StartTracking(nId);
 	
-		// Save the user's cal
+		// Save the user's calibration
 		
 		// Get mask of this user
 		xn::SceneMetaData sceneMD;
@@ -454,6 +472,31 @@ void glutDisplay (void)
 			this_user.pc.init(rgb, this_mask);
 			double similarity  = this_user.pc.compare(user_cal_    );
 			double sim_to_orig = this_user.pc.compare(original_cal_);
+			
+			
+			if( g_bSaveFrame )
+			{
+				time_t t = ros::WallTime::now().sec;
+				char buf[1024] = "";
+				struct tm* tms = localtime(&t);
+				strftime(buf, 1024, "%Y-%m-%d-%H-%M-%S", tms);
+//				ROS_WARN_STREAM("It is " << t << ", which translates to " << buf);
+				
+				std::string prefix, rgb_filename, mask_filename, hist_filename, himg_filename;
+				prefix = ( boost::format("capture_%s_user%d") % buf % this_user.uid ).str();
+				rgb_filename  = prefix + "_rgb";
+				mask_filename = prefix + "_mask";
+				hist_filename = prefix + "_hist";
+				himg_filename = prefix + "_himg";
+				
+				cv::Mat rgb_masked;
+				rgb.copyTo(rgb_masked, this_mask);
+				
+				saveMat(rgb_masked             , rgb_filename );
+				saveMat(this_mask              , mask_filename);
+				saveMat(this_user.pc.getHist() , hist_filename);
+				saveMat(this_user.pc.getImage(), himg_filename);
+			}
 			
 			// Mean depth
 			this_user.meandepth = cv::mean(depth_image, this_mask)[0];
@@ -598,6 +641,9 @@ void glutDisplay (void)
 		else
 			ROS_DEBUG("(finding) No tracker");
 	
+		// We saved data yeaaah
+		g_bSaveFrame = false;
+	
 		// Visualization
 		cloud_pub_.publish(cloud);
 		
@@ -606,6 +652,8 @@ void glutDisplay (void)
 		b.data = (has_lock ? 1.0 : 0.0 );
 		has_lock_pub_.publish(b);
 	}
+	
+	
 	
 	cv::Mat rgb, rgb_mask;
 //	getRGB(rgb, rgb_mask);
@@ -642,6 +690,7 @@ void glutIdle (void)
 
 void glutKeyboard (unsigned char key, int x, int y)
 {
+	ROS_INFO_STREAM(boost::format("[bk_skeletal_tracker] Key \'%d\'") % key );
 	switch (key)
 	{
 		case 27:
@@ -666,6 +715,10 @@ void glutKeyboard (unsigned char key, int x, int y)
 			// Print ID & state as label, or only ID?
 			g_bPrintState = !g_bPrintState;
 			break;
+		case ' ':
+			g_bSaveFrame = true;
+			ROS_WARN_STREAM("[bk_skeletal_tracker] Saving data on next loop");
+			break;
 		case'p':
 			g_bPause = !g_bPause;
 			break;
@@ -681,7 +734,7 @@ void glInit (int * pargc, char ** argv)
 	//glutFullScreen();
 	glutSetCursor(GLUT_CURSOR_NONE);
 	
-	//glutKeyboardFunc(glutKeyboard);
+	glutKeyboardFunc(glutKeyboard);
 	glutDisplayFunc(glutDisplay);
 	glutIdleFunc(glutIdle);
 	
@@ -808,13 +861,14 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	
+	/*
 	bool ret;
 	ret = g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
 	ROS_INFO_STREAM("User generator alt viewpoint: " << (ret?"true":"false") );
 	ret = g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
 	ROS_INFO_STREAM("Depth generator alt viewpoint: " << (ret?"true":"false") );
 	ret = g_ImageGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
-	ROS_INFO_STREAM("Image generator alt viewpoint: " << (ret?"true":"false") );
+	ROS_INFO_STREAM("Image generator alt viewpoint: " << (ret?"true":"false") );*/
 	
 	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
 	
@@ -853,4 +907,5 @@ int main(int argc, char **argv)
 	
 	glInit(&argc, argv);
 	glutMainLoop();
+	CleanupExit();
 }

@@ -121,6 +121,11 @@ bool PersonCal::matches( const PersonCal& other ) {
 }
 
 
+cv::Mat PersonCal::getHist()
+{
+	return hist.clone();
+}
+		
 cv::Mat PersonCal::getImage()
 {
 	CV_Assert(initialized);

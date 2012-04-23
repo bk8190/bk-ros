@@ -21,6 +21,8 @@ class PersonCal
 		// Returns an image representing the histogram.  Each box is scale*scale pixels
 		cv::Mat getImage();
 		
+		cv::Mat getHist();
+		
 		// Assignment operator
 		PersonCal& operator = (const PersonCal& rhs);
 		
