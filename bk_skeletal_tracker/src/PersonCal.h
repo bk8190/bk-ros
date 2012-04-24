@@ -18,9 +18,14 @@ class PersonCal
 		float compare( const PersonCal& other );
 		bool  matches( const PersonCal& other );
 		
+		// Experimental - get earth mover's distance
+		float   getEMD( PersonCal& other );
+		cv::Mat getEMDSignature();
+		
 		// Returns an image representing the histogram.  Each box is scale*scale pixels
 		cv::Mat getImage();
 		
+		// Returns raw hue-saturation histogram
 		cv::Mat getHist();
 		
 		// Assignment operator
@@ -41,10 +46,12 @@ class PersonCal
 		cv::Mat hist;
 		
 		// True if "init" or constructor taking arguments was called
-		// Must be true to use update, compare, matches, or getImage
+		// Must be true to use most member functions
 		bool    initialized;
 		
 		/* Static member variables and functions */
+		
+		// Creates a hue-saturation histogram from an RGB image with a binary mask
 		static cv::Mat makeHist( const cv::Mat& image, const cv::Mat& mask );
 		
 		// Histogram size

@@ -28,10 +28,11 @@ void PersonCal::setHistogramParameters( int new_hbins, int new_sbins )
 	h_bins = new_hbins;
 	s_bins = new_sbins;
 }
+
 /* End static member functions, variables */
 
 
-// Default constructor - init() MUST be called before this object is used
+// Default constructor - init() must be called before this object is used
 PersonCal::PersonCal():
 	hist(),
 	initialized(false)
@@ -96,8 +97,6 @@ cv::Mat PersonCal::makeHist( const cv::Mat& rgb, const cv::Mat& mask )
 	cv::calcHist( &hsv, 1, channels, mask,   // source, number of source arrays
 	              the_hist, 2, histSize, ranges);// output array, output dimensions, range of histogram
 	
-	the_hist.at<float>(0,0) = 0;
-	
 	// Gaussian blur and normalization
 	cv::GaussianBlur(the_hist, the_hist, cv::Size(5,5), 2);
 	cv::normalize( the_hist, the_hist, 0, 1, cv::NORM_MINMAX );
@@ -115,6 +114,45 @@ float PersonCal::compare(  const PersonCal& other )
 	return cv::compareHist(hist, other.hist, CV_COMP_CORREL);
 }
 
+float PersonCal::getEMD ( PersonCal& other )
+{
+	CV_Assert( this->initialized && other.initialized );
+	CV_Assert( hist.rows==other.hist.rows && hist.cols==other.hist.cols );
+	
+	cv::Mat sig1 = this->getEMDSignature();
+	cv::Mat sig2 = other.getEMDSignature();
+	
+	/*std::cout << "EMD sig 1:" << std::endl << cv::format(sig1,"csv");
+	std::cout << std::endl;
+	std::cout << "EMD sig 2:" << std::endl << cv::format(sig1,"csv");*/
+	
+	// Compute earth mover's distance
+	return cv::EMD(sig1, sig2, CV_DIST_L1);
+}
+
+// Convert the histogram into a signature for EMD matching
+cv::Mat PersonCal::getEMDSignature()
+{
+	CV_Assert(initialized);
+	cv::Mat signature( h_bins*s_bins, 3, CV_32FC1 );
+	
+	for( int h=0; h<h_bins; h++ )
+	{
+		for( int s=0; s<s_bins; s++ )
+		{
+			int   bin_idx = h*s_bins + s;
+			float bin_val = hist.at<float>(h, s);
+			
+			if( bin_val <= 0 ){ bin_val = 0.001; }
+			
+			signature.at<float>(bin_idx, 0) = bin_val;
+			signature.at<float>(bin_idx, 1) = h;
+			signature.at<float>(bin_idx, 2) = s;
+		}
+	}
+	
+	return signature;
+}
 
 bool PersonCal::matches( const PersonCal& other ) {
 	return (this->compare(other)) > match_threshold;
@@ -123,6 +161,7 @@ bool PersonCal::matches( const PersonCal& other ) {
 
 cv::Mat PersonCal::getHist()
 {
+	CV_Assert(initialized);
 	return hist.clone();
 }
 		

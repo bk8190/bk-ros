@@ -473,6 +473,12 @@ void glutDisplay (void)
 			double similarity  = this_user.pc.compare(user_cal_    );
 			double sim_to_orig = this_user.pc.compare(original_cal_);
 			
+			/*
+			ros::Time t1 = ros::Time::now();
+			double emd         = this_user.pc.getEMD (user_cal_    );
+			double emd_to_orig = this_user.pc.getEMD (original_cal_);
+			ros::Duration d = (ros::Time::now() - t1);
+			ROS_INFO_STREAM("EMD took " << (d.toSec()) );*/
 			
 			if( g_bSaveFrame )
 			{
@@ -526,6 +532,8 @@ void glutDisplay (void)
 			{
 				ROS_INFO_STREAM(boost::format("User %d   new: %.0f --- orig: %.0f")
 					% ((int)this_user.uid) % (100*similarity) % (100*sim_to_orig) );
+				/*ROS_INFO_STREAM(boost::format("EMD       new: %.2f --- orig: %.2f")
+					% (emd) % (emd_to_orig) );*/
 					
 				if( similarity > PersonCal::getMatchThresh() ) {
 					user_cal_.update(rgb, this_mask);
@@ -819,6 +827,8 @@ int main(int argc, char **argv)
 	// Get one message and then unsubscribe
 	while( !got_cam_info_ ){ //|| !got_rgb_ ) {
 		ros::spinOnce();
+		
+		if( !ros::ok() ){ CleanupExit(); }
 	}
 	cam_info_sub.shutdown();
 	
