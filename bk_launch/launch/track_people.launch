@@ -1,17 +1,14 @@
 <!-- Starts person tracking -->
 <launch>
+	<include file="$(find people_tracking_filter)/launch/start_people_tracking.launch" />
 
 	<!-- Setup the debugging prefix -->
 	<arg name="debug" default="false"/>
 	<arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run -args"/>
 	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
 
-	<!-- Start the Kinect as well as nodes that publish skeleton information !-->
-	<!--include file="($find bk_launch)/launch/bk_openni_tracker.launch" /-->
-	
 	<!-- Start a soundplay node -->
 	<node pkg="sound_play" type="soundplay_node.py" name="soundplay_node" />
-	
 	
 	<!-- This node subscribes to info from the Kinect and outputs a goal position -->
 	<node pkg="person_tracker" type="person_tracker" respawn="false" name="person_tracker"

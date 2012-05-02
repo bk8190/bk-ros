@@ -15,7 +15,7 @@
     <param name="smoothing_factor" value="0.90"/>
     <param name="pub_rate" value="20.0"/>
     
-    <param name="reliability" value="0.65"/>
+    <param name="reliability" value="0.85"/>
     
     <param name="variance_xy" value="0.25"/>
     <!-- When publishing positions, use this variance -->
@@ -43,6 +43,7 @@
     <param name="rgb_shift_h" value="-24.0"/>
     <param name="rgb_scale_z" value="0.90"/-->
     
-    <remap from="in_image" to="/camera/rgb/image_rect_color"/>
+    <!--remap from="in_image" to="/camera/rgb/image_rect_color"/-->
+    <remap from="in_image" to="/camera/rgb/image_color"/>
   </node>
 </launch>
