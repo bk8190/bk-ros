@@ -1,0 +1,4 @@
+<!---->
+<launch>
+	<node pkg="rxtools" type="rxplot" name="similarity" args="--period=15 /bk_skeletal_tracker/sim/data,/bk_skeletal_tracker/sim_to_orig/data --legend=Similarity_to_current,Similarity_to_original" />
+</launch>
