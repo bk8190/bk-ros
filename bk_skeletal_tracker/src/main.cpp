@@ -74,7 +74,7 @@ const double BIGDIST_M = 1000000.0;
 xn::Context        g_Context;
 xn::DepthGenerator g_DepthGenerator;
 xn::UserGenerator  g_UserGenerator;
-xn::ImageGenerator g_ImageGenerator;
+//xn::ImageGenerator g_ImageGenerator;
 
 // Is a pose required for calibration? If so, g_strPose holds its name.
 XnBool g_bNeedPose   = false;
@@ -94,9 +94,10 @@ XnBool g_bPrintID        = true;
 XnBool g_bPrintState     = true;
 XnBool g_bPause          = false;
 bool   g_bSaveFrame      = false;
+ros::Time save_timer_;
 
 // ROS stuff
-ros::Publisher cloud_pub_, pos_pub_, has_lock_pub_;
+ros::Publisher cloud_pub_, pos_pub_, has_lock_pub_, sim_pub_, sim_to_orig_pub_;
 std::string    frame_id_;
 tf::TransformListener* tfl_;
 
@@ -170,6 +171,7 @@ struct user
 	double meandepth;
 	double silhouette_area;
 	double similarity; // similarity to target
+	double similarity_to_orig; // similarity to target
 };
 
 void CleanupExit()
@@ -202,7 +204,7 @@ void saveMat( const cv::Mat& m, const std::string relative_fname )
 
 	std::ofstream myfile;
 	myfile.open(fname.c_str());
-	myfile << format(m, "python");
+	myfile << format(m, "csv");
 	myfile.close();
 	
 	cv::imwrite((fname+"_raw.png").c_str(), m);
@@ -222,8 +224,8 @@ void imageCB(const sensor_msgs::ImageConstPtr& image_msg)
 		return;
 	}
 	
-	ROS_INFO_STREAM(boost::format("Callback got an image in format %s, size %dx%d")
-		% cv_ptr->encoding % cv_ptr->image.rows % cv_ptr->image.cols );
+	/*ROS_INFO_STREAM(boost::format("Callback got an image in format %s, size %dx%d")
+		% cv_ptr->encoding % cv_ptr->image.rows % cv_ptr->image.cols );*/
 
 	latest_rgb_ = cv_ptr->image.clone();
 	got_rgb_ = true;
@@ -232,7 +234,7 @@ void imageCB(const sensor_msgs::ImageConstPtr& image_msg)
 
 cv::Mat getRGB(const xn::ImageMetaData& imageMD)
 {
-	CV_Assert(imageMD.PixelFormat() == XN_PIXEL_FORMAT_RGB24);
+	/*CV_Assert(imageMD.PixelFormat() == XN_PIXEL_FORMAT_RGB24);
 
 	int rows = imageMD.YRes();
 	int cols = imageMD.XRes();
@@ -241,7 +243,9 @@ cv::Mat getRGB(const xn::ImageMetaData& imageMD)
 	const XnRGB24Pixel* pRgbImage = imageMD.RGB24Data();
 	memcpy( rgb.data, pRgbImage, cols*rows*3*sizeof(uchar) );
 
-	cv::cvtColor( rgb, rgb, CV_RGB2BGR );
+	cv::cvtColor( rgb, rgb, CV_RGB2BGR );*/
+	
+	cv::Mat rgb = latest_rgb_;
 	
 	// Projective transform to allign RGB to user pixels
 	cv::Size newsize(rgb.cols, rgb.rows);
@@ -370,7 +374,7 @@ UserCalibration_CalibrationEnd(xn::SkeletonCapability& capability, XnUserID nId,
 		label_image = (label_image == nId);
 		
 		xn::ImageMetaData imageMD;
-		g_ImageGenerator.GetMetaData(imageMD);
+		//g_ImageGenerator.GetMetaData(imageMD);
 		
 		cv::Mat rgb;
 		rgb = getRGB(imageMD);
@@ -403,9 +407,7 @@ void glutDisplay (void)
 	ros::Time now_time = ros::Time::now();
 	
 	// Update stuff from OpenNI
-//	g_Context.WaitAndUpdateAll();
 	XnStatus status = g_Context.WaitAndUpdateAll();
-	
 	if( status != XN_STATUS_OK ){
 		ROS_ERROR_STREAM("Updating context failed: " << status);
 		return;
@@ -416,7 +418,7 @@ void glutDisplay (void)
 	xn::ImageMetaData imageMD;
 	g_DepthGenerator.GetMetaData(depthMD);
 	g_UserGenerator.GetUserPixels(0, sceneMD);
-	g_ImageGenerator.GetMetaData(imageMD);
+	//g_ImageGenerator.GetMetaData(imageMD);
 	
 	cv::Mat depth_image;
 	getDepthImage(depthMD, depth_image);
@@ -472,13 +474,21 @@ void glutDisplay (void)
 			this_user.pc.init(rgb, this_mask);
 			double similarity  = this_user.pc.compare(user_cal_    );
 			double sim_to_orig = this_user.pc.compare(original_cal_);
+			this_user.similarity         = similarity;
+			this_user.similarity_to_orig = sim_to_orig;
 			
 			/*
 			ros::Time t1 = ros::Time::now();
 			double emd         = this_user.pc.getEMD (user_cal_    );
 			double emd_to_orig = this_user.pc.getEMD (original_cal_);
 			ros::Duration d = (ros::Time::now() - t1);
-			ROS_INFO_STREAM("EMD took " << (d.toSec()) );*/
+			ROS_INFO_STREAM("EMD took " << (d.sec) );*/
+			
+			if( now_time > save_timer_ ){
+				ROS_WARN_STREAM("[bk_skeletal_tracker] Say Cheezbuger");
+				save_timer_ = now_time + ros::Duration(60*60*24);
+				g_bSaveFrame = true;
+			}
 			
 			if( g_bSaveFrame )
 			{
@@ -486,22 +496,15 @@ void glutDisplay (void)
 				char buf[1024] = "";
 				struct tm* tms = localtime(&t);
 				strftime(buf, 1024, "%Y-%m-%d-%H-%M-%S", tms);
-//				ROS_WARN_STREAM("It is " << t << ", which translates to " << buf);
 				
-				std::string prefix, rgb_filename, mask_filename, hist_filename, himg_filename;
-				prefix = ( boost::format("capture_%s_user%d") % buf % this_user.uid ).str();
-				rgb_filename  = prefix + "_rgb";
-				mask_filename = prefix + "_mask";
-				hist_filename = prefix + "_hist";
-				himg_filename = prefix + "_himg";
-				
+				std::string prefix = ( boost::format("capture_%s_user%d") % buf % this_user.uid ).str();				
 				cv::Mat rgb_masked;
 				rgb.copyTo(rgb_masked, this_mask);
 				
-				saveMat(rgb_masked             , rgb_filename );
-				saveMat(this_mask              , mask_filename);
-				saveMat(this_user.pc.getHist() , hist_filename);
-				saveMat(this_user.pc.getImage(), himg_filename);
+				saveMat(rgb_masked             , prefix + "_rgb"  );
+				saveMat(this_mask              , prefix + "_mask" );
+				saveMat(this_user.pc.getHist() , prefix + "_hist" );
+				saveMat(this_user.pc.getImage(), prefix + "_himg" );
 			}
 			
 			// Mean depth
@@ -599,11 +602,18 @@ void glutDisplay (void)
 					u.distance = pow(latest_tracker_.second.pos.pos.x - u.center3d.point.x, 2.0)
 						         + pow(latest_tracker_.second.pos.pos.y - u.center3d.point.y, 2.0);
 					
-					users_ss << boost::format("(%.2f,%.2f), ")
-				                % u.center3d.point.x % u.center3d.point.y;
+					users_ss << boost::format("(%.2f,%.2f), ") % u.center3d.point.x % u.center3d.point.y;
 					
-					if( u.distance < closest.distance ) {	closest = u; }
-				}
+					if( u.distance < closest.distance )
+					{
+						if( u.similarity > PersonCal::getMatchThresh() ) {
+							closest = u;
+						}
+						else {
+							ROS_WARN_STREAM("Ignored close user not matching (" << u.uid << ")");
+						}
+					}
+				}//foreach
 				
 				string users_s = users_ss.str();
 				ROS_DEBUG_STREAM(users_s);
@@ -611,6 +621,13 @@ void glutDisplay (void)
 			
 				if( closest.distance < association_dist_  )
 				{
+					// Publish similarity
+					std_msgs::Float64 f;
+					f.data = closest.similarity;
+					sim_pub_.publish(f);
+					f.data = closest.similarity_to_orig;
+					sim_to_orig_pub_.publish(f);
+				
 					// Convert to a PositionMeasurement message
 					pos.header.stamp    = now_time;
 					pos.header.frame_id = frame_id_;
@@ -643,11 +660,9 @@ void glutDisplay (void)
 					ROS_DEBUG_STREAM(boost::format("(finding) No association (distance %.2f) ")
 						%closest.distance );
 			}
-			else
-				ROS_DEBUG("(finding) No users");
+			else{ ROS_DEBUG("(finding) No users"); }
 		}
-		else
-			ROS_DEBUG("(finding) No tracker");
+		else{	ROS_DEBUG("(finding) No tracker"); }
 	
 		// We saved data yeaaah
 		g_bSaveFrame = false;
@@ -662,11 +677,9 @@ void glutDisplay (void)
 	}
 	
 	
-	
-	cv::Mat rgb, rgb_mask;
-//	getRGB(rgb, rgb_mask);
-	rgb = getRGB(imageMD);
-	cv::imshow("rgb", rgb);
+	//cv::Mat rgb, rgb_mask;
+	//rgb = getRGB(imageMD);
+	//cv::imshow("rgb", rgb);
 	cv::waitKey(5);
 	
 	// Draw OpenGL display
@@ -722,6 +735,10 @@ void glutKeyboard (unsigned char key, int x, int y)
 		case 'l':
 			// Print ID & state as label, or only ID?
 			g_bPrintState = !g_bPrintState;
+			break;
+		case 'v':
+			ROS_WARN_STREAM("[bk_skeletal_tracker] Saving data in 5 seconds");
+			save_timer_ = ros::Time::now() + ros::Duration(5.0);
 			break;
 		case ' ':
 			g_bSaveFrame = true;
@@ -805,6 +822,9 @@ int main(int argc, char **argv)
 	ROS_INFO_STREAM("[bk_skeletal_tracker] Match threshold = " << PersonCal::getMatchThresh());
 	ROS_INFO_STREAM("[bk_skeletal_tracker] RGB shift h=" << rgb_shift_h << ", v=" << rgb_shift_v << ", scale=" << rgb_scale_z);
 	
+	save_timer_ = ros::Time::now() + ros::Duration(60*60*24);
+	
+	
 	cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud>("bk_skeletal_tracker/people_cloud",0);
 	
 	// Advertise a position measure message.
@@ -816,22 +836,29 @@ int main(int argc, char **argv)
 	latest_tracker_.first = "";
 	ros::Subscriber pos_sub = nh_.subscribe("people_tracker_filter", 5, &posCallback);
 	
-	// Subscribe to RGB
-//	image_transport::Subscriber image_sub = it.subscribe("in_image", 1, boost::bind(&imageCB, _1) );
-	
+	got_rgb_ = false;
+	image_transport::Subscriber image_sub = it.subscribe("in_image", 1, boost::bind(&imageCB, _1) );
+
 	// Subscribe to camera info
 	got_cam_info_ = false;
 	ros::Subscriber cam_info_sub = nh_.subscribe("camera/rgb/camera_info", 1, cam_info_cb);
 	ROS_INFO("[bk_skeletal_tracker] Waiting for camera info...");
 	
 	// Get one message and then unsubscribe
-	while( !got_cam_info_ ){ //|| !got_rgb_ ) {
+	while( !(got_cam_info_ && got_rgb_) ){
 		ros::spinOnce();
 		
 		if( !ros::ok() ){ CleanupExit(); }
 	}
 	cam_info_sub.shutdown();
 	
+	// Similarity of currently tracked user
+	sim_pub_         = nh_.advertise<std_msgs::Float64>("bk_skeletal_tracker/sim",0);
+	sim_to_orig_pub_ = nh_.advertise<std_msgs::Float64>("bk_skeletal_tracker/sim_to_orig",0);
+	std_msgs::Float64 f1, f2; // set the plot scale
+	f1.data = 0; f2.data = 1;
+	sim_pub_.publish(f1);
+	sim_pub_.publish(f2);
 	
 	XnStatus nRetVal = XN_STATUS_OK;
 	
@@ -844,7 +871,7 @@ int main(int argc, char **argv)
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_DepthGenerator);
 	CHECK_RC(nRetVal, "Find depth generator");
 	
-	
+	/*
 	// The configuration should have created an image generator node
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_ImageGenerator);
 	if (nRetVal != XN_STATUS_OK) {
@@ -855,7 +882,7 @@ int main(int argc, char **argv)
 		ROS_INFO("Found image generator");
 	}
 	g_ImageGenerator.SetPixelFormat(XN_PIXEL_FORMAT_RGB24);
-	
+	*/
 	
 	// See if a user generator node exists.  If not, create one.
 	nRetVal = g_Context.FindExistingNode(XN_NODE_TYPE_USER, g_UserGenerator);
@@ -870,15 +897,6 @@ int main(int argc, char **argv)
 		ROS_INFO("[bk_skeletal_tracker] Supplied user generator doesn't support skeleton");
 		return 1;
 	}
-	
-	/*
-	bool ret;
-	ret = g_UserGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
-	ROS_INFO_STREAM("User generator alt viewpoint: " << (ret?"true":"false") );
-	ret = g_DepthGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
-	ROS_INFO_STREAM("Depth generator alt viewpoint: " << (ret?"true":"false") );
-	ret = g_ImageGenerator.IsCapabilitySupported(XN_CAPABILITY_ALTERNATIVE_VIEW_POINT);
-	ROS_INFO_STREAM("Image generator alt viewpoint: " << (ret?"true":"false") );*/
 	
 	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
 	
