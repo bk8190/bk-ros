@@ -265,7 +265,7 @@ PersonTracker::computeStateLoop(const ros::TimerEvent& event) {
 	
 	last_pub_pos_ = pub_pos;
 	
-	ROS_INFO_THROTTLE(2, "[person_tracker] Time since detect = %.2fs, Variance = %.2fm^2", dt, current_var);
+	ROS_DEBUG_THROTTLE(2, "[person_tracker] Time since detect = %.2fs, Variance = %.2fm^2", dt, current_var);
 	
 	// Update the sound player
 	if( hasPerson() ) {
