@@ -4,7 +4,7 @@ accel_lim:
  max_acc_th: 0.60
 
 speed_lim:
- max_spd_x: 0.30
+ max_spd_x: 0.25
  max_spd_th: 0.45
 
 planning:
