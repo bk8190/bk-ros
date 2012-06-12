@@ -1,4 +1,31 @@
 <!-- Starts person tracking -->
 <launch>
 	<include file="$(find people_tracking_filter)/launch/start_people_tracking.launch" />
+
+	<!-- Setup the debugging prefix -->
+	<arg name="debug" default="false"/>
+	<arg if="$(arg debug)" name="launch_prefix" value="gdb -ex run -args"/>
+	<arg unless="$(arg debug)" name="launch_prefix" value=""/>
+
+	<!-- Start a soundplay node -->
+	<node pkg="sound_play" type="soundplay_node.py" name="soundplay_node" />
+
+	<!-- This node subscribes to info from the Kinect and outputs a goal position -->
+	<node pkg="person_tracker" type="person_tracker" respawn="false" name="person_tracker"
+		output="screen" launch-prefix="$(arg launch_prefix)">
+
+		<!-- Paramters for person tracker -->
+		<param name="loop_rate"       value="30.0" />
+		<param name="goal_hysteresis" value="0.4"  />
+		<param name="detect_timeout"  value="2.0"  />
+		<param name="alpha"           value="0.2"  />
+
+		<!-- Paramter file for sound player -->
+		<rosparam file="$(find bk_configs)/common/vision/person_tracker_sounds.yaml"
+			command="load" ns="sounds"  />
+
+		<!-- Topic remappings -->
+		<remap from="skeletons" to="/skeletons" />
+	</node>
+
 </launch>
