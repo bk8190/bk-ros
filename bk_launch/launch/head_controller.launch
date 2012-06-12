@@ -15,8 +15,8 @@
 		<param name="pan_angle_center" value="90.0"       />
 		<param name="pan_angle_min"    value="0.0"         />
 		<param name="pan_angle_max"    value="180.0"       />
-		<param name="pan_vel_max"      value="50.0"        />
-		<param name="pan_acc_max"      value="10.0"        /> <!-- 90 -->
+		<param name="pan_vel_max"      value="70.0"        />
+		<param name="pan_acc_max"      value="90.0"        /> <!-- 90 -->
 		<param name="feedforward_kv"   value="-0.05"       />
 		<param name="lpf_alpha"        value="0.4"         />
 	</node>

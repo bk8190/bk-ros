@@ -1,6 +1,8 @@
 <!-- Brings up the planner -->
 <launch>
-	<!--include file="($find precision_steering)/start_precision_steering.launch" /-->
+
+	<!-- Launch precision steering nodes -->
+	<include file="$(find precision_steering)/start_precision_steering.launch"/>
 	
 	<!-- Setup the debugging prefix -->
 	<arg name="debug" default="false"/>
@@ -52,6 +54,4 @@
 	</node>
 	
 	
-	<!-- Launch precision steering nodes -->
-	<include file="$(find precision_steering)/start_precision_steering.launch"/>
 </launch>
