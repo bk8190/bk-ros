@@ -1,0 +1,19 @@
+<package>
+  <description brief="pcl_decimator">
+
+     pcl_decimator
+
+  </description>
+  <author>Chad Rockey</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/pcl_decimator</url>
+  <depend package="roscpp"/>
+  <depend package="dynamic_reconfigure" />
+  <depend package="driver_base" />
+  <depend package="pcl_ros"/>
+  <depend package="pcl"/>
+
+</package>
+
+
