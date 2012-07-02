@@ -33,8 +33,8 @@ head_controller/build/
 mapping_msgs/build/
 mapping_msgs/msg_gen/
 
-pcl_decimator_bk/bin/
-pcl_decimator_bk/build/
+pcl_decimator/bin/
+pcl_decimator/build/
 
 person_tracker/bin/
 person_tracker/build/
