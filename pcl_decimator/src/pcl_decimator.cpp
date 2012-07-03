@@ -1,11 +1,14 @@
 #include <ros/ros.h>
 #include <dynamic_reconfigure/server.h>
 #include <pcl_decimator/PCLDecimatorConfig.h>
-#include <pcl_ros/point_cloud.h>
-#include <pcl/point_types.h>
 
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/point_types.h>
 #include "pcl/io/pcd_io.h"
 #include "pcl/filters/passthrough.h"
+#include "pcl/filters/voxel_grid.h"
+
 #include <string>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/point_cloud_conversion.h>
@@ -13,80 +16,48 @@
 ros::Publisher cloudout_pub_, cloudout_old_pub_;
 
 std::string fieldName_ = "z";
-float bandWidth_ = 0.01;
-int numBands_ = 21;
 float startPoint_ = .4;
 float endPoint_ = 1.0;
+float leafSize_ = 0.02;
 
 tf::TransformListener* tfl;
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudXYZ;
 
 // CALLBACKS
-void pointcloudCallback(const PointCloudXYZ::ConstPtr& cloud_raw)
+void pointcloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_raw)
 {
-  
-  // This is a dumb convoluted process
-  // PointCloudXYZ -> PointCloud2 -> PointCloud -> (transform)
-  // -> PointCloud -> PointCloud2 -> PointCloudXYZ
-  PointCloudXYZ::Ptr cloud(new PointCloudXYZ);
-  {
-    sensor_msgs::PointCloud2 ros_cloud2, ros_cloud2_tf;
-    sensor_msgs::PointCloud  ros_cloud , ros_cloud_tf;
-
-    pcl::toROSMsg(*cloud_raw, ros_cloud2);
-    sensor_msgs::convertPointCloud2ToPointCloud(ros_cloud2, ros_cloud);
-
-    try{
-      tfl->transformPointCloud("base_link", ros_cloud, ros_cloud_tf);
-    } catch( tf::TransformException e ){
-      ROS_WARN("Could not transform point cloud.");
-      return;
-    }
-    //ROS_INFO("Transform done");
-    sensor_msgs::convertPointCloudToPointCloud2(ros_cloud_tf, ros_cloud2_tf);
-    //ROS_INFO("Turning into PCL cloud");
-    pcl::fromROSMsg(ros_cloud2_tf, *cloud);
-    ROS_INFO("Done transforming.");
-  }
-
-  PointCloudXYZ::Ptr cloud_filtered (new PointCloudXYZ);
-  PointCloudXYZ::Ptr output_cloud (new PointCloudXYZ);
-
-   // Create the filtering objects
-  pcl::PassThrough<pcl::PointXYZ> pass;
-  pass.setInputCloud (cloud);
-  pass.setFilterFieldName (fieldName_);
-  if(numBands_ <= 1){ 
-    // Just center it to be nice
-    pass.setFilterLimits ((startPoint_+endPoint_)/2.0, (startPoint_+endPoint_)/2.0+bandWidth_);
-    pass.filter(*cloud_filtered);
-    *output_cloud = *cloud_filtered;
-  } else {
-    // Do the first one manually so that certain parameters like frame_id always match
-    pass.setFilterLimits (startPoint_, startPoint_+bandWidth_);
-    pass.filter(*cloud_filtered);
-    *output_cloud = *cloud_filtered;
-    float dL = endPoint_-startPoint_;
-    
-    for(int i = 1; i < numBands_; i++){
-      float sLine = startPoint_ + i*dL/(float)(numBands_-1);
-      float eLine = sLine + bandWidth_;
-      pass.setFilterLimits (sLine, eLine);
-      pass.filter(*cloud_filtered);
-      *output_cloud += *cloud_filtered;
-    }
-  }
-  ROS_INFO("Publishing");
-  cloudout_pub_.publish(*output_cloud);
-
-  // Now, convert to a ROS message and publish it again
-  sensor_msgs::PointCloud2 ros_cloud2;
-  sensor_msgs::PointCloud  ros_cloud;
-  pcl::toROSMsg(*output_cloud, ros_cloud2);
-  sensor_msgs::convertPointCloud2ToPointCloud(ros_cloud2, ros_cloud);
-  cloudout_old_pub_.publish(ros_cloud);
-
+	sensor_msgs::PointCloud2::Ptr cloud_transformed (new sensor_msgs::PointCloud2());
+	sensor_msgs::PointCloud2::Ptr cloud_cropped     (new sensor_msgs::PointCloud2());
+	sensor_msgs::PointCloud2::Ptr cloud_downsampled (new sensor_msgs::PointCloud2());
+	
+	// Transform the pointcloud
+	try{
+		//ROS_INFO("Transforming");
+		pcl_ros::transformPointCloud( "base_link", *cloud_raw, *cloud_transformed, *tfl);
+	} catch( tf::TransformException ex ){
+		ROS_WARN_STREAM("PCL decimator could not transform: " << ex.what() );
+		return;
+	}
+	
+	//ROS_INFO("Filtering");
+	
+	// Create a pass-through filter
+	pcl::PassThrough<sensor_msgs::PointCloud2> pass;
+	pass.setInputCloud      (cloud_transformed );
+	pass.setFilterFieldName (fieldName_        );
+	pass.setFilterLimits    (startPoint_, endPoint_);
+	pass.filter             (*cloud_cropped    );
+	
+	// Now create a voxel grid filter
+	pcl::VoxelGrid<sensor_msgs::PointCloud2> vgrid;
+	vgrid.setInputCloud (cloud_cropped      );
+	vgrid.setLeafSize   (leafSize_, leafSize_, leafSize_);
+	vgrid.filter        (*cloud_downsampled );
+	
+	//ROS_INFO("Publishing");
+	cloudout_pub_.publish(*cloud_downsampled);
+	ros::Duration(0.5).sleep();
 }
 
 
@@ -94,10 +65,9 @@ void pointcloudCallback(const PointCloudXYZ::ConstPtr& cloud_raw)
 void callback(pcl_decimator::PCLDecimatorConfig &config, uint32_t level)
 {
   fieldName_  = config.field_name;
-  numBands_   = config.num_slices;
-  bandWidth_  = config.slice_width;
   startPoint_ = config.start_threshold;
   endPoint_   = config.end_threshold;
+  leafSize_   = config.leaf_size;
 }
 
 
@@ -106,9 +76,12 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "pcl_decimator");
   ros::NodeHandle n;
   tfl = new tf::TransformListener();
+  
+  // Allow the transform listner some time to receive messages
+  ros::Duration(3).sleep();
 
-  cloudout_pub_     = n.advertise< PointCloudXYZ >("/camera/depth/points_sliced", 1);
-  cloudout_old_pub_ = n.advertise< sensor_msgs::PointCloud >("/camera/depth/points_sliced_old", 1);
+  cloudout_pub_     = n.advertise< sensor_msgs::PointCloud2 >("/camera/depth/points_sliced"    , 1);
+  cloudout_old_pub_ = n.advertise< sensor_msgs::PointCloud  >("/camera/depth/points_sliced_old", 1);
 
   ros::Subscriber kinect_sub = n.subscribe("/camera/depth/points", 1, pointcloudCallback);
   
