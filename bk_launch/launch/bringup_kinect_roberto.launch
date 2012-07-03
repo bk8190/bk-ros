@@ -1,13 +1,16 @@
 <!-- Starts the OpenNI Kinect driver and sets up static transforms -->
 <launch>
 	<!-- Kinect driver -->
-	<include file="$(find bk_launch)/launch/openni.launch" >
+	<!--include file="$(find bk_launch)/launch/openni.launch" >
+	</include-->
+	
+	<include file="$(find openni_launch)/launch/openni.launch" >
 		<!--arg name="depth_frame_id" value="/camera/camera_depth_frame" /-->
 		<!--arg name="rgb_frame_id" value="/camera/camera_rgb_frame" /-->
 	</include>
 	
-	<param name="/camera/driver/depth_mode" value="8"/> <!-- QQVGA (160x120) 30Hz -->
-	<param name="/camera/driver/data_skip" value="10"/>
+	<!--param name="/camera/driver/depth_mode" value="8"/--> <!-- QQVGA (160x120) 30Hz -->
+	<!--param name="/camera/driver/data_skip" value="10"/-->
 	<param name="/camera/driver/depth_ir_offset_x" value="0.8"/>
 	<param name="/camera/driver/depth_ir_offset_y" value="23.6"/>
 	
