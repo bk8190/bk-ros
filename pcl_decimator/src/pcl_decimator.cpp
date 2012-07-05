@@ -57,6 +57,13 @@ void pointcloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_raw)
 	
 	//ROS_INFO("Publishing");
 	cloudout_pub_.publish(*cloud_downsampled);
+	
+	// Convert to 
+	sensor_msgs::PointCloud old_cloud;
+	sensor_msgs::convertPointCloud2ToPointCloud(*cloud_downsampled, old_cloud);
+	cloudout_old_pub_.publish(old_cloud);
+	
+	
 	ros::Duration(0.5).sleep();
 }
 
