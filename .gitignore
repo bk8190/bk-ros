@@ -35,6 +35,10 @@ mapping_msgs/msg_gen/
 
 pcl_decimator/bin/
 pcl_decimator/build/
+pcl_decimator/cfg/PCLDecimator.cfgc
+pcl_decimator/cfg/cpp/
+pcl_decimator/docs
+pcl_decimator/src/pcl_decimator/cfg/PCLDecimatorConfig.py
 
 person_tracker/bin/
 person_tracker/build/
