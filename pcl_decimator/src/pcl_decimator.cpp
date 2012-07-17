@@ -8,6 +8,7 @@
 #include "pcl/io/pcd_io.h"
 #include "pcl/filters/passthrough.h"
 #include "pcl/filters/voxel_grid.h"
+#include "pcl/filters/radius_outlier_removal.h"
 
 #include <string>
 #include <tf/transform_listener.h>
@@ -19,6 +20,8 @@ std::string fieldName_ = "z";
 float startPoint_ = .4;
 float endPoint_ = 1.0;
 float leafSize_ = 0.02;
+float outlierRadius_ = 0.02;
+int   numInRadius_ = 5;
 
 tf::TransformListener* tfl;
 
@@ -29,18 +32,16 @@ void pointcloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_raw)
 {
 	sensor_msgs::PointCloud2::Ptr cloud_transformed (new sensor_msgs::PointCloud2());
 	sensor_msgs::PointCloud2::Ptr cloud_cropped     (new sensor_msgs::PointCloud2());
+	sensor_msgs::PointCloud2::Ptr cloud_inliers     (new sensor_msgs::PointCloud2());
 	sensor_msgs::PointCloud2::Ptr cloud_downsampled (new sensor_msgs::PointCloud2());
 	
 	// Transform the pointcloud
 	try{
-		//ROS_INFO("Transforming");
 		pcl_ros::transformPointCloud( "base_link", *cloud_raw, *cloud_transformed, *tfl);
 	} catch( tf::TransformException ex ){
 		ROS_WARN_STREAM("PCL decimator could not transform: " << ex.what() );
 		return;
 	}
-	
-	//ROS_INFO("Filtering");
 	
 	// Create a pass-through filter
 	pcl::PassThrough<sensor_msgs::PointCloud2> pass;
@@ -49,14 +50,21 @@ void pointcloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_raw)
 	pass.setFilterLimits    (startPoint_, endPoint_);
 	pass.filter             (*cloud_cropped    );
 	
+	// Remove outliers
+	pcl::RadiusOutlierRemoval<sensor_msgs::PointCloud2> radius;
+	radius.setInputCloud    (cloud_cropped     );
+	radius.setRadiusSearch  (outlierRadius_    );
+	radius.setMinNeighborsInRadius(numInRadius_);
+	radius.filter           (*cloud_inliers    );
+
 	// Now create a voxel grid filter
 	pcl::VoxelGrid<sensor_msgs::PointCloud2> vgrid;
-	vgrid.setInputCloud (cloud_cropped      );
-	vgrid.setLeafSize   (leafSize_, leafSize_, leafSize_);
-	vgrid.filter        (*cloud_downsampled );
+	vgrid.setInputCloud     (cloud_inliers      );
+	vgrid.setLeafSize       (leafSize_, leafSize_, leafSize_);
+	vgrid.filter            (*cloud_downsampled );
 	
 	//ROS_INFO("Publishing");
-	cloudout_pub_.publish(*cloud_downsampled);
+	cloudout_pub_.publish   (*cloud_downsampled);
 	
 	// Convert to 
 	sensor_msgs::PointCloud old_cloud;
@@ -75,6 +83,8 @@ void callback(pcl_decimator::PCLDecimatorConfig &config, uint32_t level)
   startPoint_ = config.start_threshold;
   endPoint_   = config.end_threshold;
   leafSize_   = config.leaf_size;
+  numInRadius_= config.num_in_radius;
+  outlierRadius_ = config.outlier_radius;
 }
 
 
