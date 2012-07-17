@@ -10,7 +10,7 @@
 	</include>
 	
 	<!--param name="/camera/driver/depth_mode" value="8"/--> <!-- QQVGA (160x120) 30Hz -->
-	<!--param name="/camera/driver/data_skip" value="10"/-->
+	<param name="/camera/driver/data_skip" value="10"/>
 	<param name="/camera/driver/depth_ir_offset_x" value="0.8"/>
 	<param name="/camera/driver/depth_ir_offset_y" value="23.6"/>
 	
@@ -23,7 +23,7 @@
 	</node-->
 	
 	<!-- Create a downsampled version of the depth cloud -->
-	<!--node pkg="pcl_decimator" type="pcl_decimator" name="pcl_decimator">
-	</node-->
+	<node pkg="pcl_decimator" type="pcl_decimator" name="pcl_decimator">
+	</node>
 	
 </launch>
