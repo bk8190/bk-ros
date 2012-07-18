@@ -20,7 +20,7 @@ std::string fieldName_ = "z";
 float startPoint_ = .4;
 float endPoint_ = 1.0;
 float leafSize_ = 0.02;
-float outlierRadius_ = 0.02;
+float outlierRadius_ = 0.2;
 int   numInRadius_ = 5;
 
 tf::TransformListener* tfl;
@@ -37,12 +37,16 @@ void pointcloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_raw)
 	
 	// Transform the pointcloud
 	try{
+		ROS_DEBUG_STREAM("Transforming");
 		pcl_ros::transformPointCloud( "base_link", *cloud_raw, *cloud_transformed, *tfl);
 	} catch( tf::TransformException ex ){
 		ROS_WARN_STREAM("PCL decimator could not transform: " << ex.what() );
 		return;
 	}
-	
+
+	ros::Time t1 = ros::Time::now();	
+
+	ROS_DEBUG_STREAM("Filtering");
 	// Create a pass-through filter
 	pcl::PassThrough<sensor_msgs::PointCloud2> pass;
 	pass.setInputCloud      (cloud_transformed );
@@ -50,21 +54,24 @@ void pointcloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_raw)
 	pass.setFilterLimits    (startPoint_, endPoint_);
 	pass.filter             (*cloud_cropped    );
 	
+	// Now create a voxel grid filter
+	pcl::VoxelGrid<sensor_msgs::PointCloud2> vgrid;
+	vgrid.setInputCloud     (cloud_cropped      );
+	vgrid.setLeafSize       (leafSize_, leafSize_, leafSize_);
+	vgrid.filter            (*cloud_downsampled );
+	
 	// Remove outliers
 	pcl::RadiusOutlierRemoval<sensor_msgs::PointCloud2> radius;
-	radius.setInputCloud    (cloud_cropped     );
+	radius.setInputCloud    (cloud_downsampled     );
 	radius.setRadiusSearch  (outlierRadius_    );
 	radius.setMinNeighborsInRadius(numInRadius_);
 	radius.filter           (*cloud_inliers    );
 
-	// Now create a voxel grid filter
-	pcl::VoxelGrid<sensor_msgs::PointCloud2> vgrid;
-	vgrid.setInputCloud     (cloud_inliers      );
-	vgrid.setLeafSize       (leafSize_, leafSize_, leafSize_);
-	vgrid.filter            (*cloud_downsampled );
-	
-	//ROS_INFO("Publishing");
-	cloudout_pub_.publish   (*cloud_downsampled);
+
+	ros::Duration d = ros::Time::now() - t1;
+	ROS_DEBUG_STREAM("Filtering took " << (d.toSec()) << " seconds.");
+
+	cloudout_pub_.publish   (*cloud_inliers);
 	
 	// Convert to 
 	sensor_msgs::PointCloud old_cloud;
